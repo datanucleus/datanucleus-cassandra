@@ -34,6 +34,7 @@ import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
+import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Session;
 
@@ -120,18 +121,6 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
-    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
-    {
-        if (autoCreateTables)
-        {
-            // TODO Create the table(s) required for this class
-        }
-        if (autoCreateConstraints)
-        {
-            // TODO Create the constraint(s) required for this class
-        }
-    }
-
     /* (non-Javadoc)
      * @see org.datanucleus.store.schema.SchemaAwareStoreManager#createSchema(java.util.Set, java.util.Properties)
      */
@@ -161,6 +150,21 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
+    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
+    {
+        // TODO Does the keyspace exist? if not then create it "CREATE KEYSPACE schemaName WITH replication ..."
+        if (autoCreateTables)
+        {
+            // TODO Create the table(s) required for this class
+//            String tableName = getNamingFactory().getTableName(cmd);
+            // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
+        }
+        if (autoCreateConstraints)
+        {
+            // TODO Create the constraint(s) required for this class
+        }
+    }
+
     /* (non-Javadoc)
      * @see org.datanucleus.store.schema.SchemaAwareStoreManager#deleteSchema(java.util.Set, java.util.Properties)
      */
@@ -170,7 +174,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         ManagedConnection mconn = getConnection(-1);
         try
         {
-//            Session session = (Session)mconn.getConnection();
+            Session session = (Session)mconn.getConnection();
 
             Iterator<String> classIter = classNames.iterator();
             ClassLoaderResolver clr = nucleusContext.getClassLoaderResolver(null);
@@ -180,9 +184,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
                 if (cmd != null)
                 {
-                    // TODO Implement drop of Cassandra table
+                    String tableName = getNamingFactory().getTableName(cmd);
+                    // TODO Prefix with keyspace (schemaName)
+                    String stmt = "DROP TABLE " + tableName;
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmt);
+                    session.execute(stmt);
                 }
             }
+
+            // TODO Drop the keyspace?
         }
         finally
         {
