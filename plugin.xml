@@ -29,4 +29,10 @@ Contributors:
         <connectionfactory name="cassandra" class-name="org.datanucleus.store.cassandra.ConnectionFactoryImpl" transactional="true"
             datastore="cassandra"/>
     </extension>
+
+    <!-- QUERY LANGUAGES -->
+    <extension point="org.datanucleus.store_query_query">
+        <query class-name="org.datanucleus.store.cassandra.query.JDOQLQuery" datastore="cassandra" name="JDOQL"/>
+        <query class-name="org.datanucleus.store.cassandra.query.JPQLQuery" datastore="cassandra" name="JPQL"/>
+    </extension>
 </plugin>
