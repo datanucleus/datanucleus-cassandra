@@ -18,7 +18,7 @@
 
     <properties>
         <dn.core.version>3.2.9</dn.core.version>
-        <cassandra.version>3.0</cassandra.version>
+        <cassandra.version>2.0.0-rc1</cassandra.version>
     </properties>
 
     <scm>
@@ -34,12 +34,11 @@
             <version>[${dn.core.version}, )</version>
             <scope>provided</scope>
         </dependency>
-        <!-- ADD CASSANDRA JAVA DRIVER -->
-        <!--dependency>
-            <groupId>org.mongodb</groupId>
-            <artifactId>mongo-java-driver</artifactId>
+        <dependency>
+            <groupId>com.datastax.cassandra</groupId>
+            <artifactId>cassandra-driver-core</artifactId>
             <version>${cassandra.version}</version>
-        </dependency-->
+        </dependency>
     </dependencies>
 
     <build>
@@ -57,7 +56,7 @@
                     <instructions>
                         <Bundle-SymbolicName>org.datanucleus.store.cassandra;singleton:=true</Bundle-SymbolicName>
                         <Import-Package>
-                            com.cassandra*;version="${cassandra.version}",
+                            com.datastax.cassandra*;version="${cassandra.version}",
                             org.datanucleus*;version="${dn.core.version}",
                             *;resolution:=optional
                         </Import-Package>
