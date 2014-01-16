@@ -28,6 +28,8 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
+import com.datastax.driver.core.Session;
+
 /**
  * Handler for basic persistence operations with Cassandra datastores.
  */
@@ -53,11 +55,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
         {
+            Session session = (Session)mconn.getConnection();
+
             AbstractClassMetaData cmd = op.getClassMetaData();
             if (!storeMgr.managesClass(cmd.getFullClassName()))
             {
                 // Make sure schema exists, using this connection
-                storeMgr.addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver());
+                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
 
             long startTime = System.currentTimeMillis();

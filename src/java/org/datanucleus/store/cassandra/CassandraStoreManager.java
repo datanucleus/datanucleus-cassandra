@@ -19,14 +19,23 @@ package org.datanucleus.store.cassandra;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.NucleusContext;
+import org.datanucleus.exceptions.NucleusException;
+import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.ClassMetaData;
+import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
+import org.datanucleus.store.StoreData;
+import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
+
+import com.datastax.driver.core.Session;
 
 /**
  * StoreManager for persisting to Cassandra datastores.
@@ -59,14 +68,97 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return set;
     }
 
+    public void addClasses(String[] classNames, ClassLoaderResolver clr)
+    {
+        if (classNames == null)
+        {
+            return;
+        }
+
+        ManagedConnection mconn = getConnection(-1);
+        try
+        {
+            Session session = (Session)mconn.getConnection();
+            addClasses(classNames, clr, session);
+        }
+        finally
+        {
+            mconn.release();
+        }
+    }
+
+    public void addClasses(String[] classNames, ClassLoaderResolver clr, Session session)
+    {
+        if (classNames == null)
+        {
+            return;
+        }
+
+        // Filter out any "simple" type classes
+        String[] filteredClassNames = 
+            getNucleusContext().getTypeManager().filterOutSupportedSecondClassNames(classNames);
+
+        // Find the ClassMetaData for these classes and all referenced by these classes
+        Iterator iter = getMetaDataManager().getReferencedClasses(filteredClassNames, clr).iterator();
+        while (iter.hasNext())
+        {
+            ClassMetaData cmd = (ClassMetaData)iter.next();
+            if (cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE)
+            {
+                if (!storeDataMgr.managesClass(cmd.getFullClassName()))
+                {
+                    StoreData sd = storeDataMgr.get(cmd.getFullClassName());
+                    if (sd == null)
+                    {
+                        registerStoreData(newStoreData(cmd, clr));
+                    }
+
+                    // Create schema for class
+                    createSchemaForClass(cmd, session);
+                }
+            }
+        }
+    }
+
+    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
+    {
+        if (autoCreateTables)
+        {
+            // TODO Create the table(s) required for this class
+        }
+        if (autoCreateConstraints)
+        {
+            // TODO Create the constraint(s) required for this class
+        }
+    }
+
     /* (non-Javadoc)
      * @see org.datanucleus.store.schema.SchemaAwareStoreManager#createSchema(java.util.Set, java.util.Properties)
      */
     @Override
     public void createSchema(Set<String> classNames, Properties props)
     {
-        // TODO Implement this
-        throw new UnsupportedOperationException("Dont currently support schema creation");
+        ManagedConnection mconn = getConnection(-1);
+        try
+        {
+            Session session = (Session)mconn.getConnection();
+
+            Iterator<String> classIter = classNames.iterator();
+            ClassLoaderResolver clr = nucleusContext.getClassLoaderResolver(null);
+            while (classIter.hasNext())
+            {
+                String className = classIter.next();
+                AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
+                if (cmd != null)
+                {
+                    createSchemaForClass(cmd, session);
+                }
+            }
+        }
+        finally
+        {
+            mconn.release();
+        }
     }
 
     /* (non-Javadoc)
@@ -75,8 +167,27 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public void deleteSchema(Set<String> classNames, Properties props)
     {
-        // TODO Implement this
-        throw new UnsupportedOperationException("Dont currently support schema deletion");
+        ManagedConnection mconn = getConnection(-1);
+        try
+        {
+//            Session session = (Session)mconn.getConnection();
+
+            Iterator<String> classIter = classNames.iterator();
+            ClassLoaderResolver clr = nucleusContext.getClassLoaderResolver(null);
+            while (classIter.hasNext())
+            {
+                String className = classIter.next();
+                AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
+                if (cmd != null)
+                {
+                    // TODO Implement drop of Cassandra table
+                }
+            }
+        }
+        finally
+        {
+            mconn.release();
+        }
     }
 
     /* (non-Javadoc)
@@ -85,7 +196,22 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public void validateSchema(Set<String> classNames, Properties props)
     {
-        // TODO Implement this
-        throw new UnsupportedOperationException("Dont currently support schema validation");
+        boolean success = true;
+        ManagedConnection mconn = getConnection(-1);
+        try
+        {
+//            Session session = (Session)mconn.getConnection();
+
+            // TODO Implement validaton of schema
+        }
+        finally
+        {
+            mconn.release();
+        }
+
+        if (!success)
+        {
+            throw new NucleusException("Errors were encountered during validation of MongoDB schema");
+        }
     }
 }
