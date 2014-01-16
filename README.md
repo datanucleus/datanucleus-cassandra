@@ -1,7 +1,7 @@
 # datanucleus-cassandra
 
 DataNucleus support for persistence to Cassandra datastores. This plugin makes use of the 
-[DataStax Java driver[(http://www.datastax.com/documentation/developer/java-driver/1.0/webhelp/index.html) for communicating with the datastore.
+[DataStax Java driver](http://www.datastax.com/documentation/developer/java-driver/1.0/webhelp/index.html) for communicating with the datastore.
 
 __This plugin is not fully developed yet. If you want to help write this plugin please register your interest on the DataNucleus Forum__
 
