@@ -42,10 +42,13 @@ import com.datastax.driver.core.Session;
  * <pre>cassandra:[{server1}][/{dbName}][,{server2}[,{server3}]]</pre>
  * Defaults to a server of "localhost"/"127.0.0.1" if nothing specified
  * TODO Update this URL to include all config that Cassandra allows
- * TODO Should we use one Session per EMF/PMF ? or one per EM/PM ? sine Cassandra doesn't do real txns then not obvious. Are they thread-safe?
+ * TODO Should we use one Session per EMF/PMF ? or one per EM/PM ? since Cassandra doesn't do real txns then not obvious. Are they thread-safe? Currently does one Session per PM/EM
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
 {
+    public static final String CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.readTimeoutMillis";
+    public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
+
     Cluster cluster;
 
     /**
@@ -73,6 +76,19 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         Builder builder = Cluster.builder();
         builder.addContactPoint("127.0.0.1");
         cluster = builder.build();
+
+        // Set any configuration options the user requires
+        int readTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS);
+        if (readTimeout != 0)
+        {
+            cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(readTimeout);
+        }
+        int connectTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS);
+        if (connectTimeout != 0)
+        {
+            cluster.getConfiguration().getSocketOptions().setConnectTimeoutMillis(connectTimeout);
+        }
+        // TODO Allow setting Configuration options, see plugin.xml following same process as above properties
     }
 
     public void close()
@@ -138,15 +154,18 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPreClose();
             }
 
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " is committing");
-                // TODO End the Session?
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " committed connection");
+            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " is committing");
+            // TODO End the Session?
+            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " committed connection");
 
             // Removes the connection from pooling
             for (int i=0; i<listeners.size(); i++)
             {
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPostClose();
             }
+
+            ((Session)conn).shutdown();
+            conn = null;
         }
 
         public XAResource getXAResource()

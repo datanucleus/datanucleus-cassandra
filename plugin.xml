@@ -30,6 +30,12 @@ Contributors:
             datastore="cassandra"/>
     </extension>
 
+    <!-- PERSISTENCE PROPERTIES -->
+    <extension point="org.datanucleus.persistence_properties">
+        <persistence-property name="datanucleus.cassandra.socket.readTimeoutMillis" datastore="true"/>
+        <persistence-property name="datanucleus.cassandra.socket.connectTimeoutMillis" datastore="true"/>
+    </extension>
+
     <!-- QUERY LANGUAGES -->
     <extension point="org.datanucleus.store_query_query">
         <query class-name="org.datanucleus.store.cassandra.query.JDOQLQuery" datastore="cassandra" name="JDOQL"/>
