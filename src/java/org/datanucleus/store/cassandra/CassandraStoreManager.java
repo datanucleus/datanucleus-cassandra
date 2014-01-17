@@ -32,6 +32,8 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
+import org.datanucleus.metadata.ColumnMetaData;
+import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -163,7 +165,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         // TODO Does the keyspace exist? if not then create it "CREATE KEYSPACE schemaName WITH replication ..."
         if (autoCreateTables)
         {
-            // TODO Create the table(s) required for this class
+            // Create the table(s) required for this class
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
             StringBuilder stmtBuilder = new StringBuilder("CREATE ");
             if (cmd.getSchema() != null)
@@ -207,7 +209,67 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         if (autoCreateConstraints)
         {
-            // TODO Create the constraint(s) required for this class
+            // Add class-level indexes
+            IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
+            if (clsIdxMds != null)
+            {
+                for (int i=0;i<clsIdxMds.length;i++)
+                {
+                    IndexMetaData idxmd = clsIdxMds[i];
+                    StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
+                    if (idxmd.getName() != null)
+                    {
+                        stmtBuilder.append(idxmd.getName());
+                    }
+                    else
+                    {
+                        // TODO Add default name - update NamingFactory to generate index name too
+                    }
+                    stmtBuilder.append(" ON ").append(tableName).append(" (");
+                    ColumnMetaData[] colmds = idxmd.getColumnMetaData();
+                    for (int j=0;j<colmds.length;j++)
+                    {
+                        if (j > 0)
+                        {
+                            stmtBuilder.append(',');
+                        }
+                        stmtBuilder.append(colmds[i].getName());
+                    }
+                    stmtBuilder.append(")");
+
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
+                    session.execute(stmtBuilder.toString());
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Created index for class " + cmd.getFullClassName() + " successfully");
+                }
+            }
+
+            // Add member-level indexes
+            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
+            for (int i=0;i<mmds.length;i++)
+            {
+                IndexMetaData idxmd = mmds[i].getIndexMetaData();
+                if (idxmd != null)
+                {
+                    String colName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
+                    StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
+                    if (idxmd.getName() != null)
+                    {
+                        stmtBuilder.append(idxmd.getName());
+                    }
+                    else
+                    {
+                        // TODO Add default name - update NamingFactory to generate index name too
+                    }
+                    stmtBuilder.append(" ON ").append(tableName).append(" (").append(colName).append(")");
+
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
+                    session.execute(stmtBuilder.toString());
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Created index for member " + mmds[i].getFullFieldName() + " successfully");
+                }
+            }
+            // TODO Index on version column? or discriminator?, or datastoreId?
+
+            // Cassandra doesn't support unique constraints or FKs at the moment
         }
     }
 
