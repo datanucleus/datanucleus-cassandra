@@ -26,14 +26,17 @@ import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.NucleusContext;
+import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
+import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Session;
@@ -43,6 +46,8 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
+    String schemaName = null;
+
     /**
      * Constructor.
      * @param clr ClassLoader resolver
@@ -55,6 +60,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         // Handler for persistence process
         persistenceHandler = new CassandraPersistenceHandler(this);
+
+        schemaName = getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
 
         logConfiguration();
     }
@@ -152,13 +159,52 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
     {
+        String tableName = getNamingFactory().getTableName(cmd);
         // TODO Does the keyspace exist? if not then create it "CREATE KEYSPACE schemaName WITH replication ..."
         if (autoCreateTables)
         {
             // TODO Create the table(s) required for this class
-//            String tableName = getNamingFactory().getTableName(cmd);
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
+            StringBuilder stmtBuilder = new StringBuilder("CREATE ");
+            if (cmd.getSchema() != null)
+            {
+                stmtBuilder.append(cmd.getSchema()).append('.').append(tableName);
+            }
+            else if (schemaName != null)
+            {
+                stmtBuilder.append(schemaName).append('.').append(tableName);
+            }
+            else
+            {
+                // No schema name ?
+                stmtBuilder.append(tableName);
+            }
+            stmtBuilder.append('(');
+            boolean firstCol = true;
+            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
+            for (int i=0;i<mmds.length;i++)
+            {
+                String cassandraType = CassandraUtils.getCassandraTypeForJavaType(mmds[i].getType(), nucleusContext.getTypeManager());
+                if (cassandraType == null)
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmds[i].getFullFieldName() + " of type "+ mmds[i].getTypeName() + " has no supported cassandra type! Ignoring");
+                }
+                else
+                {
+                    if (!firstCol)
+                    {
+                        stmtBuilder.append(',');
+                    }
+                    stmtBuilder.append(getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN)).append(' ').append(cassandraType);
+                }
+            }
+            stmtBuilder.append(')');
+
+            NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
+            session.execute(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug("Created table for class " + cmd.getFullClassName() + " successfully");
         }
+
         if (autoCreateConstraints)
         {
             // TODO Create the constraint(s) required for this class
