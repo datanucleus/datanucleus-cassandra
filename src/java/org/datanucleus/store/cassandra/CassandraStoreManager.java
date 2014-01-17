@@ -167,7 +167,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         {
             // Create the table(s) required for this class
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
-            StringBuilder stmtBuilder = new StringBuilder("CREATE ");
+            StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
             if (cmd.getSchema() != null)
             {
                 stmtBuilder.append(cmd.getSchema()).append('.').append(tableName);
