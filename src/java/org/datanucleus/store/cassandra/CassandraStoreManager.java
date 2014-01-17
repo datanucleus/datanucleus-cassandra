@@ -201,6 +201,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 }
             }
             stmtBuilder.append(')');
+            // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
 
             NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
             session.execute(stmtBuilder.toString());
