@@ -31,21 +31,27 @@ import org.datanucleus.store.connection.AbstractManagedConnection;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.connection.ManagedConnectionResourceListener;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Cluster.Builder;
+import com.datastax.driver.core.ProtocolOptions.Compression;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SocketOptions;
 
 /**
  * Connection factory for Cassandra datastores.
  * Accepts a URL of the form 
- * <pre>cassandra:[{server1}][/{dbName}][,{server2}[,{server3}]]</pre>
- * Defaults to a server of "localhost"/"127.0.0.1" if nothing specified
+ * <pre>cassandra:[{host:port}]</pre>
+ * Defaults to a server of "127.0.0.1" if nothing specified
  * TODO Update this URL to include all config that Cassandra allows
  * TODO Should we use one Session per EMF/PMF ? or one per EM/PM ? since Cassandra doesn't do real txns then not obvious. Are they thread-safe? Currently does one Session per PM/EM
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
 {
+    public static final String CASSANDRA_COMPRESSION = "datanucleus.cassandra.compression";
+    public static final String CASSANDRA_METRICS = "datanucleus.cassandra.metrics";
+    public static final String CASSANDRA_SSL = "datanucleus.cassandra.ssl";
     public static final String CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.readTimeoutMillis";
     public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
 
@@ -69,26 +75,96 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         String remains = url.substring(9).trim();
         if (remains.indexOf(':') == 0)
         {
-            remains = remains.substring(1);
+            remains = remains.substring(1).trim();
         }
-        // TODO Parse the connection URL and add contact point(s)
+        String host = "127.0.0.1";
+        String port = null;
+        if (!StringUtils.isWhitespace(remains))
+        {
+            int nextSemiColon = remains.indexOf(':');
+            if (nextSemiColon > 0)
+            {
+                port = remains.substring(nextSemiColon+1);
+                host = remains.substring(0, nextSemiColon);
+            }
+            else
+            {
+                host = remains.trim();
+            }
+        }
 
         Builder builder = Cluster.builder();
-        builder.addContactPoint("127.0.0.1");
-        cluster = builder.build();
+        builder.addContactPoint(host);
+        // TODO Support multiple contact points?
+        if (port != null)
+        {
+            int portNumber = 0;
+            try
+            {
+                portNumber = Integer.valueOf(port);
+            }
+            catch (NumberFormatException nfe)
+            {
+                NucleusLogger.CONNECTION.warn("Unable to convert '" + port + "' to port number for Cassandra, so ignoring");
+            }
+            if (portNumber > 0)
+            {
+                builder.withPort(portNumber);
+            }
+        }
 
-        // Set any configuration options the user requires
+        // Add any login credentials
+        String user = storeMgr.getConnectionUserName();
+        String passwd = storeMgr.getConnectionPassword();
+        if (!StringUtils.isWhitespace(user))
+        {
+            builder.withCredentials(user, passwd);
+        }
+
+        // TODO Support any other config options
+
+        String compression = storeMgr.getStringProperty(CASSANDRA_COMPRESSION);
+        if (!StringUtils.isWhitespace(compression))
+        {
+            builder.withCompression(Compression.valueOf(compression.toUpperCase()));
+        }
+
+        Boolean useSSL = storeMgr.getBooleanObjectProperty(CASSANDRA_SSL); // Defaults to false
+        if (useSSL != null && useSSL)
+        {
+            builder.withSSL();
+        }
+
+        Boolean useMetrics = storeMgr.getBooleanObjectProperty(CASSANDRA_METRICS); // Defaults to true
+        if (useMetrics != null && !useMetrics)
+        {
+            builder.withoutMetrics();
+        }
+
+        // Specify any socket options
+        SocketOptions socketOpts = null;
         int readTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS);
         if (readTimeout != 0)
         {
-            cluster.getConfiguration().getSocketOptions().setReadTimeoutMillis(readTimeout);
+            socketOpts = new SocketOptions();
+            socketOpts.setReadTimeoutMillis(readTimeout);
         }
         int connectTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS);
         if (connectTimeout != 0)
         {
-            cluster.getConfiguration().getSocketOptions().setConnectTimeoutMillis(connectTimeout);
+            if (socketOpts == null)
+            {
+                socketOpts = new SocketOptions();
+            }
+            socketOpts.setConnectTimeoutMillis(connectTimeout);
         }
-        // TODO Allow setting Configuration options, see plugin.xml following same process as above properties
+        if (socketOpts != null)
+        {
+            builder.withSocketOptions(socketOpts);
+        }
+
+        // Get the Cluster
+        cluster = builder.build();
     }
 
     public void close()

@@ -32,8 +32,16 @@ Contributors:
 
     <!-- PERSISTENCE PROPERTIES -->
     <extension point="org.datanucleus.persistence_properties">
-        <persistence-property name="datanucleus.cassandra.socket.readTimeoutMillis" datastore="true"/>
-        <persistence-property name="datanucleus.cassandra.socket.connectTimeoutMillis" datastore="true"/>
+        <persistence-property name="datanucleus.cassandra.compression" datastore="true"
+            validator="org.datanucleus.store.cassandra.CassandraPropertyValidator"/>
+        <persistence-property name="datanucleus.cassandra.metrics" datastore="true"
+            validator="org.datanucleus.properties.BooleanPropertyValidator"/>
+        <persistence-property name="datanucleus.cassandra.ssl" datastore="true"
+            validator="org.datanucleus.properties.BooleanPropertyValidator"/>
+        <persistence-property name="datanucleus.cassandra.socket.readTimeoutMillis" datastore="true"
+            validator="org.datanucleus.properties.IntegerPropertyValidator"/>
+        <persistence-property name="datanucleus.cassandra.socket.connectTimeoutMillis" datastore="true"
+            validator="org.datanucleus.properties.IntegerPropertyValidator"/>
     </extension>
 
     <!-- QUERY LANGUAGES -->
