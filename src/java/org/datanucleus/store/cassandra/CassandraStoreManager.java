@@ -78,6 +78,19 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return set;
     }
 
+    public String getSchemaNameForClass(AbstractClassMetaData cmd)
+    {
+        if (cmd.getSchema() != null)
+        {
+            return cmd.getSchema();
+        }
+        else if (schemaName != null)
+        {
+           return schemaName;
+        }
+        return null;
+    }
+
     public void addClasses(String[] classNames, ClassLoaderResolver clr)
     {
         if (classNames == null)
@@ -168,20 +181,13 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             // Create the table(s) required for this class
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
             StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
-            if (cmd.getSchema() != null)
+            String schemaNameForClass = getSchemaNameForClass(cmd);
+            if (schemaNameForClass != null)
             {
-                stmtBuilder.append(cmd.getSchema()).append('.').append(tableName);
+                stmtBuilder.append(schemaNameForClass).append('.');
             }
-            else if (schemaName != null)
-            {
-                stmtBuilder.append(schemaName).append('.').append(tableName);
-            }
-            else
-            {
-                // No schema name ?
-                stmtBuilder.append(tableName);
-            }
-            stmtBuilder.append('(');
+            stmtBuilder.append(tableName);
+            stmtBuilder.append(" (");
             boolean firstCol = true;
             AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
             for (int i=0;i<mmds.length;i++)
@@ -226,7 +232,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     {
                         // TODO Add default name - update NamingFactory to generate index name too
                     }
-                    stmtBuilder.append(" ON ").append(tableName).append(" (");
+                    stmtBuilder.append(" ON ").append(tableName).append(" ("); // TODO Is the schema name needed?
                     ColumnMetaData[] colmds = idxmd.getColumnMetaData();
                     for (int j=0;j<colmds.length;j++)
                     {
@@ -261,7 +267,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     {
                         // TODO Add default name - update NamingFactory to generate index name too
                     }
-                    stmtBuilder.append(" ON ").append(tableName).append(" (").append(colName).append(")");
+                    stmtBuilder.append(" ON ").append(tableName).append(" (").append(colName).append(")"); // TODO Is the schema name needed?
 
                     NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
                     session.execute(stmtBuilder.toString());
@@ -294,10 +300,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 if (cmd != null)
                 {
                     String tableName = getNamingFactory().getTableName(cmd);
-                    // TODO Prefix with keyspace (schemaName)
-                    String stmt = "DROP TABLE " + tableName;
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmt);
-                    session.execute(stmt);
+                    StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
+                    String schemaNameForClass = getSchemaNameForClass(cmd);
+                    if (schemaNameForClass != null)
+                    {
+                        stmtBuilder.append(schemaNameForClass).append('.');
+                    }
+                    stmtBuilder.append(tableName);
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
+                    session.execute(stmtBuilder.toString());
                 }
             }
 
@@ -330,7 +341,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         if (!success)
         {
-            throw new NucleusException("Errors were encountered during validation of MongoDB schema");
+            throw new NucleusException("Errors were encountered during validation of Cassandra schema");
         }
     }
 }

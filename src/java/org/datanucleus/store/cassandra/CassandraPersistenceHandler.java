@@ -17,16 +17,23 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
+import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Session;
 
@@ -71,12 +78,43 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // TODO Implement INSERT
+            // Create PreparedStatement and values to bind
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
+            StringBuilder insertStmt = new StringBuilder("INSERT INTO ");
+            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+            if (schemaName != null)
+            {
+                insertStmt.append(schemaName).append('.');
+            }
+            insertStmt.append(namingFactory.getTableName(cmd)).append("(");
+            StringBuilder insertValuesStr = new StringBuilder("(");
+            List fieldValues = new ArrayList();
+            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
+            for (int i = 0;i<mmds.length;i++)
+            {
+                AbstractMemberMetaData mmd = mmds[i];
+                if (i > 0)
+                {
+                    insertStmt.append(',');
+                    insertValuesStr.append(',');
+                }
+                insertStmt.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
+                insertValuesStr.append('?');
+                Object val = op.provideField(mmd.getAbsoluteFieldNumber());
+                // TODO Convert this value into the type that will be stored - need helper method
+                fieldValues.add(val);
+            }
+            insertStmt.append(") ");
+            insertValuesStr.append(")");
+            insertStmt.append(insertValuesStr.toString());
+            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " paramValues=" + StringUtils.collectionToString(fieldValues));
+            // TODO Create PreparedStatement using statement, bind the values, and execute it
+
             if (ec.getStatistics() != null)
             {
                 ec.getStatistics().incrementNumWrites();
             }
-            // TODO Handle PK id attributed in datastore (IDENTITY value generation)
+            // TODO Handle PK id attributed in datastore (IDENTITY value generation) - retrieve value and set it on the object
 
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
@@ -233,7 +271,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // TODO Support fetch operation
+            // TODO Implement FETCH of required fields
 
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {
