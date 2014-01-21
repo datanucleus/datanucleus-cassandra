@@ -89,7 +89,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (insertStmt == null)
             {
-                // Create PreparedStatement and values to bind ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
+                // TODO Is it permissible to insert null values? if not then we cannot cache the statement and should only include a column if it has a value
+                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
                 NamingFactory namingFactory = storeMgr.getNamingFactory();
                 StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
                 String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
@@ -302,6 +303,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             // TODO Support any USING clauses
             // TODO Implement FETCH of required fields
+        //    FetchFieldManager fetchFM = new FetchFieldManager(op, null); // TODO Put row in
+        //    op.replaceFields(fieldNumbers, fetchFM);
 
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {

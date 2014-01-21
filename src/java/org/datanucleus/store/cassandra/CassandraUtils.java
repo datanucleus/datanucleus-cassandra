@@ -26,6 +26,9 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.RelationType;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
 
@@ -64,37 +67,69 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
     }
 
-    public static String getCassandraTypeForJavaType(Class type, TypeManager typeMgr)
+    /**
+     * Method to return the cassandra column type that the specified member will be stored as.
+     * @param mmd Metadata for the member
+     * @param typeMgr Type manager
+     * @return The cassandra column type
+     */
+    public static String getCassandraColumnTypeForMember(AbstractMemberMetaData mmd, TypeManager typeMgr, ClassLoaderResolver clr)
     {
+        Class type = mmd.getType();
         String cTypeName = cassandraTypeByJavaType.get(type.getName());
         if (cTypeName != null)
         {
             return cTypeName;
         }
 
-        // TODO Support Collections/Sets/Lists/Map - return Set/List/Map of varchar/bigint for example
-        // No direct mapping, so find a converter
-        TypeConverter stringConverter = typeMgr.getTypeConverterForType(type, String.class);
-        if (stringConverter != null)
+        RelationType relType = mmd.getRelationType(clr);
+        // TODO Support embedded relations
+        if (RelationType.isRelationSingleValued(relType))
         {
-            return "varchar";
+            // TODO Are we going to store just the String form of the id like in MongoDB?
         }
-        TypeConverter longConverter = typeMgr.getTypeConverterForType(type, Long.class);
-        if (longConverter != null)
+        else if (RelationType.isRelationMultiValued(relType))
         {
-            return "bigint";
+            // TODO Are we going to store a Collection<String form of the id> like in MongoDB?
         }
-        TypeConverter intConverter = typeMgr.getTypeConverterForType(type, Integer.class);
-        if (intConverter != null)
+        else
         {
-            return "int";
-        }
-        if (Serializable.class.isAssignableFrom(type))
-        {
-            return "blob";
+            // TODO Support Collections/Sets/Lists/Map - return Set/List/Map of varchar/bigint for example
+            // No direct mapping, so find a converter
+            TypeConverter stringConverter = typeMgr.getTypeConverterForType(type, String.class);
+            if (stringConverter != null)
+            {
+                return "varchar";
+            }
+            TypeConverter longConverter = typeMgr.getTypeConverterForType(type, Long.class);
+            if (longConverter != null)
+            {
+                return "bigint";
+            }
+            TypeConverter intConverter = typeMgr.getTypeConverterForType(type, Integer.class);
+            if (intConverter != null)
+            {
+                return "int";
+            }
+            if (Serializable.class.isAssignableFrom(type))
+            {
+                return "blob";
+            }
         }
 
         // Just mark as no appropriate type
         return null;
+    }
+
+    /**
+     * Convenience method to convert from a member value to the value to be stored in Cassandra.
+     * @param mmd Metadata for the member
+     * @param memberValue Value for the member
+     * @return The value to be stored
+     */
+    public static Object getDatastoreValueForMemberValue(AbstractMemberMetaData mmd, Object memberValue)
+    {
+        // TODO Do the conversion to match above types
+        return memberValue;
     }
 }

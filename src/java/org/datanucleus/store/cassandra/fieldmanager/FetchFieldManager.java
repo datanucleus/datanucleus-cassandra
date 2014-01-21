@@ -17,120 +17,125 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
-import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
+import org.datanucleus.store.fieldmanager.AbstractFieldManager;
+import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.types.converters.TypeConverter;
+
+import com.datastax.driver.core.Row;
 
 /**
- * FieldManager for the storing of field values into Cassandra.
+ * FieldManager to use for retrieving values from Cassandra to put into a persistable object.
  */
-public class StoreFieldManager extends AbstractStoreFieldManager
+public class FetchFieldManager extends AbstractFieldManager
 {
-    List objectValues = new ArrayList();
+    protected ObjectProvider op;
+
+    protected Row row;
 
     /** Metadata of the owner field if this is for an embedded object. */
     protected AbstractMemberMetaData ownerMmd = null;
 
-    public StoreFieldManager(ObjectProvider op, boolean insert)
+    public FetchFieldManager(ObjectProvider op, Row row)
     {
-        super(op, insert);
+        this.op = op;
+        this.row = row;
     }
 
-    public Object[] getValuesToStore()
+    protected String getFieldName(int fieldNumber)
     {
-        return objectValues.toArray();
-    }
-
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeBooleanField(int, boolean)
-     */
-    @Override
-    public void storeBooleanField(int fieldNumber, boolean value)
-    {
-        objectValues.add(value);
+        return op.getExecutionContext().getStoreManager().getNamingFactory().getColumnName(
+            op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeCharField(int, char)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchBooleanField(int)
      */
     @Override
-    public void storeCharField(int fieldNumber, char value)
+    public boolean fetchBooleanField(int fieldNumber)
     {
-        objectValues.add("" + value);
+        return row.getBool(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeByteField(int, byte)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchCharField(int)
      */
     @Override
-    public void storeByteField(int fieldNumber, byte value)
+    public char fetchCharField(int fieldNumber)
     {
-        objectValues.add((int)value);
+        return row.getString(getFieldName(fieldNumber)).charAt(0);
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeShortField(int, short)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchByteField(int)
      */
     @Override
-    public void storeShortField(int fieldNumber, short value)
+    public byte fetchByteField(int fieldNumber)
     {
-        objectValues.add(value);
+        return (byte) row.getInt(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeIntField(int, int)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchShortField(int)
      */
     @Override
-    public void storeIntField(int fieldNumber, int value)
+    public short fetchShortField(int fieldNumber)
     {
-        objectValues.add(value);
+        return (short) row.getInt(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeLongField(int, long)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchIntField(int)
      */
     @Override
-    public void storeLongField(int fieldNumber, long value)
+    public int fetchIntField(int fieldNumber)
     {
-        objectValues.add(value);
+        return row.getInt(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeFloatField(int, float)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchLongField(int)
      */
     @Override
-    public void storeFloatField(int fieldNumber, float value)
+    public long fetchLongField(int fieldNumber)
     {
-        objectValues.add(value);
+        return row.getLong(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeDoubleField(int, double)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchFloatField(int)
      */
     @Override
-    public void storeDoubleField(int fieldNumber, double value)
+    public float fetchFloatField(int fieldNumber)
     {
-        objectValues.add(value);
+        return row.getFloat(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeStringField(int, java.lang.String)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchDoubleField(int)
      */
     @Override
-    public void storeStringField(int fieldNumber, String value)
+    public double fetchDoubleField(int fieldNumber)
     {
-        objectValues.add(value);
+        return row.getDouble(getFieldName(fieldNumber));
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeObjectField(int, java.lang.Object)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchStringField(int)
      */
     @Override
-    public void storeObjectField(int fieldNumber, Object value)
+    public String fetchStringField(int fieldNumber)
+    {
+        return row.getString(getFieldName(fieldNumber));
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchObjectField(int)
+     */
+    @Override
+    public Object fetchObjectField(int fieldNumber)
     {
         AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         RelationType relationType = mmd.getRelationType(op.getExecutionContext().getClassLoaderResolver());
@@ -196,7 +201,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 // TODO Embedded Collection
             }
-            return;
         }
 
         if (RelationType.isRelationSingleValued(relationType))
@@ -207,8 +211,21 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             // TODO Get value for collection/map of persistable objects - trigger cascade persist
         }
+        else
+        {
+            TypeConverter stringConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+            if (stringConverter != null)
+            {
+                return stringConverter.toMemberType(row.getString(getFieldName(fieldNumber)));
+            }
+            TypeConverter longConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
+            if (longConverter != null)
+            {
+                return longConverter.toMemberType(row.getLong(getFieldName(fieldNumber)));
+            }
+        }
 
-        // TODO Implement this
-        super.storeObjectField(fieldNumber, value);
+        // TODO Auto-generated method stub
+        return super.fetchObjectField(fieldNumber);
     }
 }

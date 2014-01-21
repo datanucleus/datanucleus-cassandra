@@ -179,6 +179,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
     {
         String schemaNameForClass = getSchemaNameForClass(cmd);
+        ClassLoaderResolver clr = getNucleusContext().getClassLoaderResolver(null);
         String tableName = getNamingFactory().getTableName(cmd);
         if (autoCreateTables)
         {
@@ -195,7 +196,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
             for (int i=0;i<mmds.length;i++)
             {
-                String cassandraType = CassandraUtils.getCassandraTypeForJavaType(mmds[i].getType(), nucleusContext.getTypeManager());
+                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], nucleusContext.getTypeManager(), clr);
                 if (cassandraType == null)
                 {
                     NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmds[i].getFullFieldName() + " of type "+ mmds[i].getTypeName() + " has no supported cassandra type! Ignoring");
