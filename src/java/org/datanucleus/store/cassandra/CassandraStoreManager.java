@@ -175,14 +175,13 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
     {
+        String schemaNameForClass = getSchemaNameForClass(cmd);
         String tableName = getNamingFactory().getTableName(cmd);
-        // TODO Does the keyspace exist? if not then create it "CREATE KEYSPACE schemaName WITH replication ..."
         if (autoCreateTables)
         {
             // Create the table(s) required for this class
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
             StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
-            String schemaNameForClass = getSchemaNameForClass(cmd);
             if (schemaNameForClass != null)
             {
                 stmtBuilder.append(schemaNameForClass).append('.');
@@ -215,7 +214,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     stmtBuilder.append(',');
                 }
                 String colName = getNamingFactory().getColumnName(cmd, ColumnType.DATASTOREID_COLUMN);
-                String colType = "bigint"; // TODO Set the type based on jdbc-type of the datastore-id metadata
+                String colType = "bigint"; // TODO Set the type based on jdbc-type of the datastore-id metadata : uuid?, varchar?
                 stmtBuilder.append(colName).append(" ").append(colType);
 
                 stmtBuilder.append(",PRIMARY KEY (").append(colName).append(")");
@@ -264,7 +263,14 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
                     }
                     stmtBuilder.append(idxName);
-                    stmtBuilder.append(" ON ").append(tableName).append(" ("); // TODO Is the schema name needed?
+                    stmtBuilder.append(" ON ");
+                    if (schemaNameForClass != null)
+                    {
+                        stmtBuilder.append(schemaNameForClass).append('.');
+                    }
+                    stmtBuilder.append(tableName);
+
+                    stmtBuilder.append(" (");
                     ColumnMetaData[] colmds = idxmd.getColumnMetaData();
                     for (int j=0;j<colmds.length;j++)
                     {
@@ -297,7 +303,14 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         idxName = getNamingFactory().getIndexName(mmds[i], idxmd);
                     }
                     stmtBuilder.append(idxName);
-                    stmtBuilder.append(" ON ").append(tableName).append(" (").append(colName).append(")"); // TODO Is the schema name needed?
+                    stmtBuilder.append(" ON ");
+                    if (schemaNameForClass != null)
+                    {
+                        stmtBuilder.append(schemaNameForClass).append('.');
+                    }
+                    stmtBuilder.append(tableName);
+
+                    stmtBuilder.append(" (").append(colName).append(")");
 
                     NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
                     session.execute(stmtBuilder.toString());
