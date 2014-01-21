@@ -72,6 +72,7 @@ public class CassandraUtils
             return cTypeName;
         }
 
+        // TODO Support Collections/Sets/Lists/Map - return Set/List/Map of varchar/bigint for example
         // No direct mapping, so find a converter
         TypeConverter stringConverter = typeMgr.getTypeConverterForType(type, String.class);
         if (stringConverter != null)
