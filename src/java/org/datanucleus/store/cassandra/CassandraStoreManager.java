@@ -261,7 +261,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     String idxName = idxmd.getName();
                     if (idxName == null)
                     {
-                        // TODO Add default name - update NamingFactory to generate index name too
+                        idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
                     }
                     stmtBuilder.append(idxName);
                     stmtBuilder.append(" ON ").append(tableName).append(" ("); // TODO Is the schema name needed?
@@ -294,7 +294,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     String idxName = idxmd.getName();
                     if (idxName == null)
                     {
-                        // TODO Add default name - update NamingFactory to generate index name too
+                        idxName = getNamingFactory().getIndexName(mmds[i], idxmd);
                     }
                     stmtBuilder.append(idxName);
                     stmtBuilder.append(" ON ").append(tableName).append(" (").append(colName).append(")"); // TODO Is the schema name needed?
@@ -340,7 +340,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                             String idxName = idxmd.getName();
                             if (idxName == null)
                             {
-                                // TODO Add default name - update NamingFactory to generate index name too
+                                idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
                             }
                             NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
                             session.execute(stmtBuilder.toString());
@@ -358,7 +358,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                             String idxName = idxmd.getName();
                             if (idxName == null)
                             {
-                                // TODO Add default name - update NamingFactory to generate index name too
+                                idxName = getNamingFactory().getIndexName(mmds[i], idxmd);
                             }
                             NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
                             session.execute(stmtBuilder.toString());
