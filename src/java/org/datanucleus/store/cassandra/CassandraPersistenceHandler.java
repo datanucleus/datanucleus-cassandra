@@ -78,7 +78,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // Create PreparedStatement and values to bind
+            // Create PreparedStatement and values to bind ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
             StringBuilder insertStmt = new StringBuilder("INSERT INTO ");
             String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
@@ -104,8 +104,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // TODO Convert this value into the type that will be stored - need helper method
                 fieldValues.add(val);
             }
+            // TODO Set any discriminator
+            // TODO Set any version field
             insertStmt.append(") ");
             insertValuesStr.append(")");
+            // TODO Support any USING clauses
             insertStmt.append(insertValuesStr.toString());
             NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " paramValues=" + StringUtils.collectionToString(fieldValues));
             // TODO Create PreparedStatement using statement, bind the values, and execute it
@@ -168,6 +171,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId(), fieldStr.toString()));
             }
 
+            // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
+            // TODO Support any USING clauses
             // TODO Implement UPDATE
 
             if (ec.getStatistics() != null)
@@ -207,6 +212,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
+            // Create PreparedStatement and values to bind ("DELETE COL1,COL2,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            // TODO Support any USING clauses
             // TODO Implement DELETE
 
             if (ec.getStatistics() != null)
@@ -271,6 +278,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
+            // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            // TODO Support any USING clauses
             // TODO Implement FETCH of required fields
 
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
@@ -299,6 +308,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             ManagedConnection mconn = storeMgr.getConnection(ec);
             try
             {
+                // Create PreparedStatement and values to bind ("SELECT 1 FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
                 // TODO Implement LOCATE of object
             }
             finally
