@@ -17,8 +17,8 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.exceptions.NucleusDataStoreException;
@@ -28,6 +28,7 @@ import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
@@ -44,6 +45,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 {
     protected static final Localiser LOCALISER_CASSANDRA = Localiser.getInstance(
         "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
+
+    protected Map<String, String> insertStatementByClassName;
 
     public CassandraPersistenceHandler(StoreManager storeMgr)
     {
@@ -78,40 +81,57 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // TODO Trigger cascade persist of related objects
-            // Create PreparedStatement and values to bind ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-            NamingFactory namingFactory = storeMgr.getNamingFactory();
-            StringBuilder insertStmt = new StringBuilder("INSERT INTO ");
-            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
-            if (schemaName != null)
+            // Generate the INSERT statement, using cached form if available
+            String insertStmt = null;
+            if (insertStatementByClassName != null)
             {
-                insertStmt.append(schemaName).append('.');
+                insertStmt = insertStatementByClassName.get(cmd.getFullClassName());
             }
-            insertStmt.append(namingFactory.getTableName(cmd)).append("(");
-            StringBuilder insertValuesStr = new StringBuilder("(");
-            List fieldValues = new ArrayList();
-            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
-            for (int i = 0;i<mmds.length;i++)
+            if (insertStmt == null)
             {
-                AbstractMemberMetaData mmd = mmds[i];
-                if (i > 0)
+                // Create PreparedStatement and values to bind ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
+                NamingFactory namingFactory = storeMgr.getNamingFactory();
+                StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
+                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                if (schemaName != null)
                 {
-                    insertStmt.append(',');
-                    insertValuesStr.append(',');
+                    insertStmtBuilder.append(schemaName).append('.');
                 }
-                insertStmt.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
-                insertValuesStr.append('?');
-                Object val = op.provideField(mmd.getAbsoluteFieldNumber());
-                // TODO Convert this value into the type that will be stored - need helper method
-                fieldValues.add(val);
+                insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
+                StringBuilder insertValuesStr = new StringBuilder("(");
+                AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
+                for (int i = 0;i<mmds.length;i++)
+                {
+                    AbstractMemberMetaData mmd = mmds[i];
+                    if (i > 0)
+                    {
+                        insertStmtBuilder.append(',');
+                        insertValuesStr.append(',');
+                    }
+                    insertStmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
+                    insertValuesStr.append('?');
+                }
+                // TODO Set any discriminator
+                // TODO Set any version field
+                insertStmtBuilder.append(") ");
+                insertValuesStr.append(")");
+                // TODO Support any USING clauses
+                insertStmtBuilder.append(insertValuesStr.toString());
+
+                insertStmt = insertStmtBuilder.toString();
+                if (insertStatementByClassName == null)
+                {
+                    insertStatementByClassName = new HashMap<String, String>();
+                }
+                insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
             }
-            // TODO Set any discriminator
-            // TODO Set any version field
-            insertStmt.append(") ");
-            insertValuesStr.append(")");
-            // TODO Support any USING clauses
-            insertStmt.append(insertValuesStr.toString());
-            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " paramValues=" + StringUtils.collectionToString(fieldValues));
+
+            // Obtain the values to populate the statement with by using StoreFieldManager
+            // TODO If we are attributing this object in the datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
+            StoreFieldManager storeFM = new StoreFieldManager(op, true);
+            op.provideFields(cmd.getAllMemberPositions() , storeFM);
+            Object[] fieldValues = storeFM.getValuesToStore();
+            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " fieldValues=" + StringUtils.objectArrayToString(fieldValues));
             // TODO Create PreparedStatement using statement, bind the values, and execute it
 
             if (ec.getStatistics() != null)
