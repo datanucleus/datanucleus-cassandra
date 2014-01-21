@@ -205,6 +205,10 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     }
                     stmtBuilder.append(getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN)).append(' ').append(cassandraType);
                 }
+                if (i == 0)
+                {
+                    firstCol = false;
+                }
             }
 
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
