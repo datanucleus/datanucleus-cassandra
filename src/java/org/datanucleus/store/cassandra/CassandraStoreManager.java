@@ -40,6 +40,7 @@ import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Session;
@@ -63,6 +64,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         // Handler for persistence process
         persistenceHandler = new CassandraPersistenceHandler(this);
+
+        getNamingFactory().setNamingCase(NamingCase.UPPER_CASE);
 
         schemaName = getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
 

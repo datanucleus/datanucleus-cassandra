@@ -43,7 +43,7 @@ import com.datastax.driver.core.Session;
 public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 {
     protected static final Localiser LOCALISER_CASSANDRA = Localiser.getInstance(
-        "org.datanucleus.store.mongodb.Localisation", CassandraStoreManager.class.getClassLoader());
+        "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
 
     public CassandraPersistenceHandler(StoreManager storeMgr)
     {
@@ -78,6 +78,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
+            // TODO Trigger cascade persist of related objects
             // Create PreparedStatement and values to bind ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
             StringBuilder insertStmt = new StringBuilder("INSERT INTO ");
