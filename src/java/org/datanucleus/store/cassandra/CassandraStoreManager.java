@@ -283,35 +283,16 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 for (int i=0;i<clsIdxMds.length;i++)
                 {
                     IndexMetaData idxmd = clsIdxMds[i];
-                    StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
-                    String idxName = idxmd.getName();
-                    if (idxName == null)
-                    {
-                        idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
-                    }
-                    stmtBuilder.append(idxName);
-                    stmtBuilder.append(" ON ");
-                    if (schemaNameForClass != null)
-                    {
-                        stmtBuilder.append(schemaNameForClass).append('.');
-                    }
-                    stmtBuilder.append(tableName);
-
-                    stmtBuilder.append(" (");
                     ColumnMetaData[] colmds = idxmd.getColumnMetaData();
-                    for (int j=0;j<colmds.length;j++) // TODO Cassandra only supports indexes on single column - can't have composites
+                    if (colmds.length > 1)
                     {
-                        if (j > 0)
-                        {
-                            stmtBuilder.append(',');
-                        }
-                        stmtBuilder.append(colmds[i].getName());
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Class " + cmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
                     }
-                    stmtBuilder.append(")");
-
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
-                    session.execute(stmtBuilder.toString());
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Created index for class " + cmd.getFullClassName() + " successfully");
+                    else
+                    {
+                        String idxName = (idxmd.getName() != null ? idxmd.getName() : getNamingFactory().getIndexName(cmd, idxmd, i));
+                        createIndex(session, idxName, schemaNameForClass, tableName, colmds[0].getName());
+                    }
                 }
             }
 
@@ -323,31 +304,31 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 if (idxmd != null)
                 {
                     String colName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
-                    StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
-                    String idxName = idxmd.getName();
-                    if (idxName == null)
-                    {
-                        idxName = getNamingFactory().getIndexName(mmds[i], idxmd);
-                    }
-                    stmtBuilder.append(idxName);
-                    stmtBuilder.append(" ON ");
-                    if (schemaNameForClass != null)
-                    {
-                        stmtBuilder.append(schemaNameForClass).append('.');
-                    }
-                    stmtBuilder.append(tableName);
-
-                    stmtBuilder.append(" (").append(colName).append(")");
-
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
-                    session.execute(stmtBuilder.toString());
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Created index for member " + mmds[i].getFullFieldName() + " successfully");
+                    String idxName = (idxmd.getName() != null ? idxmd.getName() : getNamingFactory().getIndexName(mmds[i], idxmd));
+                    createIndex(session, idxName, schemaNameForClass, tableName, colName);
                 }
             }
             // TODO Index on version column? or discriminator?, or datastoreId?
 
             // Cassandra doesn't support unique constraints or FKs at the moment
         }
+    }
+
+    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
+    {
+        StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
+        stmtBuilder.append(indexName);
+        stmtBuilder.append(" ON ");
+        if (schemaName != null)
+        {
+            stmtBuilder.append(schemaName).append('.');
+        }
+        stmtBuilder.append(tableName);
+        stmtBuilder.append(" (").append(columnName).append(")");
+
+        NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
+        session.execute(stmtBuilder.toString());
+        NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
     }
 
     /* (non-Javadoc)
@@ -496,7 +477,40 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         success = false;
                     }
 
-                    // TODO Validate the indexes for this table
+                    // Check class-level indexes
+                    IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
+                    if (clsIdxMds != null)
+                    {
+                        for (int i=0;i<clsIdxMds.length;i++)
+                        {
+                            IndexMetaData idxmd = clsIdxMds[i];
+                            ColumnMetaData[] colmds = idxmd.getColumnMetaData();
+                            if (colmds.length == 1)
+                            {
+                                String colName = colmds[0].getName();
+                                ColumnDetails details = colsByName.get(colName.toLowerCase());
+                                if (details == null || details.indexName == null)
+                                {
+                                    NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colName + " should have an index but doesn't");
+                                }
+                            }
+                        }
+                    }
+
+                    // Add member-level indexes
+                    for (int i=0;i<mmds.length;i++)
+                    {
+                        IndexMetaData idxmd = mmds[i].getIndexMetaData();
+                        if (idxmd != null)
+                        {
+                            String colName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
+                            ColumnDetails details = colsByName.get(colName.toLowerCase());
+                            if (details == null || details.indexName == null)
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colName + " should have an index but doesn't");
+                            }
+                        }
+                    }
                 }
             }
         }
