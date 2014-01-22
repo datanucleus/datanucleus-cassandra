@@ -224,6 +224,34 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     firstCol = false;
                 }
             }
+            // Add columns for superclasses
+            AbstractClassMetaData superCmd = cmd.getSuperAbstractClassMetaData();
+            while (superCmd != null)
+            {
+                mmds = superCmd.getManagedMembers();
+                for (int i=0;i<mmds.length;i++)
+                {
+                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], nucleusContext.getTypeManager(), clr);
+                    if (cassandraType == null)
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmds[i].getFullFieldName() + " of type "+ mmds[i].getTypeName() + " has no supported cassandra type! Ignoring");
+                    }
+                    else
+                    {
+                        if (!firstCol)
+                        {
+                            stmtBuilder.append(',');
+                        }
+                        stmtBuilder.append(getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN)).append(' ').append(cassandraType);
+                    }
+                    if (i == 0)
+                    {
+                        firstCol = false;
+                    }
+                }
+
+                superCmd = superCmd.getSuperAbstractClassMetaData();
+            }
 
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
@@ -263,6 +291,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
             session.execute(stmtBuilder.toString());
             NucleusLogger.DATASTORE_SCHEMA.debug("Created table for class " + cmd.getFullClassName() + " successfully");
+            tableExists = true;
         }
 
         if (autoCreateConstraints)
@@ -274,6 +303,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 return;
             }
 
+            // TODO Cater for superclasses with indexes on their members
             // TODO Check existence of indexes before creating
 
             // Add class-level indexes
@@ -312,6 +342,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
             // Cassandra doesn't support unique constraints or FKs at the moment
         }
+        NucleusLogger.GENERAL.info(">> createSchemaForClass DONE for " + cmd.getFullClassName());
     }
 
     protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
