@@ -18,6 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -43,6 +44,8 @@ import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.util.NucleusLogger;
 
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
@@ -141,7 +144,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     }
 
                     // Create schema for class
-                    createSchemaForClass(cmd, session);
+                    createSchemaForClass(cmd, session, clr);
                 }
             }
         }
@@ -153,6 +156,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public void createSchema(Set<String> classNames, Properties props)
     {
+//        String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
+//        String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
+//        boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
+        // TODO Make use of DDL properties - see RDBMSStoreManager.createSchema
+
         ManagedConnection mconn = getConnection(-1);
         try
         {
@@ -166,7 +174,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
                 if (cmd != null)
                 {
-                    createSchemaForClass(cmd, session);
+                    createSchemaForClass(cmd, session, clr);
                 }
             }
         }
@@ -176,16 +184,18 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
-    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session)
+    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr)
     {
-        String schemaNameForClass = getSchemaNameForClass(cmd);
-        ClassLoaderResolver clr = getNucleusContext().getClassLoaderResolver(null);
+        String schemaNameForClass = getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String tableName = getNamingFactory().getTableName(cmd);
-        if (autoCreateTables)
+
+        boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+
+        if (autoCreateTables && !tableExists) // TODO Add ability to add/delete columns to match the current definition
         {
             // Create the table(s) required for this class
             // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
-            StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
+            StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
             if (schemaNameForClass != null)
             {
                 stmtBuilder.append(schemaNameForClass).append('.');
@@ -257,6 +267,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         if (autoCreateConstraints)
         {
+            if (!tableExists)
+            {
+                NucleusLogger.DATASTORE_SCHEMA.warn("Cannot create constraints for " + cmd.getFullClassName() +
+                    " since table doesn't exist : perhaps you should enable autoCreateTables ?");
+                return;
+            }
+
+            // TODO Check existence of indexes before creating
+
             // Add class-level indexes
             IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
             if (clsIdxMds != null)
@@ -280,7 +299,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
                     stmtBuilder.append(" (");
                     ColumnMetaData[] colmds = idxmd.getColumnMetaData();
-                    for (int j=0;j<colmds.length;j++)
+                    for (int j=0;j<colmds.length;j++) // TODO Cassandra only supports indexes on single column - can't have composites
                     {
                         if (j > 0)
                         {
@@ -337,6 +356,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public void deleteSchema(Set<String> classNames, Properties props)
     {
+//      String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
+//      String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
+//      boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
+      // TODO Make use of DDL properties - see RDBMSStoreManager.createSchema
+
         ManagedConnection mconn = getConnection(-1);
         try
         {
@@ -415,12 +439,66 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public void validateSchema(Set<String> classNames, Properties props)
     {
         boolean success = true;
+        ClassLoaderResolver clr = getNucleusContext().getClassLoaderResolver(null);
         ManagedConnection mconn = getConnection(-1);
         try
         {
-//            Session session = (Session)mconn.getConnection();
+            Session session = (Session)mconn.getConnection();
 
-            // TODO Implement validaton of schema
+            for (String className : classNames)
+            {
+                AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
+
+                String schemaNameForClass = getSchemaNameForClass(cmd);
+                String tableName = getNamingFactory().getTableName(cmd);
+
+                boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+                if (!tableExists)
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.error("Table for class " + cmd.getFullClassName() + " doesn't exist : should have name " + tableName + " in schema " + schemaNameForClass);
+                    success = false;
+                }
+                else
+                {
+                    // Check structure of the table against the required members
+                    Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, schemaNameForClass, tableName);
+                    AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
+                    Set<String> colsFound = new HashSet();
+                    for (int i=0;i<mmds.length;i++)
+                    {
+                        String columnName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
+                        ColumnDetails details = colsByName.get(columnName.toLowerCase()); // Stored in lowercase (unless we later on start quoting column names)
+                        if (details != null)
+                        {
+                            String reqdType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], getNucleusContext().getTypeManager(), clr);
+                            if ((reqdType != null && reqdType.equals(details.typeName)) || (reqdType == null && details.typeName == null))
+                            {
+                                // Type matches
+                            }
+                            else
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column " + columnName + " has type=" + details.typeName + " yet member type " + mmds[i].getFullFieldName() +
+                                    " ought to be using type=" + reqdType);
+                            }
+
+                            colsFound.add(columnName.toLowerCase());
+                        }
+                        else
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " doesn't have column " + columnName + " for member " + mmds[i].getFullFieldName());
+                            success = false;
+                        }
+                    }
+                    // TODO Check datastore id, version, discriminator
+                    if (success && colsByName.size() != colsFound.size())
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " should have " + colsFound.size() + " columns but has " + colsByName.size() + " columns!");
+                        success = false;
+                    }
+
+                    // TODO Validate the indexes for this table
+                }
+            }
         }
         finally
         {
@@ -430,6 +508,77 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         if (!success)
         {
             throw new NucleusException("Errors were encountered during validation of Cassandra schema");
+        }
+    }
+
+    protected boolean checkTableExistence(Session session, String schemaName, String tableName)
+    {
+        boolean tableExists = false;
+        StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name='");
+        stmtBuilder.append(schemaName).append("' AND columnfamily_name='").append(tableName).append("'");
+        ResultSet rs = session.execute(stmtBuilder.toString());
+        if (!rs.isExhausted())
+        {
+            tableExists = true;
+        }
+
+        return tableExists;
+    }
+
+    public Map<String, ColumnDetails> getColumnDetailsForTable(Session session, String schemaName, String tableName)
+    {
+        StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name='");
+        stmtBuilder.append(schemaName).append("' AND columnfamily_name='").append(tableName).append("'");
+        ResultSet rs = session.execute(stmtBuilder.toString());
+        Map<String, ColumnDetails> cols = new HashMap<String, CassandraStoreManager.ColumnDetails>();
+        Iterator<Row> iter = rs.iterator();
+        while (iter.hasNext())
+        {
+            Row row = iter.next();
+            String typeName = null;
+            String validator = row.getString("validator");
+            if (validator.indexOf("LongType") >= 0)
+            {
+                typeName = "long";
+            }
+            else if (validator.indexOf("Int32Type") >= 0)
+            {
+                typeName = "int";
+            }
+            else if (validator.indexOf("DoubleType") >= 0)
+            {
+                typeName = "double";
+            }
+            else if (validator.indexOf("FloatType") >= 0)
+            {
+                typeName = "float";
+            }
+            else if (validator.indexOf("BooleanType") >= 0)
+            {
+                typeName = "boolean";
+            }
+            else if (validator.indexOf("UTF8") >= 0)
+            {
+                typeName = "varchar";
+            }
+            // TODO Include other types
+            String colName = row.getString("column_name");
+            ColumnDetails col = new ColumnDetails(colName, row.getString("index_name"), typeName);
+            cols.put(colName, col);
+        }
+        return cols;
+    }
+
+    public class ColumnDetails
+    {
+        String name;
+        String indexName;
+        String typeName;
+        public ColumnDetails(String name, String idxName, String typeName)
+        {
+            this.name = name;
+            this.indexName = idxName;
+            this.typeName = typeName;
         }
     }
 }

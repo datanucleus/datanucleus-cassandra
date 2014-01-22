@@ -68,13 +68,14 @@ public class CassandraUtils
     }
 
     /**
-     * Method to return the cassandra column type that the specified member will be stored as.
+     * Method to return the Cassandra column type that the specified member will be stored as.
      * @param mmd Metadata for the member
      * @param typeMgr Type manager
      * @return The cassandra column type
      */
     public static String getCassandraColumnTypeForMember(AbstractMemberMetaData mmd, TypeManager typeMgr, ClassLoaderResolver clr)
     {
+        // TODO Make use of jdbc-type in mmd.getColumnMetaData()
         Class type = mmd.getType();
         String cTypeName = cassandraTypeByJavaType.get(type.getName());
         if (cTypeName != null)
