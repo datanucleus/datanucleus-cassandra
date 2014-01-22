@@ -100,10 +100,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
                 insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
                 StringBuilder insertValuesStr = new StringBuilder("(");
-                AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
-                for (int i = 0;i<mmds.length;i++)
+                int[] memberPositions = cmd.getAllMemberPositions();
+                for (int i = 0;i<memberPositions.length;i++)
                 {
-                    AbstractMemberMetaData mmd = mmds[i];
+                    AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
                     if (i > 0)
                     {
                         insertStmtBuilder.append(',');
