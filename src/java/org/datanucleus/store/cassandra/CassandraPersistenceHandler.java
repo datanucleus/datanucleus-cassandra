@@ -17,14 +17,21 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.exceptions.NucleusDataStoreException;
+import org.datanucleus.identity.OID;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.DiscriminatorMetaData;
+import org.datanucleus.metadata.DiscriminatorStrategy;
 import org.datanucleus.metadata.IdentityType;
+import org.datanucleus.metadata.VersionMetaData;
+import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
@@ -36,6 +43,8 @@ import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
+import com.datastax.driver.core.BoundStatement;
+import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
 
 /**
@@ -89,37 +98,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (insertStmt == null)
             {
-                // TODO Is it permissible to insert null values? if not then we cannot cache the statement and should only include a column if it has a value
-                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-                NamingFactory namingFactory = storeMgr.getNamingFactory();
-                StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
-                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
-                if (schemaName != null)
-                {
-                    insertStmtBuilder.append(schemaName).append('.');
-                }
-                insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
-                StringBuilder insertValuesStr = new StringBuilder("(");
-                int[] memberPositions = cmd.getAllMemberPositions();
-                for (int i = 0;i<memberPositions.length;i++)
-                {
-                    AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                    if (i > 0)
-                    {
-                        insertStmtBuilder.append(',');
-                        insertValuesStr.append(',');
-                    }
-                    insertStmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
-                    insertValuesStr.append('?');
-                }
-                // TODO Set any discriminator
-                // TODO Set any version field
-                insertStmtBuilder.append(") ");
-                insertValuesStr.append(")");
-                // TODO Support any USING clauses
-                insertStmtBuilder.append(insertValuesStr.toString());
-
-                insertStmt = insertStmtBuilder.toString();
+                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)") and cache it
+                insertStmt = getInsertStatementForClass(cmd);
                 if (insertStatementByClassName == null)
                 {
                     insertStatementByClassName = new HashMap<String, String>();
@@ -127,13 +107,106 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
             }
 
+            Object versionValue = null;
+            if (cmd.isVersioned())
+            {
+                // Process the version value, setting it on the object, and saving the value for the INSERT
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                if (vermd.getVersionStrategy() == VersionStrategy.VERSION_NUMBER)
+                {
+                    long versionNumber = 1;
+                    op.setTransactionalVersion(Long.valueOf(versionNumber));
+
+                    if (vermd.getFieldName() != null)
+                    {
+                        // Version stored in a member
+                        AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                        Object verFieldValue = Long.valueOf(versionNumber);
+                        if (verMmd.getType() == int.class || verMmd.getType() == Integer.class)
+                        {
+                            verFieldValue = Integer.valueOf((int)versionNumber);
+                        }
+                        op.replaceField(verMmd.getAbsoluteFieldNumber(), verFieldValue);
+                    }
+                    versionValue = versionNumber;
+                }
+                else if (vermd.getVersionStrategy() == VersionStrategy.DATE_TIME)
+                {
+                    Date date = new Date();
+                    Timestamp ts = new Timestamp(date.getTime());
+                    op.setTransactionalVersion(ts);
+
+                    if (vermd.getFieldName() != null)
+                    {
+                        // Version stored in a member
+                        AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                        op.replaceField(verMmd.getAbsoluteFieldNumber(), ts);
+                    }
+                    versionValue = ts;
+                }
+            }
+
+            Object discrimValue = null;
+            if (cmd.hasDiscriminatorStrategy())
+            {
+                // Process the discriminator value, saving the value for the INSERT
+                DiscriminatorMetaData discmd = cmd.getDiscriminatorMetaData();
+                if (cmd.getDiscriminatorStrategy() == DiscriminatorStrategy.CLASS_NAME)
+                {
+                    discrimValue = cmd.getFullClassName();
+                }
+                else
+                {
+                    discrimValue = discmd.getValue();
+                }
+            }
+
             // Obtain the values to populate the statement with by using StoreFieldManager
             // TODO If we are attributing this object in the datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
             StoreFieldManager storeFM = new StoreFieldManager(op, true);
             op.provideFields(cmd.getAllMemberPositions() , storeFM);
             Object[] fieldValues = storeFM.getValuesToStore();
-            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " fieldValues=" + StringUtils.objectArrayToString(fieldValues));
-            // TODO Create PreparedStatement using statement, bind the values, and execute it
+            int numValues = fieldValues.length;
+            if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                numValues++;
+            }
+            if (versionValue != null)
+            {
+                numValues++;
+            }
+            if (discrimValue != null)
+            {
+                numValues++;
+            }
+            Object[] stmtValues;
+            if (numValues == fieldValues.length)
+            {
+                stmtValues = fieldValues;
+            }
+            else
+            {
+                stmtValues = new Object[numValues];
+                System.arraycopy(fieldValues, 0, stmtValues, 0, fieldValues.length);
+                int pos = fieldValues.length;
+                if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    stmtValues[pos++] = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Cater for datastore attributed ID
+                }
+                if (versionValue != null)
+                {
+                    stmtValues[pos++] = versionValue;
+                }
+                if (discrimValue != null)
+                {
+                    stmtValues[pos++] = discrimValue;
+                }
+            }
+
+            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " fieldValues=" + StringUtils.objectArrayToString(stmtValues));
+            PreparedStatement stmt = session.prepare(insertStmt);
+            BoundStatement boundStmt = stmt.bind(stmtValues);
+            session.execute(boundStmt); // TODO Make use of ResultSet?
 
             if (ec.getStatistics() != null)
             {
@@ -160,6 +233,91 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         {
             mconn.release();
         }
+    }
+
+    /**
+     * Method to create the INSERT statement for an object of the specified class.
+     * Will add all columns for the class and all superclasses, plus any surrogate datastore-id, version, discriminator.
+     * Will have the form
+     * <pre>INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)</pre>
+     * All columns are included and if the field is null then at insert CQL will delete the associated cell for the null column.
+     * @param cmd Metadata for the class
+     * @return The INSERT statement
+     */
+    protected String getInsertStatementForClass(AbstractClassMetaData cmd)
+    {
+        NamingFactory namingFactory = storeMgr.getNamingFactory();
+        StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
+        String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+        if (schemaName != null)
+        {
+            insertStmtBuilder.append(schemaName).append('.');
+        }
+        insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
+
+        int numParams = 0;
+        int[] memberPositions = cmd.getAllMemberPositions();
+        for (int i = 0;i<memberPositions.length;i++)
+        {
+            AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+            if (i > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
+            numParams++;
+        }
+
+        if (cmd.getIdentityType() == IdentityType.DATASTORE) // TODO Cater for datastore attributed ID
+        {
+            if (numParams > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+            numParams++;
+        }
+
+        if (cmd.isVersioned())
+        {
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd.getFieldName() == null)
+            {
+                // Add surrogate version column
+                if (numParams > 0)
+                {
+                    insertStmtBuilder.append(',');
+                }
+                insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN));
+                numParams++;
+            }
+        }
+
+        if (cmd.hasDiscriminatorStrategy())
+        {
+            // Add (surrogate) discriminator column
+            if (numParams > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN));
+            numParams++;
+        }
+
+        insertStmtBuilder.append(") ");
+        // TODO Support any USING clauses
+        insertStmtBuilder.append("(");
+        for (int i=0;i<numParams;i++)
+        {
+            if (i > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append('?');
+        }
+        insertStmtBuilder.append(")");
+
+        return insertStmtBuilder.toString();
     }
 
     public void insertObjects(ObjectProvider... ops)

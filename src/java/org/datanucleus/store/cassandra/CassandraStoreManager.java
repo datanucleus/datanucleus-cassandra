@@ -218,6 +218,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     {
                         stmtBuilder.append(',');
                     }
+                    // TODO Cater for embedded fields
                     stmtBuilder.append(getNamingFactory().getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
                 }
                 if (i == 0)
@@ -453,7 +454,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     for (int i=0;i<memberPositions.length;i++)
                     {
                         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                        String columnName = getNamingFactory().getColumnName(mmd, ColumnType.COLUMN);
+                        String columnName = getNamingFactory().getColumnName(mmd, ColumnType.COLUMN); // TODO Cater for embedded fields
                         ColumnDetails details = colsByName.get(columnName.toLowerCase()); // Stored in lowercase (unless we later on start quoting column names)
                         if (details != null)
                         {
