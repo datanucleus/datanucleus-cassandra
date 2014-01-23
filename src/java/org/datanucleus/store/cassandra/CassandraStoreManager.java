@@ -81,6 +81,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return set;
     }
 
+    public String getSchemaName()
+    {
+        return schemaName;
+    }
+
     public String getSchemaNameForClass(AbstractClassMetaData cmd)
     {
         if (cmd.getSchema() != null)

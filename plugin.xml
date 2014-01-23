@@ -26,8 +26,7 @@ Contributors:
 
     <!-- CONNECTION FACTORY -->
     <extension point="org.datanucleus.store_connectionfactory">
-        <connectionfactory name="cassandra" class-name="org.datanucleus.store.cassandra.ConnectionFactoryImpl" transactional="true"
-            datastore="cassandra"/>
+        <connectionfactory name="cassandra" class-name="org.datanucleus.store.cassandra.ConnectionFactoryImpl" transactional="true" datastore="cassandra"/>
     </extension>
 
     <!-- PERSISTENCE PROPERTIES -->
@@ -48,5 +47,10 @@ Contributors:
     <extension point="org.datanucleus.store_query_query">
         <query class-name="org.datanucleus.store.cassandra.query.JDOQLQuery" datastore="cassandra" name="JDOQL"/>
         <query class-name="org.datanucleus.store.cassandra.query.JPQLQuery" datastore="cassandra" name="JPQL"/>
+    </extension>
+
+    <!-- VALUE GENERATORS -->
+    <extension point="org.datanucleus.store_valuegenerator">
+        <valuegenerator name="increment" class-name="org.datanucleus.store.cassandra.valuegenerator.IncrementGenerator" datastore="cassandra"/>
     </extension>
 </plugin>
