@@ -572,7 +572,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             String validator = row.getString("validator");
             if (validator.indexOf("LongType") >= 0)
             {
-                typeName = "long";
+                typeName = "bigint";
             }
             else if (validator.indexOf("Int32Type") >= 0)
             {
