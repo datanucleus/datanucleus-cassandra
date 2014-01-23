@@ -17,20 +17,22 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
+import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.util.NucleusLogger;
 
 /**
  * FieldManager for the storing of field values into Cassandra.
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
-    List objectValues = new ArrayList();
+    Map<Integer, Object> objectValues = new HashMap<Integer, Object>();
 
     /** Metadata of the owner field if this is for an embedded object. */
     protected AbstractMemberMetaData ownerMmd = null;
@@ -42,7 +44,14 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     public Object[] getValuesToStore()
     {
-        return objectValues.toArray();
+        // Make sure we return them in field order
+        Object[] values = new Object[objectValues.size()];
+        int i = 0;
+        for (Integer fieldNum : objectValues.keySet())
+        {
+            values[i++] = objectValues.get(fieldNum);
+        }
+        return values;
     }
 
     /* (non-Javadoc)
@@ -51,7 +60,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeBooleanField(int fieldNumber, boolean value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -60,7 +69,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeCharField(int fieldNumber, char value)
     {
-        objectValues.add("" + value);
+        objectValues.put(fieldNumber, "" + value);
     }
 
     /* (non-Javadoc)
@@ -69,7 +78,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeByteField(int fieldNumber, byte value)
     {
-        objectValues.add((int)value);
+        objectValues.put(fieldNumber, (int)value);
     }
 
     /* (non-Javadoc)
@@ -78,7 +87,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeShortField(int fieldNumber, short value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -87,7 +96,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeIntField(int fieldNumber, int value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -96,7 +105,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeLongField(int fieldNumber, long value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -105,7 +114,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeFloatField(int fieldNumber, float value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -114,7 +123,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeDoubleField(int fieldNumber, double value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -123,7 +132,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeStringField(int fieldNumber, String value)
     {
-        objectValues.add(value);
+        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -199,6 +208,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             return;
         }
 
+        if (value == null)
+        {
+            objectValues.put(fieldNumber, null);
+            return;
+        }
+
         if (RelationType.isRelationSingleValued(relationType))
         {
             // TODO Get value for persistable object - trigger cascade persist
@@ -207,8 +222,23 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             // TODO Get value for collection/map of persistable objects - trigger cascade persist
         }
+        else
+        {
+            TypeConverter stringConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+            if (stringConverter != null)
+            {
+                objectValues.put(fieldNumber, stringConverter.toDatastoreType(value));
+                return;
+            }
+            TypeConverter longConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
+            if (longConverter != null)
+            {
+                objectValues.put(fieldNumber, longConverter.toDatastoreType(value));
+                return;
+            }
+        }
 
-        // TODO Implement this
-        super.storeObjectField(fieldNumber, value);
+        NucleusLogger.PERSISTENCE.warn("Not generated persistable value for field " + mmd.getFullFieldName() + " so putting null");
+        objectValues.put(fieldNumber, null);
     }
 }

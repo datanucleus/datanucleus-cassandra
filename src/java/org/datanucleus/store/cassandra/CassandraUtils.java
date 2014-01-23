@@ -88,10 +88,12 @@ public class CassandraUtils
         if (RelationType.isRelationSingleValued(relType))
         {
             // TODO Are we going to store just the String form of the id like in MongoDB?
+            return "varchar";
         }
         else if (RelationType.isRelationMultiValued(relType))
         {
             // TODO Are we going to store a Collection<String form of the id> like in MongoDB?
+            return "varchar";
         }
         else
         {

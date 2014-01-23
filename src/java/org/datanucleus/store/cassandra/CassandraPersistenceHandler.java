@@ -164,7 +164,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Obtain the values to populate the statement with by using StoreFieldManager
             // TODO If we are attributing this object in the datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
             StoreFieldManager storeFM = new StoreFieldManager(op, true);
-            op.provideFields(cmd.getAllMemberPositions() , storeFM);
+            op.provideFields(cmd.getAllMemberPositions() , storeFM); // Note that jdoProvideFields in enhancement contract can do these in reverse order TODO Fix enhancement
             Object[] fieldValues = storeFM.getValuesToStore();
             int numValues = fieldValues.length;
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -306,7 +306,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
         insertStmtBuilder.append(") ");
         // TODO Support any USING clauses
-        insertStmtBuilder.append("(");
+        insertStmtBuilder.append("VALUES (");
         for (int i=0;i<numParams;i++)
         {
             if (i > 0)

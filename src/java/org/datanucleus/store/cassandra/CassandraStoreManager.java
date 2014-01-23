@@ -44,6 +44,7 @@ import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.util.NucleusLogger;
 
+import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -68,7 +69,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         // Handler for persistence process
         persistenceHandler = new CassandraPersistenceHandler(this);
 
-        getNamingFactory().setNamingCase(NamingCase.UPPER_CASE);
+        // TODO Support quoted names
+        getNamingFactory().setNamingCase(NamingCase.LOWER_CASE);
 
         schemaName = getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
 
@@ -316,7 +318,6 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
             // Cassandra doesn't support unique constraints or FKs at the moment
         }
-        NucleusLogger.GENERAL.info(">> createSchemaForClass DONE for " + cmd.getFullClassName());
     }
 
     protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
@@ -360,56 +361,64 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
                 if (cmd != null)
                 {
-                    // Drop any class indexes TODO What about superclass indexMetaData?
-                    IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
-                    if (clsIdxMds != null)
-                    {
-                        for (int i=0;i<clsIdxMds.length;i++)
-                        {
-                            IndexMetaData idxmd = clsIdxMds[i];
-                            StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                            String idxName = idxmd.getName();
-                            if (idxName == null)
-                            {
-                                idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
-                            }
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
-                            session.execute(stmtBuilder.toString());
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
-                        }
-                    }
-                    // Drop any member-level indexes
-                    int[] memberPositions = cmd.getAllMemberPositions();
-                    for (int i=0;i<memberPositions.length;i++)
-                    {
-                        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                        IndexMetaData idxmd = mmd.getIndexMetaData();
-                        if (idxmd != null)
-                        {
-                            StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                            String idxName = idxmd.getName();
-                            if (idxName == null)
-                            {
-                                idxName = getNamingFactory().getIndexName(mmd, idxmd);
-                            }
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
-                            session.execute(stmtBuilder.toString());
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
-                        }
-                    }
-
-                    // Drop the table
+                    String schemaNameForClass = getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
                     String tableName = getNamingFactory().getTableName(cmd);
-                    StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
-                    String schemaNameForClass = getSchemaNameForClass(cmd);
-                    if (schemaNameForClass != null)
+                    boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+                    if (tableExists)
                     {
-                        stmtBuilder.append(schemaNameForClass).append('.');
+                        // Drop any class indexes TODO What about superclass indexMetaData?
+                        IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
+                        if (clsIdxMds != null)
+                        {
+                            for (int i=0;i<clsIdxMds.length;i++)
+                            {
+                                IndexMetaData idxmd = clsIdxMds[i];
+                                StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
+                                String idxName = idxmd.getName();
+                                if (idxName == null)
+                                {
+                                    idxName = getNamingFactory().getIndexName(cmd, idxmd, i);
+                                }
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                session.execute(stmtBuilder.toString());
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                            }
+                        }
+                        // Drop any member-level indexes
+                        int[] memberPositions = cmd.getAllMemberPositions();
+                        for (int i=0;i<memberPositions.length;i++)
+                        {
+                            AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                            IndexMetaData idxmd = mmd.getIndexMetaData();
+                            if (idxmd != null)
+                            {
+                                StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
+                                String idxName = idxmd.getName();
+                                if (idxName == null)
+                                {
+                                    idxName = getNamingFactory().getIndexName(mmd, idxmd);
+                                }
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                session.execute(stmtBuilder.toString());
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                            }
+                        }
+
+                        // Drop the table
+                        StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
+                        if (schemaNameForClass != null)
+                        {
+                            stmtBuilder.append(schemaNameForClass).append('.');
+                        }
+                        stmtBuilder.append(tableName);
+                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
+                        session.execute(stmtBuilder.toString());
+                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped table for class " + cmd.getFullClassName() + " successfully");
                     }
-                    stmtBuilder.append(tableName);
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
-                    session.execute(stmtBuilder.toString());
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Dropped table for class " + cmd.getFullClassName() + " successfully");
+                    else
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.debug("Class " + cmd.getFullClassName() + " table=" + tableName + " didnt exist so can't be dropped");
+                    }
                 }
             }
         }
@@ -536,9 +545,10 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     protected boolean checkTableExistence(Session session, String schemaName, String tableName)
     {
         boolean tableExists = false;
-        StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name='");
-        stmtBuilder.append(schemaName).append("' AND columnfamily_name='").append(tableName).append("'");
-        ResultSet rs = session.execute(stmtBuilder.toString());
+        StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
+        NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
+        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
         {
             tableExists = true;
@@ -549,9 +559,10 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     public Map<String, ColumnDetails> getColumnDetailsForTable(Session session, String schemaName, String tableName)
     {
-        StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name='");
-        stmtBuilder.append(schemaName).append("' AND columnfamily_name='").append(tableName).append("'");
-        ResultSet rs = session.execute(stmtBuilder.toString());
+        StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
+        NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
+        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, CassandraStoreManager.ColumnDetails>();
         Iterator<Row> iter = rs.iterator();
         while (iter.hasNext())
