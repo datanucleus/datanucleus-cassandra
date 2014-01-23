@@ -17,7 +17,12 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -216,10 +221,44 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
-            // TODO Get value for persistable object - trigger cascade persist
+            Object valuePC = op.getExecutionContext().persistObjectInternal(value, op, fieldNumber, -1);
+            Object valueID = op.getExecutionContext().getApiAdapter().getIdForObject(valuePC);
+            objectValues.put(fieldNumber, valueID.toString());
+            return;
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
+            if (mmd.hasCollection())
+            {
+                Collection<String> idColl = null;
+                if (value instanceof List)
+                {
+                    idColl = new ArrayList<String>();
+                }
+                else
+                {
+                    idColl = new HashSet<String>();
+                }
+                Collection coll = (Collection)value;
+                Iterator collIter = coll.iterator();
+                while (collIter.hasNext())
+                {
+                    Object element = collIter.next();
+                    Object elementPC = op.getExecutionContext().persistObjectInternal(element, op, fieldNumber, -1);
+                    Object elementID = op.getExecutionContext().getApiAdapter().getIdForObject(elementPC);
+                    idColl.add(elementID.toString());
+                }
+                objectValues.put(fieldNumber, idColl);
+                return;
+            }
+            else if (mmd.hasMap())
+            {
+                
+            }
+            else if (mmd.hasArray())
+            {
+                
+            }
             // TODO Get value for collection/map of persistable objects - trigger cascade persist
         }
         else

@@ -24,7 +24,9 @@ import java.sql.Time;
 import java.sql.Timestamp;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -85,19 +87,59 @@ public class CassandraUtils
 
         RelationType relType = mmd.getRelationType(clr);
         // TODO Support embedded relations
+
         if (RelationType.isRelationSingleValued(relType))
         {
-            // TODO Are we going to store just the String form of the id like in MongoDB?
-            return "varchar";
+            return "varchar"; // TODO Assumes we persist the String form of the id of the related object
         }
         else if (RelationType.isRelationMultiValued(relType))
         {
-            // TODO Are we going to store a Collection<String form of the id> like in MongoDB?
-            return "varchar";
+            if (mmd.hasCollection())
+            {
+                if (List.class.isAssignableFrom(mmd.getType()))
+                {
+                    return "list<varchar>"; // TODO Assumes we persist the String form of the id of the related object
+                }
+                else if (Set.class.isAssignableFrom(mmd.getType()))
+                {
+                    return "set<varchar>"; // TODO Assumes we persist the String form of the id of the related object
+                }
+            }
+            else if (mmd.hasMap())
+            {
+                // TODO Support maps where key/val is persistable
+            }
         }
         else
         {
-            // TODO Support Collections/Sets/Lists/Map - return Set/List/Map of varchar/bigint for example
+            if (mmd.hasCollection())
+            {
+                String elementType = mmd.getCollection().getElementType();
+                String cqlElementType = cassandraTypeByJavaType.get(elementType);
+                if (cqlElementType != null)
+                {
+                    if (List.class.isAssignableFrom(mmd.getType()))
+                    {
+                        return "list<" + cqlElementType + ">";
+                    }
+                    else if (Set.class.isAssignableFrom(mmd.getType()))
+                    {
+                        return "set<" + cqlElementType + ">";
+                    }
+                }
+            }
+            else if (mmd.hasMap())
+            {
+                String keyType = mmd.getMap().getKeyType();
+                String valType = mmd.getMap().getValueType();
+                String cqlKeyType = cassandraTypeByJavaType.get(keyType);
+                String cqlValType = cassandraTypeByJavaType.get(valType);
+                if (cqlKeyType != null && cqlValType != null)
+                {
+                    return "map<" + cqlKeyType + "," + cqlValType + ">";
+                }
+            }
+
             // No direct mapping, so find a converter
             TypeConverter stringConverter = typeMgr.getTypeConverterForType(type, String.class);
             if (stringConverter != null)
@@ -120,8 +162,8 @@ public class CassandraUtils
             }
         }
 
-        // Just mark as no appropriate type
-        return null;
+        // Fallback to varchar - maybe BLOB would be better???
+        return "varchar";
     }
 
     /**
