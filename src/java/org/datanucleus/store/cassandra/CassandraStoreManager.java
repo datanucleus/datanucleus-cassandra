@@ -203,13 +203,14 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             stmtBuilder.append(tableName);
             stmtBuilder.append(" (");
             boolean firstCol = true;
-            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
-            for (int i=0;i<mmds.length;i++)
+            int[] memberPositions = cmd.getAllMemberPositions();
+            for (int i=0;i<memberPositions.length;i++)
             {
-                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], nucleusContext.getTypeManager(), clr);
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, nucleusContext.getTypeManager(), clr);
                 if (cassandraType == null)
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmds[i].getFullFieldName() + " of type "+ mmds[i].getTypeName() + " has no supported cassandra type! Ignoring");
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
                 }
                 else
                 {
@@ -217,40 +218,12 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     {
                         stmtBuilder.append(',');
                     }
-                    stmtBuilder.append(getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN)).append(' ').append(cassandraType);
+                    stmtBuilder.append(getNamingFactory().getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
                 }
                 if (i == 0)
                 {
                     firstCol = false;
                 }
-            }
-            // Add columns for superclasses
-            AbstractClassMetaData superCmd = cmd.getSuperAbstractClassMetaData();
-            while (superCmd != null)
-            {
-                mmds = superCmd.getManagedMembers();
-                for (int i=0;i<mmds.length;i++)
-                {
-                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], nucleusContext.getTypeManager(), clr);
-                    if (cassandraType == null)
-                    {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmds[i].getFullFieldName() + " of type "+ mmds[i].getTypeName() + " has no supported cassandra type! Ignoring");
-                    }
-                    else
-                    {
-                        if (!firstCol)
-                        {
-                            stmtBuilder.append(',');
-                        }
-                        stmtBuilder.append(getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN)).append(' ').append(cassandraType);
-                    }
-                    if (i == 0)
-                    {
-                        firstCol = false;
-                    }
-                }
-
-                superCmd = superCmd.getSuperAbstractClassMetaData();
             }
 
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -303,10 +276,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 return;
             }
 
-            // TODO Cater for superclasses with indexes on their members
             // TODO Check existence of indexes before creating
 
-            // Add class-level indexes
+            // Add class-level indexes TODO What about superclass indexMetaData?
             IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
             if (clsIdxMds != null)
             {
@@ -327,14 +299,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             }
 
             // Add member-level indexes
-            AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
-            for (int i=0;i<mmds.length;i++)
+            int[] memberPositions = cmd.getAllMemberPositions();
+            for (int i=0;i<memberPositions.length;i++)
             {
-                IndexMetaData idxmd = mmds[i].getIndexMetaData();
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                IndexMetaData idxmd = mmd.getIndexMetaData();
                 if (idxmd != null)
                 {
-                    String colName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
-                    String idxName = (idxmd.getName() != null ? idxmd.getName() : getNamingFactory().getIndexName(mmds[i], idxmd));
+                    String colName = getNamingFactory().getColumnName(mmd, ColumnType.COLUMN);
+                    String idxName = (idxmd.getName() != null ? idxmd.getName() : getNamingFactory().getIndexName(mmd, idxmd));
                     createIndex(session, idxName, schemaNameForClass, tableName, colName);
                 }
             }
@@ -386,7 +359,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 AbstractClassMetaData cmd = getMetaDataManager().getMetaDataForClass(className, clr);
                 if (cmd != null)
                 {
-                    // Drop any class indexes
+                    // Drop any class indexes TODO What about superclass indexMetaData?
                     IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
                     if (clsIdxMds != null)
                     {
@@ -405,17 +378,18 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         }
                     }
                     // Drop any member-level indexes
-                    AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
-                    for (int i=0;i<mmds.length;i++)
+                    int[] memberPositions = cmd.getAllMemberPositions();
+                    for (int i=0;i<memberPositions.length;i++)
                     {
-                        IndexMetaData idxmd = mmds[i].getIndexMetaData();
+                        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                        IndexMetaData idxmd = mmd.getIndexMetaData();
                         if (idxmd != null)
                         {
                             StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
                             String idxName = idxmd.getName();
                             if (idxName == null)
                             {
-                                idxName = getNamingFactory().getIndexName(mmds[i], idxmd);
+                                idxName = getNamingFactory().getIndexName(mmd, idxmd);
                             }
                             NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
                             session.execute(stmtBuilder.toString());
@@ -474,22 +448,23 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                 {
                     // Check structure of the table against the required members
                     Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, schemaNameForClass, tableName);
-                    AbstractMemberMetaData[] mmds = cmd.getManagedMembers();
                     Set<String> colsFound = new HashSet();
-                    for (int i=0;i<mmds.length;i++)
+                    int[] memberPositions = cmd.getAllMemberPositions();
+                    for (int i=0;i<memberPositions.length;i++)
                     {
-                        String columnName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
+                        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                        String columnName = getNamingFactory().getColumnName(mmd, ColumnType.COLUMN);
                         ColumnDetails details = colsByName.get(columnName.toLowerCase()); // Stored in lowercase (unless we later on start quoting column names)
                         if (details != null)
                         {
-                            String reqdType = CassandraUtils.getCassandraColumnTypeForMember(mmds[i], getNucleusContext().getTypeManager(), clr);
+                            String reqdType = CassandraUtils.getCassandraColumnTypeForMember(mmd, getNucleusContext().getTypeManager(), clr);
                             if ((reqdType != null && reqdType.equals(details.typeName)) || (reqdType == null && details.typeName == null))
                             {
                                 // Type matches
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column " + columnName + " has type=" + details.typeName + " yet member type " + mmds[i].getFullFieldName() +
+                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column " + columnName + " has type=" + details.typeName + " yet member type " + mmd.getFullFieldName() +
                                     " ought to be using type=" + reqdType);
                             }
 
@@ -497,7 +472,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         }
                         else
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " doesn't have column " + columnName + " for member " + mmds[i].getFullFieldName());
+                            NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " doesn't have column " + columnName + " for member " + mmd.getFullFieldName());
                             success = false;
                         }
                     }
@@ -508,7 +483,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                         success = false;
                     }
 
-                    // Check class-level indexes
+                    // Check class-level indexes TODO What about superclass indexMetaData?
                     IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
                     if (clsIdxMds != null)
                     {
@@ -529,12 +504,13 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     }
 
                     // Add member-level indexes
-                    for (int i=0;i<mmds.length;i++)
+                    for (int i=0;i<memberPositions.length;i++)
                     {
-                        IndexMetaData idxmd = mmds[i].getIndexMetaData();
+                        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                        IndexMetaData idxmd = mmd.getIndexMetaData();
                         if (idxmd != null)
                         {
-                            String colName = getNamingFactory().getColumnName(mmds[i], ColumnType.COLUMN);
+                            String colName = getNamingFactory().getColumnName(mmd, ColumnType.COLUMN);
                             ColumnDetails details = colsByName.get(colName.toLowerCase());
                             if (details == null || details.indexName == null)
                             {
