@@ -19,17 +19,27 @@ package org.datanucleus.store.cassandra.query;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.exceptions.NucleusException;
+import org.datanucleus.exceptions.NucleusUserException;
+import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.query.evaluator.JPQLEvaluator;
 import org.datanucleus.query.evaluator.JavaQueryEvaluator;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.CassandraStoreManager;
+import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJPQLQuery;
 import org.datanucleus.util.NucleusLogger;
+
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
+import com.datastax.driver.core.Session;
 
 /**
  * JPQL query for Cassandra.
@@ -68,11 +78,40 @@ public class JPQLQuery extends AbstractJPQLQuery
         super(storeMgr, ec, query);
     }
 
+    protected AbstractClassMetaData getCandidateClassMetaData()
+    {
+        AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(candidateClass, clr);
+        if (candidateClass.isInterface())
+        {
+            // Query of interface
+            String[] impls = ec.getMetaDataManager().getClassesImplementingInterface(candidateClass.getName(), clr);
+            if (impls.length == 1 && cmd.isImplementationOfPersistentDefinition())
+            {
+                // Only the generated implementation, so just use its metadata
+            }
+            else
+            {
+                // Use metadata for the persistent interface
+                cmd = ec.getMetaDataManager().getMetaDataForInterface(candidateClass, clr);
+                if (cmd == null)
+                {
+                    throw new NucleusUserException("Attempting to query an interface yet it is not declared 'persistent'." +
+                        " Define the interface in metadata as being persistent to perform this operation, and make sure" +
+                        " any implementations use the same identity and identity member(s)");
+                }
+            }
+        }
+
+        return cmd;
+    }
+
     protected Object performExecute(Map parameters)
     {
         ManagedConnection mconn = getStoreManager().getConnection(ec);
         try
         {
+            Session session = (Session) mconn.getConnection();
+
             long startTime = 0;
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
@@ -82,12 +121,13 @@ public class JPQLQuery extends AbstractJPQLQuery
             List candidates = null;
             if (candidateCollection == null)
             {
-                // TODO Implement a way of retrieving candidates from Cassandra, and then process as much of the query as possible
+                candidates = getCandidatesForQuery(session);
             }
             else
             {
                 candidates = new ArrayList(candidateCollection);
             }
+            // TODO Evaluate as much as possible in the datastore using QueryToCQLMapper
 
             // Map any result restrictions onto the worksheet results
             JavaQueryEvaluator resultMapper = new JPQLEvaluator(this, candidates, compilation, 
@@ -118,5 +158,42 @@ public class JPQLQuery extends AbstractJPQLQuery
         {
             mconn.release();
         }
+    }
+
+    /**
+     * Convenience method that returns all candidate objects for this query.
+     * This is performed using a "SELECT * FROM schema.table" for the candidate, and optionally its subclasses.
+     * @param session The session
+     * @return The candidate objects
+     */
+    protected List getCandidatesForQuery(Session session)
+    {
+        // TODO Create lazy-loading QueryResult object to contain these and return that
+        List candidateObjs = new ArrayList();
+
+        CassandraStoreManager storeMgr = (CassandraStoreManager)this.storeMgr;
+        List<AbstractClassMetaData> cmds =
+            MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
+        for (AbstractClassMetaData cmd : cmds)
+        {
+            // Obtain candidate objects for this class
+            StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
+            stmtBuilder.append(storeMgr.getSchemaNameForClass(cmd)).append('.').append(storeMgr.getNamingFactory().getTableName(cmd));
+            // TODO Add discriminator restriction if table is being shared (when we support table sharing)
+
+            // Execute the SELECT
+            NucleusLogger.QUERY.debug("Obtaining query candidates of type " + cmd.getFullClassName() + " using : " + stmtBuilder.toString());
+            ResultSet rs = session.execute(stmtBuilder.toString());
+
+            // Extract the candidates from the ResultSet
+            Iterator<Row> iter = rs.iterator();
+            while (iter.hasNext())
+            {
+                Row row = iter.next();
+                candidateObjs.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+            }
+        }
+
+        return candidateObjs;
     }
 }

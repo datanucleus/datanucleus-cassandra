@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Properties;
 
 import org.datanucleus.exceptions.NucleusUserException;
+import org.datanucleus.store.cassandra.CassandraSchemaHandler;
 import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.valuegenerator.AbstractDatastoreGenerator;
@@ -175,13 +176,20 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
             return true;
         }
 
-        if (storeMgr.isAutoCreateTables())
+        ManagedConnection mconn = connectionProvider.retrieveConnection();
+        try
         {
-            ManagedConnection mconn = connectionProvider.retrieveConnection();
-            try
-            {
-                Session session = (Session) mconn.getConnection();
+            Session session = (Session) mconn.getConnection();
 
+            if (CassandraSchemaHandler.checkTableExistence(session, getSchemaName(), tableName))
+            {
+                // Already exists
+                repositoryExists = true;
+                return true;
+            }
+
+            if (storeMgr.isAutoCreateTables())
+            {
                 StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
                 stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(");
                 stmtBuilder.append(keyColName).append(" varchar,").append(valColName).append(" bigint,PRIMARY KEY(").append(keyColName).append(")");
@@ -190,14 +198,14 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
                 session.execute(stmtBuilder.toString());
                 repositoryExists = true;
             }
-            finally
+            else
             {
-                connectionProvider.releaseConnection();
+                throw new NucleusUserException("Table for increment strategy doesn't exist, but autoCreateTables is set to false. Set it to true");
             }
         }
-        else
+        finally
         {
-            throw new NucleusUserException("Table for increment strategy doesn't exist, but autoCreateTables is set to false. Set it to true");
+            connectionProvider.releaseConnection();
         }
         return true;
     }

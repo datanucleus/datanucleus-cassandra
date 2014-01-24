@@ -17,6 +17,8 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import org.datanucleus.ExecutionContext;
+import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
@@ -31,6 +33,10 @@ import com.datastax.driver.core.Row;
  */
 public class FetchFieldManager extends AbstractFieldManager
 {
+    protected ExecutionContext ec;
+
+    protected AbstractClassMetaData cmd;
+
     protected ObjectProvider op;
 
     protected Row row;
@@ -41,13 +47,21 @@ public class FetchFieldManager extends AbstractFieldManager
     public FetchFieldManager(ObjectProvider op, Row row)
     {
         this.op = op;
+        this.cmd = op.getClassMetaData();
+        this.ec = op.getExecutionContext();
         this.row = row;
     }
 
-    protected String getFieldName(int fieldNumber)
+    public FetchFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd)
     {
-        return op.getExecutionContext().getStoreManager().getNamingFactory().getColumnName(
-            op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
+        this.cmd = cmd;
+        this.ec = ec;
+        this.row = row;
+    }
+
+    protected String getColumnName(int fieldNumber)
+    {
+        return ec.getStoreManager().getNamingFactory().getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
     }
 
     /* (non-Javadoc)
@@ -56,7 +70,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public boolean fetchBooleanField(int fieldNumber)
     {
-        return row.getBool(getFieldName(fieldNumber));
+        return row.getBool(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -65,7 +79,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public char fetchCharField(int fieldNumber)
     {
-        return row.getString(getFieldName(fieldNumber)).charAt(0);
+        return row.getString(getColumnName(fieldNumber)).charAt(0);
     }
 
     /* (non-Javadoc)
@@ -74,7 +88,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public byte fetchByteField(int fieldNumber)
     {
-        return (byte) row.getInt(getFieldName(fieldNumber));
+        return (byte) row.getInt(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -83,7 +97,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public short fetchShortField(int fieldNumber)
     {
-        return (short) row.getInt(getFieldName(fieldNumber));
+        return (short) row.getInt(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -92,7 +106,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public int fetchIntField(int fieldNumber)
     {
-        return row.getInt(getFieldName(fieldNumber));
+        return row.getInt(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -101,7 +115,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public long fetchLongField(int fieldNumber)
     {
-        return row.getLong(getFieldName(fieldNumber));
+        return row.getLong(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -110,7 +124,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public float fetchFloatField(int fieldNumber)
     {
-        return row.getFloat(getFieldName(fieldNumber));
+        return row.getFloat(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -119,7 +133,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public double fetchDoubleField(int fieldNumber)
     {
-        return row.getDouble(getFieldName(fieldNumber));
+        return row.getDouble(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -128,7 +142,7 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public String fetchStringField(int fieldNumber)
     {
-        return row.getString(getFieldName(fieldNumber));
+        return row.getString(getColumnName(fieldNumber));
     }
 
     /* (non-Javadoc)
@@ -137,8 +151,8 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public Object fetchObjectField(int fieldNumber)
     {
-        AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        RelationType relationType = mmd.getRelationType(op.getExecutionContext().getClassLoaderResolver());
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        RelationType relationType = mmd.getRelationType(ec.getClassLoaderResolver());
 
         boolean embedded = false;
         if (relationType != RelationType.NONE)
@@ -213,15 +227,15 @@ public class FetchFieldManager extends AbstractFieldManager
         }
         else
         {
-            TypeConverter stringConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+            TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
             if (stringConverter != null)
             {
-                return stringConverter.toMemberType(row.getString(getFieldName(fieldNumber)));
+                return stringConverter.toMemberType(row.getString(getColumnName(fieldNumber)));
             }
-            TypeConverter longConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
+            TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
             if (longConverter != null)
             {
-                return longConverter.toMemberType(row.getLong(getFieldName(fieldNumber)));
+                return longConverter.toMemberType(row.getLong(getColumnName(fieldNumber)));
             }
         }
 

@@ -247,6 +247,8 @@ public class CassandraSchemaHandler
 //      boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
       // TODO Make use of DDL properties - see RDBMSStoreManager.createSchema
 
+        // TODO Add deletion of any "incrementtable" if used
+
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         ManagedConnection mconn = storeMgr.getConnection(-1);
         try
@@ -439,7 +441,7 @@ public class CassandraSchemaHandler
         }
     }
 
-    protected boolean checkTableExistence(Session session, String schemaName, String tableName)
+    public static boolean checkTableExistence(Session session, String schemaName, String tableName)
     {
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());

@@ -29,10 +29,26 @@ import java.util.Map;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.ExecutionContext;
+import org.datanucleus.FetchPlan;
+import org.datanucleus.exceptions.NucleusUserException;
+import org.datanucleus.identity.IdentityUtils;
+import org.datanucleus.identity.OID;
+import org.datanucleus.identity.OIDFactory;
+import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.RelationType;
+import org.datanucleus.metadata.VersionMetaData;
+import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.FieldValues;
+import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
+import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
+
+import com.datastax.driver.core.Row;
 
 /**
  * Utility methods for handling Cassandra datastores.
@@ -176,5 +192,135 @@ public class CassandraUtils
     {
         // TODO Do the conversion to match above types
         return memberValue;
+    }
+
+    public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers, boolean ignoreCache)
+    {
+        if (cmd.hasDiscriminatorStrategy())
+        {
+            // Determine the class from the discriminator property
+//            String discrimColName = ec.getStoreManager().getNamingFactory().getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN);
+            // TODO Get the value for this column
+        }
+
+        Object pojo = null;
+        if (cmd.getIdentityType() == IdentityType.APPLICATION)
+        {
+            pojo = CassandraUtils.getObjectUsingApplicationIdForRow(row, cmd, ec, ignoreCache, fpMembers);
+        }
+        else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+        {
+            pojo = CassandraUtils.getObjectUsingDatastoreIdForRow(row, cmd, ec, ignoreCache, fpMembers);
+        }
+        else
+        {
+            throw new NucleusUserException("Attempt to get candidate for class " + cmd.getFullClassName() + " but uses nondurable-identity and this is not supported by this datastore");
+        }
+        return pojo;
+    }
+
+    public static Object getObjectUsingApplicationIdForRow(final Row row, 
+            final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
+    {
+        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd);
+        Object id = IdentityUtils.getApplicationIdentityForResultSetRow(ec, cmd, null, false, fm);
+
+        StoreManager storeMgr = ec.getStoreManager();
+        Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
+        Object pc = ec.findObject(id, 
+            new FieldValues()
+            {
+                public void fetchFields(ObjectProvider op)
+                {
+                    op.replaceFields(fpMembers, fm);
+                }
+                public void fetchNonLoadedFields(ObjectProvider op)
+                {
+                    op.replaceNonLoadedFields(fpMembers, fm);
+                }
+                public FetchPlan getFetchPlanForLoading()
+                {
+                    return null;
+                }
+            }, type, ignoreCache, false);
+
+        if (cmd.isVersioned())
+        {
+            // Set the version on the retrieved object
+            ObjectProvider op = ec.findObjectProvider(pc);
+            Object version = null;
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd.getFieldName() != null)
+            {
+                // Get the version from the field value
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                version = op.provideField(verMmd.getAbsoluteFieldNumber());
+            }
+            else
+            {
+                // Get the surrogate version from the datastore
+                version = row.getInt(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
+            }
+            op.setVersion(version);
+        }
+
+        return pc;
+    }
+
+    public static Object getObjectUsingDatastoreIdForRow(final Row row, 
+            final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
+    {
+        Object idKey = null;
+        StoreManager storeMgr = ec.getStoreManager();
+        if (storeMgr.isStrategyDatastoreAttributed(cmd, -1))
+        {
+            // TODO Support this?
+        }
+        else
+        {
+            idKey = row.getLong(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+        }
+
+        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd);
+        OID oid = OIDFactory.getInstance(ec.getNucleusContext(), cmd.getFullClassName(), idKey);
+        Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
+        Object pc = ec.findObject(oid, 
+            new FieldValues()
+            {
+                // ObjectProvider calls the fetchFields method
+                public void fetchFields(ObjectProvider op)
+                {
+                    op.replaceFields(fpMembers, fm);
+                }
+                public void fetchNonLoadedFields(ObjectProvider op)
+                {
+                    op.replaceNonLoadedFields(fpMembers, fm);
+                }
+                public FetchPlan getFetchPlanForLoading()
+                {
+                    return null;
+                }
+            }, type, ignoreCache, false);
+
+        if (cmd.isVersioned())
+        {
+            // Set the version on the retrieved object
+            ObjectProvider op = ec.findObjectProvider(pc);
+            Object version = null;
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd.getFieldName() != null)
+            {
+                // Get the version from the field value
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                version = op.provideField(verMmd.getAbsoluteFieldNumber());
+            }
+            else
+            {
+                // Get the surrogate version from the datastore
+                version = row.getLong(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
+            }
+            op.setVersion(version);
+        }
+        return pc;
     }
 }
