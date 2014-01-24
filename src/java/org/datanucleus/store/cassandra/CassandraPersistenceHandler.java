@@ -358,6 +358,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
             // TODO Support any USING clauses
             // TODO Implement UPDATE
+            NucleusLogger.PERSISTENCE.warn(">> NOT YET IMPLEMENTED UPDATE FUNCTIONALITY op=" + op);
 
             if (ec.getStatistics() != null)
             {
@@ -399,6 +400,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Create PreparedStatement and values to bind ("DELETE COL1,COL2,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             // TODO Support any USING clauses
             // TODO Implement DELETE
+            NucleusLogger.PERSISTENCE.warn(">> NOT YET IMPLEMENTED DELETE FUNCTIONALITY op=" + op);
 
             if (ec.getStatistics() != null)
             {
