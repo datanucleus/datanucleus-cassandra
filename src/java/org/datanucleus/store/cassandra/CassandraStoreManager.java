@@ -53,9 +53,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
      * @param nucleusCtx Nucleus context
      * @param props Properties for the store manager
      */
-    public CassandraStoreManager(ClassLoaderResolver clr, NucleusContext nucleusContext, Map<String, Object> props)
+    public CassandraStoreManager(ClassLoaderResolver clr, NucleusContext nucleusCtx, Map<String, Object> props)
     {
-        super("cassandra", clr, nucleusContext, props);
+        super("cassandra", clr, nucleusCtx, props);
 
         // Handler for schema
         schemaHandler = new CassandraSchemaHandler(this);

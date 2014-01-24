@@ -177,7 +177,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     /**
      * Obtain a connection from the Factory. The connection will be enlisted within the transaction associated to the ExecutionContext
      * @param ec the pool that is bound the connection during its lifecycle (or null)
-     * @param txnOptionsIgnored Any options for then creating the connection
+     * @param transactionOptions Any options for then creating the connection (currently ignored)
      * @return the {@link org.datanucleus.store.connection.ManagedConnection}
      */
     public ManagedConnection createManagedConnection(ExecutionContext ec, Map transactionOptions)
