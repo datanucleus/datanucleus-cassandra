@@ -40,6 +40,7 @@ import org.datanucleus.store.VersionHelper;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
+import org.datanucleus.store.fieldmanager.DeleteFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.Localiser;
@@ -496,6 +497,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.Delete.Start", 
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
+
+            // Invoke any cascade deletion
+            op.loadUnloadedFields();
+            op.provideFields(cmd.getAllMemberPositions(), new DeleteFieldManager(op, true));
 
             // Create PreparedStatement and values to bind ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
