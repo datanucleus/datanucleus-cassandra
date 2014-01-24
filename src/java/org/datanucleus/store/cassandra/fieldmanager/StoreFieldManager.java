@@ -19,6 +19,7 @@ package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -26,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
@@ -263,6 +265,27 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
         else
         {
+            if (value instanceof Enum)
+            {
+                // Persist as ordinal unless user specifies jdbc-type of "varchar"
+                ColumnMetaData[] colmds = mmd.getColumnMetaData();
+                if (colmds != null && colmds.length == 1)
+                {
+                    if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
+                    {
+                        objectValues.put(fieldNumber, ((Enum)value).name());
+                        return;
+                    }
+                }
+                objectValues.put(fieldNumber, ((Enum)value).ordinal());
+                return;
+            }
+            if (value instanceof Date)
+            {
+                objectValues.put(fieldNumber, value);
+                return;
+            }
+
             TypeConverter stringConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
             if (stringConverter != null)
             {

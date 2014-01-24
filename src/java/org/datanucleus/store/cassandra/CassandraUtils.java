@@ -37,6 +37,7 @@ import org.datanucleus.identity.OID;
 import org.datanucleus.identity.OIDFactory;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
@@ -99,6 +100,19 @@ public class CassandraUtils
         if (cTypeName != null)
         {
             return cTypeName;
+        }
+
+        if (Enum.class.isAssignableFrom(type))
+        {
+            ColumnMetaData[] colmds = mmd.getColumnMetaData();
+            if (colmds != null && colmds.length == 1)
+            {
+                if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
+                {
+                    return "varchar";
+                }
+            }
+            return "int";
         }
 
         RelationType relType = mmd.getRelationType(clr);

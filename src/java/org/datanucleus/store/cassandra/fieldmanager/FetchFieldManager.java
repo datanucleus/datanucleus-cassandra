@@ -17,6 +17,7 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.sql.Date;
 import java.util.Collection;
 import java.util.Iterator;
 
@@ -28,6 +29,7 @@ import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
@@ -166,6 +168,7 @@ public class FetchFieldManager extends AbstractFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         RelationType relationType = mmd.getRelationType(clr);
+        String colName = getColumnName(fieldNumber);
 
         boolean embedded = false;
         if (relationType != RelationType.NONE)
@@ -232,25 +235,43 @@ public class FetchFieldManager extends AbstractFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
-            Object value = row.getString(getColumnName(fieldNumber));
+            Object value = row.getString(colName);
             return getValueForSingleRelationField(mmd, value, clr);
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
-            Object value = row.getString(getColumnName(fieldNumber));
+            Object value = row.getString(colName);
             return getValueForContainerRelationField(mmd, value, clr);
         }
         else
         {
+            if (Enum.class.isAssignableFrom(mmd.getType()))
+            {
+                // Persist as ordinal unless user specifies jdbc-type of "varchar"
+                ColumnMetaData[] colmds = mmd.getColumnMetaData();
+                if (colmds != null && colmds.length == 1)
+                {
+                    if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
+                    {
+                        return Enum.valueOf(mmd.getType(), row.getString(colName));
+                    }
+                }
+                return mmd.getType().getEnumConstants()[row.getInt(colName)];
+            }
+            if (Date.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getDate(colName);
+            }
+
             TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
             if (stringConverter != null)
             {
-                return stringConverter.toMemberType(row.getString(getColumnName(fieldNumber)));
+                return stringConverter.toMemberType(row.getString(colName));
             }
             TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
             if (longConverter != null)
             {
-                return longConverter.toMemberType(row.getLong(getColumnName(fieldNumber)));
+                return longConverter.toMemberType(row.getLong(colName));
             }
         }
 
