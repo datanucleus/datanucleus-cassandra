@@ -17,14 +17,26 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.util.Collection;
+import java.util.Iterator;
+
+import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.exceptions.NucleusDataStoreException;
+import org.datanucleus.exceptions.NucleusObjectNotFoundException;
+import org.datanucleus.exceptions.NucleusUserException;
+import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.FieldRole;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.AbstractFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
 
@@ -151,8 +163,9 @@ public class FetchFieldManager extends AbstractFieldManager
     @Override
     public Object fetchObjectField(int fieldNumber)
     {
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        RelationType relationType = mmd.getRelationType(ec.getClassLoaderResolver());
+        RelationType relationType = mmd.getRelationType(clr);
 
         boolean embedded = false;
         if (relationType != RelationType.NONE)
@@ -219,11 +232,13 @@ public class FetchFieldManager extends AbstractFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
-            // TODO Get value for persistable object - trigger cascade persist
+            Object value = row.getString(getColumnName(fieldNumber));
+            return getValueForSingleRelationField(mmd, value, clr);
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
-            // TODO Get value for collection/map of persistable objects - trigger cascade persist
+            Object value = row.getString(getColumnName(fieldNumber));
+            return getValueForContainerRelationField(mmd, value, clr);
         }
         else
         {
@@ -239,7 +254,113 @@ public class FetchFieldManager extends AbstractFieldManager
             }
         }
 
-        // TODO Auto-generated method stub
-        return super.fetchObjectField(fieldNumber);
+        // TODO Support other types
+        NucleusLogger.PERSISTENCE.info(">> FetchFM field=" + mmd.getFullFieldName() + " not supported currently. Type=" + mmd.getTypeName());
+        return null;
+    }
+
+    protected Object getValueForSingleRelationField(AbstractMemberMetaData mmd, Object value, ClassLoaderResolver clr)
+    {
+        String idStr = (String)value;
+        if (value == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            return IdentityUtils.getObjectFromIdString(idStr, mmd, FieldRole.ROLE_FIELD, ec, true);
+        }
+        catch (NucleusObjectNotFoundException onfe)
+        {
+            NucleusLogger.GENERAL.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + idStr +
+                " but could not instantiate object with that identity");
+            return null;
+        }
+    }
+
+    protected Object getValueForContainerRelationField(AbstractMemberMetaData mmd, Object value, ClassLoaderResolver clr)
+    {
+        if (mmd.hasCollection())
+        {
+            // "a,b,c,d,..."
+            Collection<Object> coll;
+            try
+            {
+                Class instanceType = SCOUtils.getContainerInstanceType(mmd.getType(), mmd.getOrderMetaData() != null);
+                coll = (Collection<Object>) instanceType.newInstance();
+            }
+            catch (Exception e)
+            {
+                throw new NucleusDataStoreException(e.getMessage(), e);
+            }
+
+            AbstractClassMetaData elemCmd = mmd.getCollection().getElementClassMetaData(clr, ec.getMetaDataManager());
+            if (elemCmd == null)
+            {
+                // Try any listed implementations
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
+                    FieldRole.ROLE_COLLECTION_ELEMENT, clr, ec.getMetaDataManager());
+                if (implNames != null && implNames.length == 1)
+                {
+                    elemCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                }
+                if (elemCmd == null)
+                {
+                    throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
+                        " which has a collection of interdeterminate element type (e.g interface or Object element types)");
+                }
+            }
+            Collection<String> collIds = (Collection<String>)value;
+            Iterator<String> idIter = collIds.iterator();
+            boolean changeDetected = false;
+            while (idIter.hasNext())
+            {
+                String elementIdStr = idIter.next();
+                if (elementIdStr == null) // TODO Can you store null elements in a Cassandra Set/List?
+                {
+                    coll.add(null);
+                }
+                else
+                {
+                    try
+                    {
+                        coll.add(IdentityUtils.getObjectFromIdString(elementIdStr, elemCmd, ec, true));
+                    }
+                    catch (NucleusObjectNotFoundException onfe)
+                    {
+                        // Object no longer exists. Deleted by user? so ignore
+                        changeDetected = true;
+                    }
+                }
+            }
+
+            if (op != null)
+            {
+                // Wrap if SCO
+                coll = (Collection) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), coll, false, false, true);
+                if (changeDetected)
+                {
+                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                }
+            }
+            return coll;
+        }
+        else if (mmd.hasMap())
+        {
+            // Map<?,?>
+            // TODO Support maps
+            return null;
+        }
+        else if (mmd.hasArray())
+        {
+            // "a,b,c,d,..."
+            // TODO Support arrays
+            return null;
+        }
+        else
+        {
+            return value;
+        }
     }
 }

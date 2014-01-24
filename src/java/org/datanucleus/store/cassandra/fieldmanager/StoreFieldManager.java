@@ -253,11 +253,11 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
-                
+                // TODO Support maps
             }
             else if (mmd.hasArray())
             {
-                
+                // TODO Support arrays
             }
             // TODO Get value for collection/map of persistable objects - trigger cascade persist
         }

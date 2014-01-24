@@ -24,6 +24,7 @@ import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.exceptions.NucleusDataStoreException;
+import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.identity.OID;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -35,6 +36,7 @@ import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.naming.ColumnType;
@@ -45,6 +47,8 @@ import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
@@ -459,10 +463,80 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
+            StringBuilder stmtBuilder = new StringBuilder("SELECT ");
+            for (int i=0;i<fieldNumbers.length;i++)
+            {
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);
+                String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                if (i > 0)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(colName);
+            }
+            stmtBuilder.append(" FROM ");
+            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+            if (schemaName != null)
+            {
+                stmtBuilder.append(schemaName).append('.');
+            }
+            stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+            Object[] pkVals = null;
+            if (cmd.getIdentityType() == IdentityType.APPLICATION)
+            {
+                int[] pkFieldNums = cmd.getPKMemberPositions();
+                pkVals = new Object[pkFieldNums.length];
+                for (int i=0;i<pkFieldNums.length;i++)
+                {
+                    if (i > 0)
+                    {
+                        stmtBuilder.append(" AND ");
+                    }
+                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                    stmtBuilder.append("=?");
+                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                }
+            }
+            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                stmtBuilder.append("=?");
+                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+            }
             // TODO Support any USING clauses
-            // TODO Implement FETCH of required fields
-        //    FetchFieldManager fetchFM = new FetchFieldManager(op, null); // TODO Put row in
-        //    op.replaceFields(fieldNumbers, fetchFM);
+            NucleusLogger.DATASTORE_RETRIEVE.debug("Fetching fields for " + op + " using : " + stmtBuilder.toString());
+
+            Session session = (Session)mconn.getConnection();
+            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+            ResultSet rs = session.execute(stmt.bind(pkVals));
+            if (rs.isExhausted())
+            {
+                throw new NucleusDataStoreException("Attempt to fetch fields for " + op + " yet no data exists for this object in its table");
+            }
+            Row row = rs.one();
+            FetchFieldManager fetchFM = new FetchFieldManager(op, row);
+            op.replaceFields(fieldNumbers, fetchFM);
+
+            if (cmd.isVersioned() && op.getTransactionalVersion() == null)
+            {
+                // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                if (vermd.getFieldName() != null)
+                {
+                    // Version stored in a field
+                    Object datastoreVersion = op.provideField(cmd.getAbsolutePositionOfMember(vermd.getFieldName()));
+                    op.setVersion(datastoreVersion);
+                }
+                else
+                {
+                    // Surrogate version
+                    String versColName = storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN);
+                    Object datastoreVersion = row.getInt(versColName);
+                    op.setVersion(datastoreVersion);
+                }
+            }
 
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {
@@ -490,8 +564,65 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             ManagedConnection mconn = storeMgr.getConnection(ec);
             try
             {
-                // Create PreparedStatement and values to bind ("SELECT 1 FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-                // TODO Implement LOCATE of object
+                // Create PreparedStatement and values to bind ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+                NamingFactory namingFactory = storeMgr.getNamingFactory();
+                StringBuilder stmtBuilder = new StringBuilder("SELECT ");
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                {
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    for (int i=0;i<pkFieldNums.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(",");
+                        }
+                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                    }
+                }
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                }
+                stmtBuilder.append(" FROM ");
+                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                if (schemaName != null)
+                {
+                    stmtBuilder.append(schemaName).append('.');
+                }
+                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+                Object[] pkVals = null;
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                {
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    pkVals = new Object[pkFieldNums.length];
+                    for (int i=0;i<pkFieldNums.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                        stmtBuilder.append("=?");
+                        pkVals[i] = op.provideField(pkFieldNums[i]);
+                    }
+                }
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    stmtBuilder.append("=?");
+                    pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+                }
+                // TODO Support any USING clauses
+                NucleusLogger.DATASTORE_RETRIEVE.debug("Locating object " + op + " using : " + stmtBuilder.toString());
+
+                Session session = (Session)mconn.getConnection();
+                PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+                ResultSet rs = session.execute(stmt.bind(pkVals));
+                if (rs.isExhausted())
+                {
+                    throw new NucleusObjectNotFoundException();
+                }
             }
             finally
             {
