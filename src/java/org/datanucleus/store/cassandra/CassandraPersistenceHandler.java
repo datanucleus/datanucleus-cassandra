@@ -36,6 +36,7 @@ import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.VersionHelper;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -43,7 +44,6 @@ import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
@@ -207,7 +207,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            NucleusLogger.DATASTORE_PERSIST.debug("Insert of " + op + " will use statement : " + insertStmt.toString() + " fieldValues=" + StringUtils.objectArrayToString(stmtValues));
+            NucleusLogger.DATASTORE_NATIVE.debug(insertStmt.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
             PreparedStatement stmt = session.prepare(insertStmt);
             BoundStatement boundStmt = stmt.bind(stmtValues);
             session.execute(boundStmt); // TODO Make use of ResultSet?
@@ -355,10 +355,109 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId(), fieldStr.toString()));
             }
 
+            if (cmd.isVersioned())
+            {
+                // Version object so update the version in the object prior to storing
+                Object currentVersion = op.getTransactionalVersion();
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                Object nextVersion = VersionHelper.getNextVersion(vermd.getVersionStrategy(), currentVersion);
+                op.setTransactionalVersion(nextVersion);
+                if (vermd.getFieldName() != null)
+                {
+                    // Version also stored in a field, so update the field value
+                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                    op.replaceField(verMmd.getAbsoluteFieldNumber(), nextVersion);
+                }
+            }
+
             // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
+            StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
+            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+            if (schemaName != null)
+            {
+                stmtBuilder.append(schemaName).append('.');
+            }
+            stmtBuilder.append(namingFactory.getTableName(cmd));
             // TODO Support any USING clauses
-            // TODO Implement UPDATE
-            NucleusLogger.PERSISTENCE.warn(">> NOT YET IMPLEMENTED UPDATE FUNCTIONALITY op=" + op);
+
+            stmtBuilder.append(" SET ");
+            for (int i=0;i<fieldNumbers.length;i++)
+            {
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);
+                if (i > 0)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
+                stmtBuilder.append("=?");
+            }
+            Object[] verVals = new Object[0];
+            if (cmd.isVersioned())
+            {
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                if (vermd.getFieldName() != null)
+                {
+                    // Update the version field value
+                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                    boolean updatingVerField = false;
+                    for (int i=0;i<fieldNumbers.length;i++)
+                    {
+                        if (fieldNumbers[i] == verMmd.getAbsoluteFieldNumber())
+                        {
+                            updatingVerField = true;
+                        }
+                    }
+                    if (updatingVerField)
+                    {
+                        stmtBuilder.append(',').append(namingFactory.getColumnName(verMmd, ColumnType.COLUMN)).append("=?");
+                        verVals = new Object[]{op.getTransactionalVersion()};
+                    }
+                }
+                else
+                {
+                    // Update the stored surrogate value
+                    stmtBuilder.append(",").append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append("=?");
+                    verVals = new Object[]{op.getTransactionalVersion()};
+                }
+            }
+
+            stmtBuilder.append(" WHERE ");
+            Object[] pkVals = null;
+            if (cmd.getIdentityType() == IdentityType.APPLICATION)
+            {
+                int[] pkFieldNums = cmd.getPKMemberPositions();
+                pkVals = new Object[pkFieldNums.length];
+                for (int i=0;i<pkFieldNums.length;i++)
+                {
+                    if (i > 0)
+                    {
+                        stmtBuilder.append(" AND ");
+                    }
+                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                    stmtBuilder.append("=?");
+                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                }
+            }
+            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                stmtBuilder.append("=?");
+                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+            }
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
+
+            StoreFieldManager storeFM = new StoreFieldManager(op, false);
+            op.provideFields(fieldNumbers , storeFM); // Note that jdoProvideFields in enhancement contract can do these in reverse order TODO Fix enhancement
+            Object[] setVals = storeFM.getValuesToStore();
+
+            Object[] stmtVals = new Object[setVals.length + pkVals.length + verVals.length];
+            System.arraycopy(setVals, 0, stmtVals, 0, setVals.length);
+            System.arraycopy(pkVals, 0, stmtVals, setVals.length, pkVals.length);
+            System.arraycopy(verVals, 0, stmtVals, setVals.length+pkVals.length, verVals.length);
+            Session session = (Session)mconn.getConnection();
+            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+            session.execute(stmt.bind(stmtVals));
 
             if (ec.getStatistics() != null)
             {
@@ -386,6 +485,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
     {
         assertReadOnlyForUpdateOfObject(op);
 
+        AbstractClassMetaData cmd = op.getClassMetaData();
         ExecutionContext ec = op.getExecutionContext();
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
@@ -397,10 +497,44 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // Create PreparedStatement and values to bind ("DELETE COL1,COL2,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            // Create PreparedStatement and values to bind ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
+            StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
+            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+            if (schemaName != null)
+            {
+                stmtBuilder.append(schemaName).append('.');
+            }
             // TODO Support any USING clauses
-            // TODO Implement DELETE
-            NucleusLogger.PERSISTENCE.warn(">> NOT YET IMPLEMENTED DELETE FUNCTIONALITY op=" + op);
+            stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+            Object[] pkVals = null;
+            if (cmd.getIdentityType() == IdentityType.APPLICATION)
+            {
+                int[] pkFieldNums = cmd.getPKMemberPositions();
+                pkVals = new Object[pkFieldNums.length];
+                for (int i=0;i<pkFieldNums.length;i++)
+                {
+                    if (i > 0)
+                    {
+                        stmtBuilder.append(" AND ");
+                    }
+                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                    stmtBuilder.append("=?");
+                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                }
+            }
+            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                stmtBuilder.append("=?");
+                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+            }
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
+
+            Session session = (Session)mconn.getConnection();
+            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+            session.execute(stmt.bind(pkVals));
 
             if (ec.getStatistics() != null)
             {
@@ -508,7 +642,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
             // TODO Support any USING clauses
-            NucleusLogger.DATASTORE_RETRIEVE.debug("Fetching fields for " + op + " using : " + stmtBuilder.toString());
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
@@ -616,7 +750,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
                 }
                 // TODO Support any USING clauses
-                NucleusLogger.DATASTORE_RETRIEVE.debug("Locating object " + op + " using : " + stmtBuilder.toString());
+                NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
                 Session session = (Session)mconn.getConnection();
                 PreparedStatement stmt = session.prepare(stmtBuilder.toString());
