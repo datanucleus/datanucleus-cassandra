@@ -51,6 +51,7 @@ import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.exceptions.DriverException;
 
 /**
  * Handler for basic persistence operations with Cassandra datastores.
@@ -61,6 +62,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
 
     protected Map<String, String> insertStatementByClassName;
+
+    protected Map<String, String> deleteStatementByClassName;
+
+    protected Map<String, String> locateStatementByClassName;
 
     public CassandraPersistenceHandler(StoreManager storeMgr)
     {
@@ -103,8 +108,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (insertStmt == null)
             {
-                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)") and cache it
+                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
                 insertStmt = getInsertStatementForClass(cmd);
+
+                // Cache the statement
                 if (insertStatementByClassName == null)
                 {
                     insertStatementByClassName = new HashMap<String, String>();
@@ -208,7 +215,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            NucleusLogger.DATASTORE_NATIVE.debug(insertStmt.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
+            NucleusLogger.DATASTORE_NATIVE.debug(insertStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
             PreparedStatement stmt = session.prepare(insertStmt);
             BoundStatement boundStmt = stmt.bind(stmtValues);
             session.execute(boundStmt); // TODO Make use of ResultSet?
@@ -229,7 +236,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ec.getStatistics().incrementInsertCount();
             }
         }
-        catch (Exception e) // TODO Change type of this exception to match DataStax
+        catch (DriverException e)
         {
             NucleusLogger.PERSISTENCE.error("Exception inserting object " + op, e);
             throw new NucleusDataStoreException("Exception inserting object for " + op, e);
@@ -446,7 +453,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 stmtBuilder.append("=?");
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
             StoreFieldManager storeFM = new StoreFieldManager(op, false);
             op.provideFields(fieldNumbers , storeFM); // Note that jdoProvideFields in enhancement contract can do these in reverse order TODO Fix enhancement
@@ -456,6 +462,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             System.arraycopy(setVals, 0, stmtVals, 0, setVals.length);
             System.arraycopy(pkVals, 0, stmtVals, setVals.length, pkVals.length);
             System.arraycopy(verVals, 0, stmtVals, setVals.length+pkVals.length, verVals.length);
+
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
             session.execute(stmt.bind(stmtVals));
@@ -471,7 +479,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     (System.currentTimeMillis() - startTime)));
             }
         }
-        catch (Exception e) // TODO Change type of this exception to match DataStax
+        catch (DriverException e)
         {
             NucleusLogger.PERSISTENCE.error("Exception updating object " + op, e);
             throw new NucleusDataStoreException("Exception updating object for " + op, e);
@@ -502,16 +510,51 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             op.loadUnloadedFields();
             op.provideFields(cmd.getAllMemberPositions(), new DeleteFieldManager(op, true));
 
-            // Create PreparedStatement and values to bind ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-            NamingFactory namingFactory = storeMgr.getNamingFactory();
-            StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
-            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
-            if (schemaName != null)
+            String deleteStmt = null;
+            if (deleteStatementByClassName != null)
             {
-                stmtBuilder.append(schemaName).append('.');
+                deleteStmt = deleteStatementByClassName.get(cmd.getFullClassName());
             }
-            // TODO Support any USING clauses
-            stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+            if (deleteStmt == null)
+            {
+                // Create the delete statement ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+                NamingFactory namingFactory = storeMgr.getNamingFactory();
+                StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
+                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                if (schemaName != null)
+                {
+                    stmtBuilder.append(schemaName).append('.');
+                }
+                // TODO Support any USING clauses
+                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                {
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    for (int i=0;i<pkFieldNums.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                        stmtBuilder.append("=?");
+                    }
+                }
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    stmtBuilder.append("=?");
+                }
+                deleteStmt = stmtBuilder.toString();
+
+                // Cache the statement
+                if (deleteStatementByClassName == null)
+                {
+                    deleteStatementByClassName = new HashMap<String, String>();
+                }
+                deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
+            }
 
             Object[] pkVals = null;
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
@@ -520,25 +563,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
-                    if (i > 0)
-                    {
-                        stmtBuilder.append(" AND ");
-                    }
-                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
-                    stmtBuilder.append("=?");
                     pkVals[i] = op.provideField(pkFieldNums[i]);
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
-                stmtBuilder.append("=?");
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
+            NucleusLogger.DATASTORE_NATIVE.debug(deleteStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
             Session session = (Session)mconn.getConnection();
-            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+            PreparedStatement stmt = session.prepare(deleteStmt);
             session.execute(stmt.bind(pkVals));
 
             if (ec.getStatistics() != null)
@@ -553,7 +588,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     (System.currentTimeMillis() - startTime)));
             }
         }
-        catch (Exception e) // TODO Change type of this exception to match DataStax
+        catch (DriverException e)
         {
             NucleusLogger.PERSISTENCE.error("Exception deleting object " + op, e);
             throw new NucleusDataStoreException("Exception deleting object for " + op, e);
@@ -624,11 +659,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
 
-            Object[] pkVals = null;
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
                 int[] pkFieldNums = cmd.getPKMemberPositions();
-                pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
                     if (i > 0)
@@ -637,18 +670,31 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
                     stmtBuilder.append("=?");
-                    pkVals[i] = op.provideField(pkFieldNums[i]);
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
                 stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
                 stmtBuilder.append("=?");
-                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
             // TODO Support any USING clauses
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
+            Object[] pkVals = null;
+            if (cmd.getIdentityType() == IdentityType.APPLICATION)
+            {
+                int[] pkFieldNums = cmd.getPKMemberPositions();
+                pkVals = new Object[pkFieldNums.length];
+                for (int i=0;i<pkFieldNums.length;i++)
+                {
+                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                }
+            }
+            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+            }
+
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
             ResultSet rs = session.execute(stmt.bind(pkVals));
@@ -689,6 +735,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ec.getStatistics().incrementFetchCount();
             }
         }
+        catch (DriverException e)
+        {
+            NucleusLogger.PERSISTENCE.error("Exception fetching object " + op, e);
+            throw new NucleusDataStoreException("Exception fetching object for " + op, e);
+        }
         finally
         {
             mconn.release();
@@ -705,32 +756,68 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             ManagedConnection mconn = storeMgr.getConnection(ec);
             try
             {
-                // Create PreparedStatement and values to bind ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-                NamingFactory namingFactory = storeMgr.getNamingFactory();
-                StringBuilder stmtBuilder = new StringBuilder("SELECT ");
-                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                String locateStmt = null;
+                if (locateStatementByClassName != null)
                 {
-                    int[] pkFieldNums = cmd.getPKMemberPositions();
-                    for (int i=0;i<pkFieldNums.length;i++)
+                    locateStmt = locateStatementByClassName.get(cmd.getFullClassName());
+                }
+                if (locateStmt == null)
+                {
+                    // Create the locate statement ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+                    NamingFactory namingFactory = storeMgr.getNamingFactory();
+                    StringBuilder stmtBuilder = new StringBuilder("SELECT ");
+                    if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
-                        if (i > 0)
+                        int[] pkFieldNums = cmd.getPKMemberPositions();
+                        for (int i=0;i<pkFieldNums.length;i++)
                         {
-                            stmtBuilder.append(",");
+                            if (i > 0)
+                            {
+                                stmtBuilder.append(",");
+                            }
+                            stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
                         }
-                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
                     }
+                    else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                    {
+                        stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    }
+                    stmtBuilder.append(" FROM ");
+                    String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+                    if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                    {
+                        int[] pkFieldNums = cmd.getPKMemberPositions();
+                        for (int i=0;i<pkFieldNums.length;i++)
+                        {
+                            if (i > 0)
+                            {
+                                stmtBuilder.append(" AND ");
+                            }
+                            stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                            stmtBuilder.append("=?");
+                        }
+                    }
+                    else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                    {
+                        stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                        stmtBuilder.append("=?");
+                    }
+                    // TODO Support any USING clauses
+                    locateStmt = stmtBuilder.toString();
+
+                    // Cache the statement
+                    if (locateStatementByClassName == null)
+                    {
+                        locateStatementByClassName = new HashMap<String, String>();
+                    }
+                    locateStatementByClassName.put(cmd.getFullClassName(), locateStmt);
                 }
-                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-                {
-                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
-                }
-                stmtBuilder.append(" FROM ");
-                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
-                if (schemaName != null)
-                {
-                    stmtBuilder.append(schemaName).append('.');
-                }
-                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
 
                 Object[] pkVals = null;
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
@@ -739,31 +826,27 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkVals = new Object[pkFieldNums.length];
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
-                        if (i > 0)
-                        {
-                            stmtBuilder.append(" AND ");
-                        }
-                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
-                        stmtBuilder.append("=?");
                         pkVals[i] = op.provideField(pkFieldNums[i]);
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
-                    stmtBuilder.append("=?");
                     pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
                 }
-                // TODO Support any USING clauses
-                NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
 
+                NucleusLogger.DATASTORE_NATIVE.debug(locateStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
                 Session session = (Session)mconn.getConnection();
-                PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+                PreparedStatement stmt = session.prepare(locateStmt);
                 ResultSet rs = session.execute(stmt.bind(pkVals));
                 if (rs.isExhausted())
                 {
                     throw new NucleusObjectNotFoundException();
                 }
+            }
+            catch (DriverException e)
+            {
+                NucleusLogger.PERSISTENCE.error("Exception locating object " + op, e);
+                throw new NucleusDataStoreException("Exception locating object for " + op, e);
             }
             finally
             {
