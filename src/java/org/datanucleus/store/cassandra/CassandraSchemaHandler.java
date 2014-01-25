@@ -53,6 +53,42 @@ public class CassandraSchemaHandler
         this.storeMgr = storeMgr;
     }
 
+    /**
+     * Method to create a schema (keyspace) in Cassandra.
+     * Accepts properties with names "replication", "durable_writes" (case sensitive).
+     * @param schemaName Name of the schema
+     * @param props Any properties defining the new keyspace
+     */
+    public void createSchema(String schemaName, Properties props)
+    {
+        ManagedConnection mconn = storeMgr.getConnection(-1);
+        try
+        {
+            Session session = (Session)mconn.getConnection();
+
+            StringBuilder stmtBuilder = new StringBuilder("CREATE KEYSPACE IF NOT EXISTS ");
+            stmtBuilder.append(schemaName).append(" WITH ");
+            String replicationProp = (props != null ? (String)props.get("replication") : "{'class': 'SimpleStrategy', 'replication_factor' : 3}");
+            stmtBuilder.append("replication = ").append(replicationProp);
+            if (props != null && props.containsKey("durable_writes"))
+            {
+                Boolean durable = Boolean.valueOf((String)props.get("durable_writes"));
+                if (!durable)
+                {
+                    stmtBuilder.append(" AND durable_writes=false");
+                }
+            }
+
+            NucleusLogger.DATASTORE_SCHEMA.debug(stmtBuilder.toString());
+            session.execute(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug("Schema " + schemaName + " created successfully");
+        }
+        finally
+        {
+            mconn.release();
+        }
+    }
+
     public void createSchema(Set<String> classNames, Properties props)
     {
 //        String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
@@ -223,21 +259,28 @@ public class CassandraSchemaHandler
         }
     }
 
-    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
+    /**
+     * Method to drop a schema (keyspace) in Cassandra.
+     * @param schemaName Name of the schema (keyspace).
+     */
+    public void deleteSchema(String schemaName)
     {
-        StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
-        stmtBuilder.append(indexName);
-        stmtBuilder.append(" ON ");
-        if (schemaName != null)
+        ManagedConnection mconn = storeMgr.getConnection(-1);
+        try
         {
-            stmtBuilder.append(schemaName).append('.');
-        }
-        stmtBuilder.append(tableName);
-        stmtBuilder.append(" (").append(columnName).append(")");
+            Session session = (Session)mconn.getConnection();
 
-        NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
-        session.execute(stmtBuilder.toString());
-        NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
+            StringBuilder stmtBuilder = new StringBuilder("DROP KEYSPACE IF EXISTS ");
+            stmtBuilder.append(schemaName);
+
+            NucleusLogger.DATASTORE_SCHEMA.debug(stmtBuilder.toString());
+            session.execute(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug("Schema " + schemaName + " dropped successfully");
+        }
+        finally
+        {
+            mconn.release();
+        }
     }
 
     public void deleteSchema(Set<String> classNames, Properties props)
@@ -439,6 +482,23 @@ public class CassandraSchemaHandler
         {
             throw new NucleusException("Errors were encountered during validation of Cassandra schema");
         }
+    }
+
+    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
+    {
+        StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
+        stmtBuilder.append(indexName);
+        stmtBuilder.append(" ON ");
+        if (schemaName != null)
+        {
+            stmtBuilder.append(schemaName).append('.');
+        }
+        stmtBuilder.append(tableName);
+        stmtBuilder.append(" (").append(columnName).append(")");
+
+        NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
+        session.execute(stmtBuilder.toString());
+        NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
     }
 
     public static boolean checkTableExistence(Session session, String schemaName, String tableName)

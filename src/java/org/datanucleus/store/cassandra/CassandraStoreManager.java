@@ -151,6 +151,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
+    public void createSchema(String schemaName, Properties props)
+    {
+        schemaHandler.createSchema(schemaName, props);
+    }
+
     /* (non-Javadoc)
      * @see org.datanucleus.store.schema.SchemaAwareStoreManager#createSchema(java.util.Set, java.util.Properties)
      */
@@ -158,6 +163,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public void createSchema(Set<String> classNames, Properties props)
     {
         schemaHandler.createSchema(classNames, props);
+    }
+
+    public void deleteSchema(String schemaName, Properties props)
+    {
+        schemaHandler.deleteSchema(schemaName);
     }
 
     /* (non-Javadoc)
