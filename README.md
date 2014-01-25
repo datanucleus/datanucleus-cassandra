@@ -13,7 +13,7 @@ This is built using Maven, by executing `mvn clean install` which installs the b
 __License__ : Apache 2 licensed  
 __Issue Tracker__ : http://www.datanucleus.org/servlet/jira/browse/NUCCASSANDRA  
 __RoadMap__ : http://issues.datanucleus.org/browse/NUCCASSANDRA?report=com.atlassian.jira.plugin.system.project:roadmap-panel  
-__Javadocs__ : (None currently)  
+__Javadocs__ : [3.3](http://www.datanucleus.org/javadocs/store.cassandra/3.3/)  
 __Download(Releases)__ : [Maven Central](http://central.maven.org/maven2/org/datanucleus/datanucleus-cassandra)  
 __Download(Nightly)__ : [Nightly Builds](http://www.datanucleus.org/downloads/maven2-nightly/org/datanucleus/datanucleus-cassandra)  
 __Dependencies__ : See file [pom.xml](pom.xml)  
