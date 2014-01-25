@@ -226,11 +226,14 @@ public class FetchFieldManager extends AbstractFieldManager
             if (RelationType.isRelationSingleValued(relationType))
             {
                 // TODO Embedded PC object
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
             }
             else if (RelationType.isRelationMultiValued(relationType))
             {
                 // TODO Embedded Collection
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
             }
+            return null; // Remove this when we support embedded
         }
 
         if (RelationType.isRelationSingleValued(relationType))

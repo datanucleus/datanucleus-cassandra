@@ -207,11 +207,14 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (RelationType.isRelationSingleValued(relationType))
             {
                 // TODO Embedded PC object
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
             }
             else if (RelationType.isRelationMultiValued(relationType))
             {
                 // TODO Embedded Collection
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
             }
+            objectValues.put(fieldNumber, null); // Remove this when we support embedded
             return;
         }
 
