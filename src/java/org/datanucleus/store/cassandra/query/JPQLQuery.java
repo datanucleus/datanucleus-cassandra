@@ -182,7 +182,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
             // Execute the SELECT
-            NucleusLogger.QUERY.debug("Obtaining query candidates of type " + cmd.getFullClassName() + " using : " + stmtBuilder.toString());
+            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString());
             ResultSet rs = session.execute(stmtBuilder.toString());
 
             // Extract the candidates from the ResultSet

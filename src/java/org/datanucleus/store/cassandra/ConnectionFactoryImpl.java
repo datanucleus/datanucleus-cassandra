@@ -17,7 +17,10 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 
 import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
@@ -41,10 +44,8 @@ import com.datastax.driver.core.SocketOptions;
 
 /**
  * Connection factory for Cassandra datastores.
- * Accepts a URL of the form 
- * <pre>cassandra:[{host:port}]</pre>
- * Defaults to a server of "127.0.0.1" if nothing specified
- * TODO Update this URL to include all config that Cassandra allows
+ * Accepts a URL of the form <pre>cassandra:[host1:port[,host2[,host3]]]</pre>
+ * Defaults to a server of "127.0.0.1" if no host/port specified
  * TODO Should we use one Session per EMF/PMF ? or one per EM/PM ? since Cassandra doesn't do real txns then not obvious. Are they thread-safe? Currently does one Session per PM/EM
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
@@ -71,31 +72,56 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         {
             throw new NucleusException("You haven't specified persistence property 'datanucleus.ConnectionURL' (or alias)");
         }
-
-        String remains = url.substring(9).trim();
-        if (remains.indexOf(':') == 0)
+        String remains = url.trim().substring(9).trim(); // Strip "cassandra"
+        if (remains.length() > 0)
         {
-            remains = remains.substring(1).trim();
+            remains = remains.substring(1); // Strip ":"
         }
-        String host = "127.0.0.1";
+
+        // Extract host(s)/port
+        StringTokenizer tokeniser = new StringTokenizer(remains, ",");
+        List<String> hosts = new ArrayList();
         String port = null;
-        if (!StringUtils.isWhitespace(remains))
+        while (tokeniser.hasMoreTokens())
         {
-            int nextSemiColon = remains.indexOf(':');
-            if (nextSemiColon > 0)
+            String token = tokeniser.nextToken().trim();
+            if (token.indexOf(':') == 0)
             {
-                port = remains.substring(nextSemiColon+1);
-                host = remains.substring(0, nextSemiColon);
+                token = token.substring(1).trim();
             }
-            else
+
+            String hostStr = null;
+            if (!StringUtils.isWhitespace(token))
             {
-                host = remains.trim();
+                int nextSemiColon = token.indexOf(':');
+                if (nextSemiColon > 0)
+                {
+                    port = token.substring(nextSemiColon+1);
+                    hostStr = token.substring(0, nextSemiColon);
+                }
+                else
+                {
+                    hostStr = token.trim();
+                }
             }
+            hosts.add(hostStr);
         }
 
         Builder builder = Cluster.builder();
-        builder.addContactPoint(host);
-        // TODO Support multiple contact points?
+        if (hosts.size() > 0)
+        {
+            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for hosts " + StringUtils.collectionToString(hosts));
+            for (String host : hosts)
+            {
+                builder.addContactPoint(host);
+            }
+        }
+        else
+        {
+            // Fallback to localhost
+            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for host 127.0.0.1");
+            builder.addContactPoint("127.0.0.1");
+        }
         if (port != null)
         {
             int portNumber = 0;
@@ -169,6 +195,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
     public void close()
     {
+        NucleusLogger.CONNECTION.debug("Shutting down Cassandra Cluster");
         cluster.shutdown();
 
         super.close();
@@ -211,9 +238,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         {
             if (commitOnRelease)
             {
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " is committing");
-                // TODO Commit the Session ?
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " committed connection");
+                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - released connection");
             }
         }
 
@@ -230,9 +255,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPreClose();
             }
 
-            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " is committing");
-            // TODO End the Session?
-            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " committed connection");
+            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - closed connection");
 
             // Removes the connection from pooling
             for (int i=0; i<listeners.size(); i++)
@@ -274,18 +297,14 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
         public void commit(Xid xid, boolean onePhase) throws XAException
         {
-            NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
-                " is committing for transaction "+xid.toString()+" with onePhase="+onePhase);
-            // TODO Commit of Session (not that we can)
+            // There is no commit in Cassandra, so just log it
             NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
                 " committed connection for transaction "+xid.toString()+" with onePhase="+onePhase);
         }
 
         public void rollback(Xid xid) throws XAException
         {
-            NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
-                " is rolling back for transaction "+xid.toString());
-            // TODO Rollback of Session (not that we can)
+            // There is no rollback in Cassandra, so just log it
             NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
                 " rolled back connection for transaction "+xid.toString());
         }
