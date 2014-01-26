@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
@@ -34,6 +35,7 @@ import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJDOQLQuery;
+import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.ResultSet;
@@ -167,6 +169,12 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
             stmtBuilder.append(storeMgr.getSchemaNameForClass(cmd)).append('.').append(storeMgr.getNamingFactory().getTableName(cmd));
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
+
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID);
+                stmtBuilder.append(" WHERE ").append(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append("='").append(multitenancyValue).append("'");
+            }
 
             // Execute the SELECT
             NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString());
