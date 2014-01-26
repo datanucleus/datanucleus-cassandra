@@ -101,6 +101,10 @@ public class CassandraUtils
         {
             return cTypeName;
         }
+        else if (mmd.isSerialized() && Serializable.class.isAssignableFrom(type))
+        {
+            return "blob";
+        }
 
         if (Enum.class.isAssignableFrom(type))
         {

@@ -17,6 +17,7 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -268,7 +269,14 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
         else
         {
-            if (value instanceof Enum)
+            if (mmd.isSerialized() && value instanceof Serializable)
+            {
+                // Convert to byte[] and use that
+                TypeConverter serialConv = op.getExecutionContext().getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
+                objectValues.put(fieldNumber, serialConv.toDatastoreType(value));
+                return;
+            }
+            else if (value instanceof Enum)
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
                 ColumnMetaData[] colmds = mmd.getColumnMetaData();
@@ -283,7 +291,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 objectValues.put(fieldNumber, ((Enum)value).ordinal());
                 return;
             }
-            if (value instanceof Date)
+            else if (value instanceof Date)
             {
                 objectValues.put(fieldNumber, value);
                 return;

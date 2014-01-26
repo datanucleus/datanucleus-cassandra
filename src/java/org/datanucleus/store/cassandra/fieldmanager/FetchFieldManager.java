@@ -17,6 +17,8 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.io.Serializable;
+import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.util.Collection;
 import java.util.Iterator;
@@ -248,6 +250,14 @@ public class FetchFieldManager extends AbstractFieldManager
         }
         else
         {
+            if (mmd.isSerialized())
+            {
+                // Retrieve byte[] and convert back
+                ByteBuffer byteBuffer = row.getBytes(colName);
+                byte[] bytes = byteBuffer.array();
+                TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
+                return serialConv.toMemberType(bytes);
+            }
             if (Enum.class.isAssignableFrom(mmd.getType()))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
@@ -261,7 +271,7 @@ public class FetchFieldManager extends AbstractFieldManager
                 }
                 return mmd.getType().getEnumConstants()[row.getInt(colName)];
             }
-            if (Date.class.isAssignableFrom(mmd.getType()))
+            else if (Date.class.isAssignableFrom(mmd.getType()))
             {
                 return row.getDate(colName);
             }
