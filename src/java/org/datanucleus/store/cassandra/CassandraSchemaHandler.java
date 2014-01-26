@@ -25,12 +25,14 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
@@ -139,6 +141,8 @@ public class CassandraSchemaHandler
             stmtBuilder.append(tableName);
             stmtBuilder.append(" (");
             boolean firstCol = true;
+
+            // Add columns for managed fields of this class and all superclasses
             int[] memberPositions = cmd.getAllMemberPositions();
             for (int i=0;i<memberPositions.length;i++)
             {
@@ -161,6 +165,40 @@ public class CassandraSchemaHandler
                 {
                     firstCol = false;
                 }
+            }
+
+            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+            {
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                String cassandraType = "int";
+                if (cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME)
+                {
+                    cassandraType = "timestamp";
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append(" ").append(cassandraType);
+                firstCol = false;
+            }
+            if (cmd.hasDiscriminatorStrategy())
+            {
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN)).append(" varchar");
+                firstCol = false;
+            }
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                // Multitenancy discriminator
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append(" varchar");
+                firstCol = false;
             }
 
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -255,7 +293,11 @@ public class CassandraSchemaHandler
                 }
             }
 
-            // TODO Index on version column? or discriminator?, or datastoreId?
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                // TODO Add index on multitenancy discriminator
+            }
+            // TODO Index on version column? or discriminator?
         }
     }
 

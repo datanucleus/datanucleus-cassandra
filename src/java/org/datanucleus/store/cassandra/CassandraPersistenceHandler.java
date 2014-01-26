@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.identity.OID;
@@ -173,6 +174,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
+            Object multitenancyValue = null;
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                // Multitenancy discriminator
+                multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID);
+            }
+
             // Obtain the values to populate the statement with by using StoreFieldManager
             // TODO If we are attributing this object in the datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
             StoreFieldManager storeFM = new StoreFieldManager(op, true);
@@ -188,6 +196,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 numValues++;
             }
             if (discrimValue != null)
+            {
+                numValues++;
+            }
+            if (multitenancyValue != null)
             {
                 numValues++;
             }
@@ -212,6 +224,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 if (discrimValue != null)
                 {
                     stmtValues[pos++] = discrimValue;
+                }
+                if (multitenancyValue != null)
+                {
+                    stmtValues[pos++] = multitenancyValue;
                 }
             }
 
@@ -313,6 +329,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 insertStmtBuilder.append(',');
             }
             insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN));
+            numParams++;
+        }
+
+        if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+        {
+            // Multi-tenancy discriminator
+            if (numParams > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN));
             numParams++;
         }
 
