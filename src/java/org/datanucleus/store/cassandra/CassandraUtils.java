@@ -48,6 +48,7 @@ import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
 
@@ -340,5 +341,37 @@ public class CassandraUtils
             op.setVersion(version);
         }
         return pc;
+    }
+
+    public static void logCqlStatement(String stmt, Object[] values, NucleusLogger logger)
+    {
+        if (values == null || values.length == 0)
+        {
+            logger.debug(stmt);
+        }
+
+        StringBuilder str = new StringBuilder();
+        int paramNo = 0;
+        int currentPos = 0;
+        boolean moreParams = true;
+        while (moreParams)
+        {
+            int pos = stmt.indexOf('?', currentPos);
+            if (pos > 0)
+            {
+                str.append(stmt.substring(currentPos, pos));
+                str.append('<').append("" + values[paramNo]).append('>');
+                paramNo++;
+
+                currentPos = pos+1;
+            }
+            else
+            {
+                moreParams = false;
+            }
+        }
+        str.append(stmt.substring(currentPos));
+
+        logger.debug(str.toString());
     }
 }

@@ -231,7 +231,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            NucleusLogger.DATASTORE_NATIVE.debug(insertStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
+            CassandraUtils.logCqlStatement(insertStmt, stmtValues, NucleusLogger.DATASTORE_NATIVE);
             PreparedStatement stmt = session.prepare(insertStmt);
             BoundStatement boundStmt = stmt.bind(stmtValues);
             session.execute(boundStmt); // TODO Make use of ResultSet?
@@ -490,7 +490,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             System.arraycopy(pkVals, 0, stmtVals, setVals.length, pkVals.length);
             System.arraycopy(verVals, 0, stmtVals, setVals.length+pkVals.length, verVals.length);
 
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
+            CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtVals, NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
             session.execute(stmt.bind(stmtVals));
@@ -598,7 +598,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
 
-            NucleusLogger.DATASTORE_NATIVE.debug(deleteStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
+            CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(deleteStmt);
             session.execute(stmt.bind(pkVals));
@@ -721,7 +721,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
 
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString()); // TODO Find a way of putting fieldValues into statement like for RDBMS
+            CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
             ResultSet rs = session.execute(stmt.bind(pkVals));
@@ -861,7 +861,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
                 }
 
-                NucleusLogger.DATASTORE_NATIVE.debug(locateStmt); // TODO Find a way of putting fieldValues into statement like for RDBMS
+                CassandraUtils.logCqlStatement(locateStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session)mconn.getConnection();
                 PreparedStatement stmt = session.prepare(locateStmt);
                 ResultSet rs = session.execute(stmt.bind(pkVals));

@@ -190,7 +190,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
 
             // Execute the SELECT
-            NucleusLogger.DATASTORE_NATIVE.debug(stmtBuilder.toString());
+            CassandraUtils.logCqlStatement(stmtBuilder.toString(), null, NucleusLogger.DATASTORE_NATIVE);
             ResultSet rs = session.execute(stmtBuilder.toString());
 
             // Extract the candidates from the ResultSet
