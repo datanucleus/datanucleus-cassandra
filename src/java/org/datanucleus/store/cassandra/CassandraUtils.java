@@ -348,6 +348,7 @@ public class CassandraUtils
         if (values == null || values.length == 0)
         {
             logger.debug(stmt);
+            return;
         }
 
         StringBuilder str = new StringBuilder();
