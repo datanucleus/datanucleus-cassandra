@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -85,10 +86,12 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Time.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
+        cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
     }
 
     /**
      * Method to return the Cassandra column type that the specified member will be stored as.
+     * TODO This makes the assumption that when we have a persistable type we persist a String form of the id (into a varchar).
      * @param mmd Metadata for the member
      * @param typeMgr Type manager
      * @return The cassandra column type
@@ -106,8 +109,7 @@ public class CassandraUtils
         {
             return "blob";
         }
-
-        if (Enum.class.isAssignableFrom(type))
+        else if (Enum.class.isAssignableFrom(type))
         {
             ColumnMetaData[] colmds = mmd.getColumnMetaData();
             if (colmds != null && colmds.length == 1)
@@ -125,7 +127,7 @@ public class CassandraUtils
 
         if (RelationType.isRelationSingleValued(relType))
         {
-            return "varchar"; // TODO Assumes we persist the String form of the id of the related object
+            return "varchar";
         }
         else if (RelationType.isRelationMultiValued(relType))
         {
@@ -133,16 +135,34 @@ public class CassandraUtils
             {
                 if (List.class.isAssignableFrom(mmd.getType()))
                 {
-                    return "list<varchar>"; // TODO Assumes we persist the String form of the id of the related object
+                    return "list<varchar>";
                 }
                 else if (Set.class.isAssignableFrom(mmd.getType()))
                 {
-                    return "set<varchar>"; // TODO Assumes we persist the String form of the id of the related object
+                    return "set<varchar>";
                 }
             }
             else if (mmd.hasMap())
             {
-                // TODO Support maps where key/val is persistable
+                String keyType = null;
+                String valType = null;
+                if (mmd.getMap().keyIsPersistent())
+                {
+                    keyType = "varchar";
+                }
+                else
+                {
+                    keyType = cassandraTypeByJavaType.get(mmd.getMap().getKeyType());
+                }
+                if (mmd.getMap().valueIsPersistent())
+                {
+                    valType = "varchar";
+                }
+                else
+                {
+                    valType = cassandraTypeByJavaType.get(mmd.getMap().getValueType());
+                }
+                return "map<" + keyType + "," + valType + ">";
             }
         }
         else
@@ -162,6 +182,10 @@ public class CassandraUtils
                         return "set<" + cqlElementType + ">";
                     }
                 }
+                else
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for collection element of type " + elementType + ". Please report this");
+                }
             }
             else if (mmd.hasMap())
             {
@@ -172,6 +196,17 @@ public class CassandraUtils
                 if (cqlKeyType != null && cqlValType != null)
                 {
                     return "map<" + cqlKeyType + "," + cqlValType + ">";
+                }
+                else
+                {
+                    if (cqlKeyType == null)
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for map key of type " + keyType + ". Please report this");
+                    }
+                    if (cqlValType == null)
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for map value of type " + valType + ". Please report this");
+                    }
                 }
             }
 
@@ -202,17 +237,115 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to convert from a member value to the value to be stored in Cassandra.
-     * @param mmd Metadata for the member
-     * @param memberValue Value for the member
-     * @return The value to be stored
+     * Convenience method to return the Cassandra type that we would store the provided type as. Note that this does not support container (Collection, Map) types
+     * just single value types.
+     * @param type The java type
+     * @param serialised Whether it should be serialised
+     * @param typeMgr The type manager
+     * @param jdbcType Any jdbc-type that has been specified to take into account
+     * @return The Cassandra type
      */
-    public static Object getDatastoreValueForMemberValue(AbstractMemberMetaData mmd, Object memberValue)
+    public static String getCassandraTypeForNonPersistableType(Class type, boolean serialised, TypeManager typeMgr, String jdbcType)
     {
-        // TODO Do the conversion to match above types
-        return memberValue;
+        String cTypeName = cassandraTypeByJavaType.get(type.getName());
+        if (cTypeName != null)
+        {
+            return cTypeName;
+        }
+        else if (serialised && Serializable.class.isAssignableFrom(type))
+        {
+            return "blob";
+        }
+        else if (Enum.class.isAssignableFrom(type))
+        {
+            if (jdbcType != null && jdbcType.equalsIgnoreCase("varchar"))
+            {
+                return "varchar";
+            }
+            return "int";
+        }
+
+        // No direct mapping, so find a converter
+        TypeConverter stringConverter = typeMgr.getTypeConverterForType(type, String.class);
+        if (stringConverter != null)
+        {
+            return "varchar";
+        }
+        TypeConverter longConverter = typeMgr.getTypeConverterForType(type, Long.class);
+        if (longConverter != null)
+        {
+            return "bigint";
+        }
+        TypeConverter intConverter = typeMgr.getTypeConverterForType(type, Integer.class);
+        if (intConverter != null)
+        {
+            return "int";
+        }
+        if (Serializable.class.isAssignableFrom(type))
+        {
+            return "blob";
+        }
+
+        // Fallback to varchar
+        return "varchar";
     }
 
+    /**
+     * Convenience method to convert from a non-persistable value to the value to be stored in Cassandra.
+     * @param value Value for the member
+     * @param datastoreType Cassandra column type
+     * @return The value to be stored
+     */
+    public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
+    {
+        if (value == null)
+        {
+            return value;
+        }
+        else if (serialised && value instanceof Serializable)
+        {
+            // Convert to byte[] and use that
+            TypeConverter serialConv = typeMgr.getTypeConverterForType(Serializable.class, byte[].class);
+            return serialConv.toDatastoreType(value);
+        }
+        else if (value instanceof Enum)
+        {
+            // Persist as ordinal unless user specifies jdbc-type of "varchar"
+            if (datastoreType.equals("varchar"))
+            {
+                return ((Enum)value).name();
+            }
+            return ((Enum)value).ordinal();
+        }
+        else if (value instanceof Date)
+        {
+            return value;
+        }
+
+        TypeConverter stringConverter = typeMgr.getTypeConverterForType(value.getClass(), String.class);
+        if (stringConverter != null)
+        {
+            return stringConverter.toDatastoreType(value);
+        }
+        TypeConverter longConverter = typeMgr.getTypeConverterForType(value.getClass(), Long.class);
+        if (longConverter != null)
+        {
+            return longConverter.toDatastoreType(value);
+        }
+
+        // TODO Support any other types
+        return value;
+    }
+
+    /**
+     * Method to take a ResultSet Row and convert it into a persistable object.
+     * @param row The results row
+     * @param cmd Metadata for the class of which this is an instance (or subclass)
+     * @param ec ExecutionContext managing it
+     * @param fpMembers FetchPlan members to populate
+     * @param ignoreCache Whether to ignore the cache when instantiating this
+     * @return The persistable object for this row.
+     */
     public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers, boolean ignoreCache)
     {
         if (cmd.hasDiscriminatorStrategy())
@@ -238,7 +371,7 @@ public class CassandraUtils
         return pojo;
     }
 
-    public static Object getObjectUsingApplicationIdForRow(final Row row, 
+    private static Object getObjectUsingApplicationIdForRow(final Row row, 
             final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
     {
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd);
@@ -286,7 +419,7 @@ public class CassandraUtils
         return pc;
     }
 
-    public static Object getObjectUsingDatastoreIdForRow(final Row row, 
+    private static Object getObjectUsingDatastoreIdForRow(final Row row, 
             final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
     {
         Object idKey = null;
@@ -343,6 +476,12 @@ public class CassandraUtils
         return pc;
     }
 
+    /**
+     * Convenience method to log the provided CQL statement, substituting the provided parameters for any "?" in the statement
+     * @param stmt The CQL statement
+     * @param values Any parameter values
+     * @param logger The logger to log to (at DEBUG level).
+     */
     public static void logCqlStatement(String stmt, Object[] values, NucleusLogger logger)
     {
         if (values == null || values.length == 0)

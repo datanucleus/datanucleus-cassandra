@@ -17,29 +17,32 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.ExecutionContext;
+import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
-import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
 
 /**
  * FieldManager for the storing of field values into Cassandra.
+ * Note that for fields that are persistable objects, we store the "persistable-identity" of that object (see IdentityUtils class).
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
+    ExecutionContext ec;
+
     Map<Integer, Object> objectValues = new HashMap<Integer, Object>();
 
     /** Metadata of the owner field if this is for an embedded object. */
@@ -48,6 +51,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public StoreFieldManager(ObjectProvider op, boolean insert)
     {
         super(op, insert);
+        this.ec = op.getExecutionContext();
     }
 
     public Object[] getValuesToStore()
@@ -150,7 +154,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeObjectField(int fieldNumber, Object value)
     {
         AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        RelationType relationType = mmd.getRelationType(op.getExecutionContext().getClassLoaderResolver());
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
+        RelationType relationType = mmd.getRelationType(clr);
 
         boolean embedded = false;
         if (relationType != RelationType.NONE)
@@ -227,86 +232,142 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
-            Object valuePC = op.getExecutionContext().persistObjectInternal(value, op, fieldNumber, -1);
-            Object valueID = op.getExecutionContext().getApiAdapter().getIdForObject(valuePC);
-            objectValues.put(fieldNumber, valueID.toString());
+            Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
+            Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
+            objectValues.put(fieldNumber, IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
             return;
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
             if (mmd.hasCollection())
             {
-                Collection<String> idColl = null;
-                if (value instanceof List)
-                {
-                    idColl = new ArrayList<String>();
-                }
-                else
-                {
-                    idColl = new HashSet<String>();
-                }
+                Collection<String> idColl = (value instanceof List ? new ArrayList<String>() : new HashSet<String>());
+
                 Collection coll = (Collection)value;
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
                     Object element = collIter.next();
-                    Object elementPC = op.getExecutionContext().persistObjectInternal(element, op, fieldNumber, -1);
-                    Object elementID = op.getExecutionContext().getApiAdapter().getIdForObject(elementPC);
-                    idColl.add(elementID.toString());
+                    Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
+                    Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
+                    idColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
                 }
                 objectValues.put(fieldNumber, idColl);
                 return;
             }
             else if (mmd.hasMap())
             {
-                // TODO Support maps
+                Map idMap = new HashMap();
+
+                Map map = (Map)value;
+                Iterator<Map.Entry> entryIter = map.entrySet().iterator();
+                String keyCassType = null;
+                if (!mmd.getMap().keyIsPersistent())
+                {
+                    Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                    keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                }
+                String valCassType = null;
+                if (!mmd.getMap().valueIsPersistent())
+                {
+                    Class valCls = clr.classForName(mmd.getMap().getValueType());
+                    valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                }
+                while (entryIter.hasNext())
+                {
+                    Map.Entry entry = entryIter.next();
+                    Object key = entry.getKey();
+                    Object val = entry.getValue();
+                    if (mmd.getMap().keyIsPersistent())
+                    {
+                        Object keyPC = ec.persistObjectInternal(key, op, fieldNumber, -1);
+                        Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
+                        key = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), keyID);
+                    }
+                    else
+                    {
+                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
+                    }
+                    if (mmd.getMap().valueIsPersistent())
+                    {
+                        Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
+                        Object valID = ec.getApiAdapter().getIdForObject(valPC);
+                        val = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valID);
+                    }
+                    else
+                    {
+                        val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
+                    }
+
+                    idMap.put(key, value);
+                }
+                objectValues.put(fieldNumber, idMap);
+                return;
             }
             else if (mmd.hasArray())
             {
                 // TODO Support arrays
             }
-            // TODO Get value for collection/map of persistable objects - trigger cascade persist
         }
         else
         {
-            if (mmd.isSerialized() && value instanceof Serializable)
+            // Member with non-persistable object(s)
+            if (mmd.hasCollection())
             {
-                // Convert to byte[] and use that
-                TypeConverter serialConv = op.getExecutionContext().getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
-                objectValues.put(fieldNumber, serialConv.toDatastoreType(value));
-                return;
-            }
-            else if (value instanceof Enum)
-            {
-                // Persist as ordinal unless user specifies jdbc-type of "varchar"
-                ColumnMetaData[] colmds = mmd.getColumnMetaData();
-                if (colmds != null && colmds.length == 1)
+                Collection cassColl = null;
+                if (value instanceof List)
                 {
-                    if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
-                    {
-                        objectValues.put(fieldNumber, ((Enum)value).name());
-                        return;
-                    }
+                    cassColl = new ArrayList();
                 }
-                objectValues.put(fieldNumber, ((Enum)value).ordinal());
+                else
+                {
+                    cassColl = new HashSet();
+                }
+                Collection coll = (Collection)value;
+                Iterator collIter = coll.iterator();
+                Class elemCls = clr.classForName(mmd.getCollection().getElementType());
+                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                while (collIter.hasNext())
+                {
+                    Object element = collIter.next();
+                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
+                }
+                objectValues.put(fieldNumber, cassColl);
                 return;
             }
-            else if (value instanceof Date)
+            else if (mmd.hasMap())
             {
-                objectValues.put(fieldNumber, value);
+                Map cassMap = new HashMap();
+
+                Map map = (Map)value;
+                Iterator<Map.Entry> entryIter = map.entrySet().iterator();
+                Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                Class valCls = clr.classForName(mmd.getMap().getValueType());
+                String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                while (entryIter.hasNext())
+                {
+                    Map.Entry entry = entryIter.next();
+                    Object key = entry.getKey();
+                    Object val = entry.getValue();
+
+                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
+                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
+                    cassMap.put(key, value);
+                }
+                objectValues.put(fieldNumber, cassMap);
                 return;
+            }
+            else if (mmd.hasArray())
+            {
+                // TODO Support arrays
             }
 
-            TypeConverter stringConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
-            if (stringConverter != null)
+            String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, ec.getTypeManager(), clr);
+            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+            if (datastoreValue != null)
             {
-                objectValues.put(fieldNumber, stringConverter.toDatastoreType(value));
-                return;
-            }
-            TypeConverter longConverter = op.getExecutionContext().getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
-            if (longConverter != null)
-            {
-                objectValues.put(fieldNumber, longConverter.toDatastoreType(value));
+                objectValues.put(fieldNumber, datastoreValue);
                 return;
             }
         }

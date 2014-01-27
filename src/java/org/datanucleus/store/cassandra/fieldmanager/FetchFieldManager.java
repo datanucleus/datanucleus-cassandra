@@ -22,6 +22,8 @@ import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -41,6 +43,7 @@ import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Row;
 
@@ -245,12 +248,69 @@ public class FetchFieldManager extends AbstractFieldManager
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
-            Object value = row.getString(colName);
+            Object value = null;
+            if (mmd.hasCollection())
+            {
+                if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
+                {
+                    value = row.getList(colName, String.class);
+                }
+                else
+                {
+                    value = row.getSet(colName, String.class);
+                }
+                NucleusLogger.DATASTORE_RETRIEVE.info(">> FetchFM " + mmd.getFullFieldName() + " coll=" + StringUtils.collectionToString((Collection) value));
+            }
+            else if (mmd.hasMap())
+            {
+                Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                if (mmd.getMap().keyIsPersistent())
+                {
+                    keyCls = String.class;
+                }
+                Class valCls = clr.classForName(mmd.getMap().getValueType());
+                if (mmd.getMap().valueIsPersistent())
+                {
+                    valCls = String.class;
+                }
+                value = row.getMap(colName, keyCls, valCls);
+            }
+            else if (mmd.hasArray())
+            {
+                // TODO Support arrays (use List)
+            }
             return getValueForContainerRelationField(mmd, value, clr);
         }
         else
         {
-            if (mmd.isSerialized())
+            if (mmd.hasCollection())
+            {
+                Collection cassColl = null;
+                Class elementCls = clr.classForName(mmd.getCollection().getElementType());
+                if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
+                {
+                    cassColl = row.getList(colName, elementCls);
+                }
+                else
+                {
+                    cassColl = row.getSet(colName, elementCls);
+                }
+                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore collection=" + StringUtils.collectionToString(cassColl) + " not supported yet");
+                // TODO Support this
+            }
+            else if (mmd.hasMap())
+            {
+                Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                Class valCls = clr.classForName(mmd.getMap().getValueType());
+                Map cassMap = row.getMap(colName, keyCls, valCls);
+                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore map=" + StringUtils.mapToString(cassMap) + " not supported yet");
+                // TODO Support this
+            }
+            else if (mmd.hasArray())
+            {
+                // TODO Support this
+            }
+            else if (mmd.isSerialized())
             {
                 // Retrieve byte[] and convert back
                 ByteBuffer byteBuffer = row.getBytes(colName);
@@ -258,7 +318,7 @@ public class FetchFieldManager extends AbstractFieldManager
                 TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
                 return serialConv.toMemberType(bytes);
             }
-            if (Enum.class.isAssignableFrom(mmd.getType()))
+            else if (Enum.class.isAssignableFrom(mmd.getType()))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
                 ColumnMetaData[] colmds = mmd.getColumnMetaData();
@@ -275,16 +335,18 @@ public class FetchFieldManager extends AbstractFieldManager
             {
                 return row.getDate(colName);
             }
-
-            TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
-            if (stringConverter != null)
+            else
             {
-                return stringConverter.toMemberType(row.getString(colName));
-            }
-            TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
-            if (longConverter != null)
-            {
-                return longConverter.toMemberType(row.getLong(colName));
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(row.getString(colName));
+                }
+                TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
+                if (longConverter != null)
+                {
+                    return longConverter.toMemberType(row.getLong(colName));
+                }
             }
         }
 
@@ -295,19 +357,19 @@ public class FetchFieldManager extends AbstractFieldManager
 
     protected Object getValueForSingleRelationField(AbstractMemberMetaData mmd, Object value, ClassLoaderResolver clr)
     {
-        String idStr = (String)value;
         if (value == null)
         {
             return null;
         }
 
+        String persistableId = (String)value;
         try
         {
-            return IdentityUtils.getObjectFromIdString(idStr, mmd, FieldRole.ROLE_FIELD, ec, true);
+            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, cmd, ec);
         }
         catch (NucleusObjectNotFoundException onfe)
         {
-            NucleusLogger.GENERAL.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + idStr +
+            NucleusLogger.GENERAL.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId +
                 " but could not instantiate object with that identity");
             return null;
         }
@@ -350,8 +412,9 @@ public class FetchFieldManager extends AbstractFieldManager
             boolean changeDetected = false;
             while (idIter.hasNext())
             {
-                String elementIdStr = idIter.next();
-                if (elementIdStr == null) // TODO Can you store null elements in a Cassandra Set/List?
+                String persistableId = idIter.next();
+                NucleusLogger.GENERAL.info(">> coll elemIdStr=" + persistableId);
+                if (persistableId == null) // TODO Can you store null elements in a Cassandra Set/List?
                 {
                     coll.add(null);
                 }
@@ -359,7 +422,7 @@ public class FetchFieldManager extends AbstractFieldManager
                 {
                     try
                     {
-                        coll.add(IdentityUtils.getObjectFromIdString(elementIdStr, elemCmd, ec, true));
+                        coll.add(IdentityUtils.getObjectFromPersistableIdentity(persistableId, elemCmd, ec));
                     }
                     catch (NucleusObjectNotFoundException onfe)
                     {
@@ -383,8 +446,130 @@ public class FetchFieldManager extends AbstractFieldManager
         else if (mmd.hasMap())
         {
             // Map<?,?>
-            // TODO Support maps
-            return null;
+            Map map;
+            try
+            {
+                Class instanceType = SCOUtils.getContainerInstanceType(mmd.getType(), false);
+                map = (Map) instanceType.newInstance();
+            }
+            catch (Exception e)
+            {
+                throw new NucleusDataStoreException(e.getMessage(), e);
+            }
+
+            Map mapIds = (Map)value;
+            AbstractClassMetaData keyCmd = null;
+            if (mmd.getMap().keyIsPersistent())
+            {
+                keyCmd = mmd.getMap().getKeyClassMetaData(clr, ec.getMetaDataManager());
+                if (keyCmd == null)
+                {
+                    // Try any listed implementations
+                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
+                        FieldRole.ROLE_MAP_KEY, clr, ec.getMetaDataManager());
+                    if (implNames != null && implNames.length == 1)
+                    {
+                        keyCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                    }
+                    if (keyCmd == null)
+                    {
+                        throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
+                                " which has a map of interdeterminate key type (e.g interface or Object element types)");
+                    }
+                }
+            }
+            AbstractClassMetaData valCmd = null;
+            if (mmd.getMap().valueIsPersistent())
+            {
+                valCmd = mmd.getMap().getValueClassMetaData(clr, ec.getMetaDataManager());
+                if (valCmd == null)
+                {
+                    // Try any listed implementations
+                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
+                        FieldRole.ROLE_MAP_VALUE, clr, ec.getMetaDataManager());
+                    if (implNames != null && implNames.length == 1)
+                    {
+                        valCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                    }
+                    if (valCmd == null)
+                    {
+                        throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
+                                " which has a map of interdeterminate value type (e.g interface or Object element types)");
+                    }
+                }
+            }
+
+            Iterator<Map.Entry> entryIter = mapIds.entrySet().iterator();
+            boolean changeDetected = false;
+            while (entryIter.hasNext())
+            {
+                Map.Entry entry = entryIter.next();
+                Object key = null;
+                Object val = null;
+                if (mmd.getMap().keyIsPersistent())
+                {
+                    String keyPersistableId = (String) entry.getKey();
+                    if (keyPersistableId == null) // TODO Can you store null keys in a Cassandra Map?
+                    {
+                        key = null;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            key = IdentityUtils.getObjectFromPersistableIdentity(keyPersistableId, keyCmd, ec);
+                        }
+                        catch (NucleusObjectNotFoundException onfe)
+                        {
+                            // Object no longer exists. Deleted by user? so ignore
+                            changeDetected = true;
+                        }
+                    }
+                }
+                else
+                {
+                    // TODO Extract (non-persistable) map key
+                    key = entry.getKey();
+                }
+                if (mmd.getMap().valueIsPersistent())
+                {
+                    String valPersistableId = (String) entry.getValue();
+                    if (valPersistableId == null) // TODO Can you store null values in a Cassandra Map?
+                    {
+                        val = null;
+                    }
+                    else
+                    {
+                        try
+                        {
+                            val = IdentityUtils.getObjectFromPersistableIdentity(valPersistableId, valCmd, ec);
+                        }
+                        catch (NucleusObjectNotFoundException onfe)
+                        {
+                            // Object no longer exists. Deleted by user? so ignore
+                            changeDetected = true;
+                        }
+                    }
+                }
+                else
+                {
+                    // TODO Extract (non-persistable) map value
+                    val = entry.getValue();
+                }
+
+                map.put(key, val);
+            }
+
+            if (op != null)
+            {
+                // Wrap if SCO
+                map = (Map) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), map, false, false, true);
+                if (changeDetected)
+                {
+                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                }
+            }
+            return map;
         }
         else if (mmd.hasArray())
         {
