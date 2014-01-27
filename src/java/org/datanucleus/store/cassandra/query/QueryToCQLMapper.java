@@ -89,6 +89,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         compileGrouping();
         compileHaving();
         compileOrdering();
+        // TODO Compile range also since CQL has "LIMIT n" (but no offset)
     }
 
     /**

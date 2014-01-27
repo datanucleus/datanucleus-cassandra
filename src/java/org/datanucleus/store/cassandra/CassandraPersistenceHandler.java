@@ -93,6 +93,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Make sure schema exists, using this connection
                 ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
+            // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
