@@ -156,11 +156,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         schemaHandler.createSchema(schemaName, props);
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.SchemaAwareStoreManager#createSchema(java.util.Set, java.util.Properties)
-     */
-    @Override
-    public void createSchema(Set<String> classNames, Properties props)
+    public void createSchemaForClasses(Set<String> classNames, Properties props)
     {
         schemaHandler.createSchema(classNames, props);
     }
@@ -170,20 +166,12 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         schemaHandler.deleteSchema(schemaName);
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.SchemaAwareStoreManager#deleteSchema(java.util.Set, java.util.Properties)
-     */
-    @Override
-    public void deleteSchema(Set<String> classNames, Properties props)
+    public void deleteSchemaForClasses(Set<String> classNames, Properties props)
     {
         schemaHandler.deleteSchema(classNames, props);
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.SchemaAwareStoreManager#validateSchema(java.util.Set, java.util.Properties)
-     */
-    @Override
-    public void validateSchema(Set<String> classNames, Properties props)
+    public void validateSchemaForClasses(Set<String> classNames, Properties props)
     {
         schemaHandler.validateSchema(classNames, props);
     }
