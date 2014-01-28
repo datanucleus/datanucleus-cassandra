@@ -17,6 +17,10 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -37,6 +41,7 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
@@ -91,37 +96,90 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void createSchema(Set<String> classNames, Properties props)
+    public void createSchemaForClasses(Set<String> classNames, Properties props)
     {
-//        String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
-//        String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
-//        boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
-        // TODO Make use of DDL properties - see RDBMSStoreManager.createSchema
+        String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
+        //        String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
+        //        boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
 
-        ManagedConnection mconn = storeMgr.getConnection(-1);
+        FileWriter ddlFileWriter = null;
         try
         {
-            Session session = (Session)mconn.getConnection();
-
-            Iterator<String> classIter = classNames.iterator();
-            ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
-            while (classIter.hasNext())
+            if (ddlFilename != null)
             {
-                String className = classIter.next();
-                AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
-                if (cmd != null)
+                // Open the DDL file for writing
+                File ddlFile = StringUtils.getFileForFilename(ddlFilename);
+                if (ddlFile.exists())
                 {
-                    createSchemaForClass(cmd, session, clr);
+                    // Delete existing file
+                    ddlFile.delete();
+                }
+                if (ddlFile.getParentFile() != null && !ddlFile.getParentFile().exists())
+                {
+                    // Make sure the directory exists
+                    ddlFile.getParentFile().mkdirs();
+                }
+                ddlFile.createNewFile();
+                ddlFileWriter = new FileWriter(ddlFile);
+
+                SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+                ddlFileWriter.write("------------------------------------------------------------------\n");
+                ddlFileWriter.write("-- DataNucleus SchemaTool " + 
+                    "(ran at " + fmt.format(new java.util.Date()) + ")\n");
+                ddlFileWriter.write("------------------------------------------------------------------\n");
+            }
+
+            ManagedConnection mconn = storeMgr.getConnection(-1);
+            try
+            {
+                Session session = (Session)mconn.getConnection();
+
+                Iterator<String> classIter = classNames.iterator();
+                ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
+                while (classIter.hasNext())
+                {
+                    String className = classIter.next();
+                    AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
+                    if (cmd != null)
+                    {
+                        createSchemaForClass(cmd, session, clr, ddlFileWriter);
+                    }
                 }
             }
+            finally
+            {
+                mconn.release();
+            }
+        }
+        catch (IOException ioe)
+        {
+            // Error in writing DDL file
+            // TODO Handle this
         }
         finally
         {
-            mconn.release();
+            if (ddlFileWriter != null)
+            {
+                try
+                {
+                    ddlFileWriter.close();
+                }
+                catch (IOException ioe)
+                {
+                    // Error in close of DDL
+                }
+            }
         }
     }
 
-    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr)
+    /**
+     * Method to create the schema (table/indexes) for the specified class.
+     * @param cmd Metadata for the class
+     * @param session Session to use for datastore connection
+     * @param clr ClassLoader resolver
+     * @param writer Optional DDL writer where we don't want to update the datastore, just to write the "DDL" to file.
+     */
+    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, FileWriter writer)
     {
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
@@ -236,9 +294,21 @@ public class CassandraSchemaHandler
             stmtBuilder.append(')');
             // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
 
-            NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
-            session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug("Created table for class " + cmd.getFullClassName() + " successfully");
+            if (writer == null)
+            {
+                NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
+                session.execute(stmtBuilder.toString());
+                NucleusLogger.DATASTORE_SCHEMA.debug("Created table for class " + cmd.getFullClassName() + " successfully");
+            }
+            else
+            {
+                try
+                {
+                    writer.write(stmtBuilder.toString() + ";\n");
+                }
+                catch (IOException ioe)
+                {}
+            }
             tableExists = true;
         }
         else if (tableExists && storeMgr.isAutoCreateColumns())
@@ -274,7 +344,7 @@ public class CassandraSchemaHandler
                     else
                     {
                         String idxName = (idxmd.getName() != null ? idxmd.getName() : namingFactory.getIndexName(cmd, idxmd, i));
-                        createIndex(session, idxName, schemaNameForClass, tableName, colmds[0].getName());
+                        createIndex(session, idxName, schemaNameForClass, tableName, colmds[0].getName(), writer);
                     }
                 }
             }
@@ -289,7 +359,7 @@ public class CassandraSchemaHandler
                 {
                     String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
                     String idxName = (idxmd.getName() != null ? idxmd.getName() : namingFactory.getIndexName(mmd, idxmd));
-                    createIndex(session, idxName, schemaNameForClass, tableName, colName);
+                    createIndex(session, idxName, schemaNameForClass, tableName, colName, writer);
                 }
             }
 
@@ -325,93 +395,175 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void deleteSchema(Set<String> classNames, Properties props)
+    public void deleteSchemaForClasses(Set<String> classNames, Properties props)
     {
-//      String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
+        String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
 //      String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
 //      boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
-      // TODO Make use of DDL properties - see RDBMSStoreManager.createSchema
 
-        // TODO Add deletion of any "incrementtable" if used
-
-        NamingFactory namingFactory = storeMgr.getNamingFactory();
-        ManagedConnection mconn = storeMgr.getConnection(-1);
+        FileWriter ddlFileWriter = null;
         try
         {
-            Session session = (Session)mconn.getConnection();
-
-            Iterator<String> classIter = classNames.iterator();
-            ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
-            while (classIter.hasNext())
+            if (ddlFilename != null)
             {
-                String className = classIter.next();
-                AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
-                if (cmd != null)
+                // Open the DDL file for writing
+                File ddlFile = StringUtils.getFileForFilename(ddlFilename);
+                if (ddlFile.exists())
                 {
-                    String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
-                    String tableName = namingFactory.getTableName(cmd);
-                    boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
-                    if (tableExists)
-                    {
-                        // Drop any class indexes TODO What about superclass indexMetaData?
-                        IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
-                        if (clsIdxMds != null)
-                        {
-                            for (int i=0;i<clsIdxMds.length;i++)
-                            {
-                                IndexMetaData idxmd = clsIdxMds[i];
-                                StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                String idxName = idxmd.getName();
-                                if (idxName == null)
-                                {
-                                    idxName = namingFactory.getIndexName(cmd, idxmd, i);
-                                }
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
-                                session.execute(stmtBuilder.toString());
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
-                            }
-                        }
-                        // Drop any member-level indexes
-                        int[] memberPositions = cmd.getAllMemberPositions();
-                        for (int i=0;i<memberPositions.length;i++)
-                        {
-                            AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                            IndexMetaData idxmd = mmd.getIndexMetaData();
-                            if (idxmd != null)
-                            {
-                                StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                String idxName = idxmd.getName();
-                                if (idxName == null)
-                                {
-                                    idxName = namingFactory.getIndexName(mmd, idxmd);
-                                }
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
-                                session.execute(stmtBuilder.toString());
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
-                            }
-                        }
+                    // Delete existing file
+                    ddlFile.delete();
+                }
+                if (ddlFile.getParentFile() != null && !ddlFile.getParentFile().exists())
+                {
+                    // Make sure the directory exists
+                    ddlFile.getParentFile().mkdirs();
+                }
+                ddlFile.createNewFile();
+                ddlFileWriter = new FileWriter(ddlFile);
 
-                        // Drop the table
-                        StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
-                        if (schemaNameForClass != null)
-                        {
-                            stmtBuilder.append(schemaNameForClass).append('.');
-                        }
-                        stmtBuilder.append(tableName);
-                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
-                        session.execute(stmtBuilder.toString());
-                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped table for class " + cmd.getFullClassName() + " successfully");
-                    }
-                    else
+                SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+                ddlFileWriter.write("------------------------------------------------------------------\n");
+                ddlFileWriter.write("-- DataNucleus SchemaTool " + 
+                        "(ran at " + fmt.format(new java.util.Date()) + ")\n");
+                ddlFileWriter.write("------------------------------------------------------------------\n");
+            }
+
+            // TODO Add deletion of any "incrementtable" if used
+
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
+            ManagedConnection mconn = storeMgr.getConnection(-1);
+            try
+            {
+                Session session = (Session)mconn.getConnection();
+
+                Iterator<String> classIter = classNames.iterator();
+                ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
+                while (classIter.hasNext())
+                {
+                    String className = classIter.next();
+                    AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
+                    if (cmd != null)
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.debug("Class " + cmd.getFullClassName() + " table=" + tableName + " didnt exist so can't be dropped");
+                        String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+                        String tableName = namingFactory.getTableName(cmd);
+                        boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+                        if (tableExists)
+                        {
+                            // Drop any class indexes TODO What about superclass indexMetaData?
+                            IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
+                            if (clsIdxMds != null)
+                            {
+                                for (int i=0;i<clsIdxMds.length;i++)
+                                {
+                                    IndexMetaData idxmd = clsIdxMds[i];
+                                    StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
+                                    String idxName = idxmd.getName();
+                                    if (idxName == null)
+                                    {
+                                        idxName = namingFactory.getIndexName(cmd, idxmd, i);
+                                    }
+
+                                    if (ddlFileWriter == null)
+                                    {
+                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                        session.execute(stmtBuilder.toString());
+                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            ddlFileWriter.write(stmtBuilder.toString() + ";\n");
+                                        }
+                                        catch (IOException ioe) {}
+                                    }
+                                }
+                            }
+                            // Drop any member-level indexes
+                            int[] memberPositions = cmd.getAllMemberPositions();
+                            for (int i=0;i<memberPositions.length;i++)
+                            {
+                                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                                IndexMetaData idxmd = mmd.getIndexMetaData();
+                                if (idxmd != null)
+                                {
+                                    StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
+                                    String idxName = idxmd.getName();
+                                    if (idxName == null)
+                                    {
+                                        idxName = namingFactory.getIndexName(mmd, idxmd);
+                                    }
+
+                                    if (ddlFileWriter == null)
+                                    {
+                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                        session.execute(stmtBuilder.toString());
+                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                                    }
+                                    else
+                                    {
+                                        try
+                                        {
+                                            ddlFileWriter.write(stmtBuilder.toString() + ";\n");
+                                        }
+                                        catch (IOException ioe) {}
+                                    }
+                                }
+                            }
+
+                            // Drop the table
+                            StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
+                            if (schemaNameForClass != null)
+                            {
+                                stmtBuilder.append(schemaNameForClass).append('.');
+                            }
+                            stmtBuilder.append(tableName);
+
+                            if (ddlFileWriter == null)
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
+                                session.execute(stmtBuilder.toString());
+                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped table for class " + cmd.getFullClassName() + " successfully");
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    ddlFileWriter.write(stmtBuilder.toString() + ";\n");
+                                }
+                                catch (IOException ioe) {}
+                            }
+                        }
+                        else
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.debug("Class " + cmd.getFullClassName() + " table=" + tableName + " didnt exist so can't be dropped");
+                        }
                     }
                 }
             }
+            finally
+            {
+                mconn.release();
+            }
+        }
+        catch (IOException ioe)
+        {
+            // Error in writing DDL file
+            // TODO Handle this
         }
         finally
         {
-            mconn.release();
+            if (ddlFileWriter != null)
+            {
+                try
+                {
+                    ddlFileWriter.close();
+                }
+                catch (IOException ioe)
+                {
+                    // Error in close of DDL
+                }
+            }
         }
     }
 
@@ -526,7 +678,7 @@ public class CassandraSchemaHandler
         }
     }
 
-    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName)
+    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName, FileWriter writer)
     {
         StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
         stmtBuilder.append(indexName);
@@ -538,9 +690,20 @@ public class CassandraSchemaHandler
         stmtBuilder.append(tableName);
         stmtBuilder.append(" (").append(columnName).append(")");
 
-        NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
-        session.execute(stmtBuilder.toString());
-        NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
+        if (writer == null)
+        {
+            NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
+            session.execute(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
+        }
+        else
+        {
+            try
+            {
+                writer.write(stmtBuilder.toString() + ";\n");
+            }
+            catch (IOException ioe) {}
+        }
     }
 
     public static boolean checkTableExistence(Session session, String schemaName, String tableName)

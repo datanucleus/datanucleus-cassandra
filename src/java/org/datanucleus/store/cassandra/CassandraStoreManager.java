@@ -145,7 +145,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     }
 
                     // Create schema for class
-                    schemaHandler.createSchemaForClass(cmd, session, clr);
+                    schemaHandler.createSchemaForClass(cmd, session, clr, null);
                 }
             }
         }
@@ -158,7 +158,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     public void createSchemaForClasses(Set<String> classNames, Properties props)
     {
-        schemaHandler.createSchema(classNames, props);
+        schemaHandler.createSchemaForClasses(classNames, props);
     }
 
     public void deleteSchema(String schemaName, Properties props)
@@ -168,7 +168,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     public void deleteSchemaForClasses(Set<String> classNames, Properties props)
     {
-        schemaHandler.deleteSchema(classNames, props);
+        schemaHandler.deleteSchemaForClasses(classNames, props);
     }
 
     public void validateSchemaForClasses(Set<String> classNames, Properties props)
