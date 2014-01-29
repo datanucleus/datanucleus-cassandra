@@ -17,12 +17,12 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
-import org.datanucleus.properties.PersistencePropertyValidator;
+import org.datanucleus.properties.PropertyValidator;
 
 /**
  * Validator for persistence properties used by Cassandra.
  */
-public class CassandraPropertyValidator implements PersistencePropertyValidator
+public class CassandraPropertyValidator implements PropertyValidator
 {
     /**
      * Validate the specified property.
