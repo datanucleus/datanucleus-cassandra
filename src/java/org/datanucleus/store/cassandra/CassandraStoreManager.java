@@ -25,7 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
-import org.datanucleus.NucleusContext;
+import org.datanucleus.PersistenceNucleusContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
@@ -53,7 +53,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
      * @param nucleusCtx Nucleus context
      * @param props Properties for the store manager
      */
-    public CassandraStoreManager(ClassLoaderResolver clr, NucleusContext nucleusCtx, Map<String, Object> props)
+    public CassandraStoreManager(ClassLoaderResolver clr, PersistenceNucleusContext nucleusCtx, Map<String, Object> props)
     {
         super("cassandra", clr, nucleusCtx, props);
 
