@@ -166,7 +166,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         RelationType relationType = mmd.getRelationType(clr);
         String colName = getColumnName(fieldNumber);
 
-        boolean embedded = isMemberEmbedded(mmd, ownerMmd, relationType);
+        boolean embedded = isMemberEmbedded(mmd, relationType, ownerMmd);
         if (embedded)
         {
             if (RelationType.isRelationSingleValued(relationType))
