@@ -38,7 +38,7 @@ import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
-import org.datanucleus.store.fieldmanager.AbstractFieldManager;
+import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
@@ -50,14 +50,8 @@ import com.datastax.driver.core.Row;
 /**
  * FieldManager to use for retrieving values from Cassandra to put into a persistable object.
  */
-public class FetchFieldManager extends AbstractFieldManager
+public class FetchFieldManager extends AbstractFetchFieldManager
 {
-    protected ExecutionContext ec;
-
-    protected AbstractClassMetaData cmd;
-
-    protected ObjectProvider op;
-
     protected Row row;
 
     /** Metadata of the owner field if this is for an embedded object. */
@@ -65,16 +59,13 @@ public class FetchFieldManager extends AbstractFieldManager
 
     public FetchFieldManager(ObjectProvider op, Row row)
     {
-        this.op = op;
-        this.cmd = op.getClassMetaData();
-        this.ec = op.getExecutionContext();
+        super(op);
         this.row = row;
     }
 
     public FetchFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd)
     {
-        this.cmd = cmd;
-        this.ec = ec;
+        super(ec, cmd);
         this.row = row;
     }
 
@@ -175,57 +166,7 @@ public class FetchFieldManager extends AbstractFieldManager
         RelationType relationType = mmd.getRelationType(clr);
         String colName = getColumnName(fieldNumber);
 
-        boolean embedded = false;
-        if (relationType != RelationType.NONE)
-        {
-            // Determine if this relation field is embedded
-            if (RelationType.isRelationSingleValued(relationType))
-            {
-                if (ownerMmd != null && ownerMmd.getEmbeddedMetaData() != null)
-                {
-                    // Is this a nested embedded (from JDO definition) with specification for this field?
-                    AbstractMemberMetaData[] embMmds = ownerMmd.getEmbeddedMetaData().getMemberMetaData();
-                    if (embMmds != null)
-                    {
-                        for (int i=0;i<embMmds.length;i++)
-                        {
-                            if (embMmds[i].getName().equals(mmd.getName()))
-                            {
-                                embedded = true;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (mmd.isEmbedded() || mmd.getEmbeddedMetaData() != null)
-            {
-                // Does this field have @Embedded definition?
-                embedded = true;
-            }
-            else if (RelationType.isRelationMultiValued(relationType))
-            {
-                // Is this an embedded element/key/value?
-                if (mmd.hasCollection() && mmd.getElementMetaData() != null && mmd.getElementMetaData().getEmbeddedMetaData() != null)
-                {
-                    // Embedded collection element
-                    embedded = true;
-                }
-                else if (mmd.hasArray() && mmd.getElementMetaData() != null && mmd.getElementMetaData().getEmbeddedMetaData() != null)
-                {
-                    // Embedded array element
-                    embedded = true;
-                }
-                else if (mmd.hasMap() && 
-                        ((mmd.getKeyMetaData() != null && mmd.getKeyMetaData().getEmbeddedMetaData() != null) || 
-                        (mmd.getValueMetaData() != null && mmd.getValueMetaData().getEmbeddedMetaData() != null)))
-                {
-                    // Embedded map key/value
-                    embedded = true;
-                }
-            }
-        }
-
+        boolean embedded = isMemberEmbedded(mmd, ownerMmd, relationType);
         if (embedded)
         {
             if (RelationType.isRelationSingleValued(relationType))
