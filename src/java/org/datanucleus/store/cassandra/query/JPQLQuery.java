@@ -26,7 +26,6 @@ import java.util.Map;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
-import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.query.evaluator.JPQLEvaluator;
@@ -78,33 +77,6 @@ public class JPQLQuery extends AbstractJPQLQuery
     public JPQLQuery(StoreManager storeMgr, ExecutionContext ec, String query)
     {
         super(storeMgr, ec, query);
-    }
-
-    protected AbstractClassMetaData getCandidateClassMetaData()
-    {
-        AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(candidateClass, clr);
-        if (candidateClass.isInterface())
-        {
-            // Query of interface
-            String[] impls = ec.getMetaDataManager().getClassesImplementingInterface(candidateClass.getName(), clr);
-            if (impls.length == 1 && cmd.isImplementationOfPersistentDefinition())
-            {
-                // Only the generated implementation, so just use its metadata
-            }
-            else
-            {
-                // Use metadata for the persistent interface
-                cmd = ec.getMetaDataManager().getMetaDataForInterface(candidateClass, clr);
-                if (cmd == null)
-                {
-                    throw new NucleusUserException("Attempting to query an interface yet it is not declared 'persistent'." +
-                        " Define the interface in metadata as being persistent to perform this operation, and make sure" +
-                        " any implementations use the same identity and identity member(s)");
-                }
-            }
-        }
-
-        return cmd;
     }
 
     protected Object performExecute(Map parameters)
