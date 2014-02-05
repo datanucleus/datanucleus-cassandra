@@ -103,7 +103,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
             // TODO Evaluate as much as possible in the datastore using QueryToCQLMapper
 
-            // Map any result restrictions onto the worksheet results
+            // Evaluate result/filter/grouping/having/ordering in-memory
             JavaQueryEvaluator resultMapper = new JPQLEvaluator(this, candidates, compilation, 
                 parameters, ec.getClassLoaderResolver());
             Collection results = resultMapper.execute(true, true, true, true, true);
