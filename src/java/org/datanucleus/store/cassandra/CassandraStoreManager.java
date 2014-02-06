@@ -99,7 +99,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return null;
     }
 
-    public void addClasses(String[] classNames, ClassLoaderResolver clr)
+    public void manageClasses(ClassLoaderResolver clr, String... classNames)
     {
         if (classNames == null)
         {
