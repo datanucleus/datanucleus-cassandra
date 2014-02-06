@@ -166,20 +166,23 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         RelationType relationType = mmd.getRelationType(clr);
         String colName = getColumnName(fieldNumber);
 
-        boolean embedded = isMemberEmbedded(mmd, relationType, ownerMmd);
-        if (embedded)
+        if (relationType != RelationType.NONE)
         {
-            if (RelationType.isRelationSingleValued(relationType))
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, ownerMmd))
             {
-                // TODO Embedded PC object
-                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                // Embedded field
+                if (RelationType.isRelationSingleValued(relationType))
+                {
+                    // TODO Embedded PC object
+                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                }
+                else if (RelationType.isRelationMultiValued(relationType))
+                {
+                    // TODO Embedded Collection
+                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                }
+                return null; // Remove this when we support embedded
             }
-            else if (RelationType.isRelationMultiValued(relationType))
-            {
-                // TODO Embedded Collection
-                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
-            }
-            return null; // Remove this when we support embedded
         }
 
         if (RelationType.isRelationSingleValued(relationType))

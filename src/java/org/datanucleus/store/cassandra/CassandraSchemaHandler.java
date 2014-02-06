@@ -36,6 +36,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.naming.ColumnType;
@@ -205,6 +206,18 @@ public class CassandraSchemaHandler
             for (int i=0;i<memberPositions.length;i++)
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                RelationType relationType = mmd.getRelationType(clr);
+
+                // TODO Detect and cater for embedded fields, including nested embedded also. See MetaDataUtils.isMemberEmbedded for a way of detecting
+                if (RelationType.isRelationSingleValued(relationType))
+                {
+                    
+                }
+                else if (RelationType.isRelationMultiValued(relationType))
+                {
+                    
+                }
+
                 String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
                 if (cassandraType == null)
                 {
@@ -216,7 +229,6 @@ public class CassandraSchemaHandler
                     {
                         stmtBuilder.append(',');
                     }
-                    // TODO Cater for embedded fields
                     stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
                 }
                 if (i == 0)

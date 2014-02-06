@@ -28,6 +28,7 @@ import java.util.Map;
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
@@ -153,21 +154,24 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
-        boolean embedded = isMemberEmbedded(mmd, relationType, ownerMmd);
-        if (embedded)
+        if (relationType != RelationType.NONE)
         {
-            if (RelationType.isRelationSingleValued(relationType))
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, ownerMmd))
             {
-                // TODO Embedded PC object
-                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                // Embedded field
+                if (RelationType.isRelationSingleValued(relationType))
+                {
+                    // TODO Embedded PC object
+                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                }
+                else if (RelationType.isRelationMultiValued(relationType))
+                {
+                    // TODO Embedded Collection
+                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                }
+                objectValues.put(fieldNumber, null); // Remove this when we support embedded
+                return;
             }
-            else if (RelationType.isRelationMultiValued(relationType))
-            {
-                // TODO Embedded Collection
-                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-            }
-            objectValues.put(fieldNumber, null); // Remove this when we support embedded
-            return;
         }
 
         if (value == null)
