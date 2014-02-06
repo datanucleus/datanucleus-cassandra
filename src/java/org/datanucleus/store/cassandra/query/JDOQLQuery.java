@@ -142,9 +142,9 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             stmtBuilder.append(storeMgr.getSchemaNameForClass(cmd)).append('.').append(storeMgr.getNamingFactory().getTableName(cmd));
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
-                String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID);
+                String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
                 stmtBuilder.append(" WHERE ").append(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append("='").append(multitenancyValue).append("'");
             }
 

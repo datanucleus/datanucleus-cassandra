@@ -248,7 +248,7 @@ public class CassandraSchemaHandler
                 stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN)).append(" varchar");
                 firstCol = false;
             }
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 // Multitenancy discriminator
                 if (!firstCol)
@@ -363,7 +363,7 @@ public class CassandraSchemaHandler
                 }
             }
 
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 // TODO Add index on multitenancy discriminator
             }
