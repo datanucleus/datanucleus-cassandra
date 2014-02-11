@@ -33,7 +33,6 @@ import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.metadata.RelationType;
@@ -348,15 +347,15 @@ public class CassandraSchemaHandler
                 for (int i=0;i<clsIdxMds.length;i++)
                 {
                     IndexMetaData idxmd = clsIdxMds[i];
-                    ColumnMetaData[] colmds = idxmd.getColumnMetaData();
-                    if (colmds.length > 1)
+                    String[] colNames = idxmd.getColumnNames();
+                    if (colNames.length > 1)
                     {
                         NucleusLogger.DATASTORE_SCHEMA.warn("Class " + cmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
                     }
                     else
                     {
                         String idxName = (idxmd.getName() != null ? idxmd.getName() : namingFactory.getIndexName(cmd, idxmd, i));
-                        createIndex(session, idxName, schemaNameForClass, tableName, colmds[0].getName(), writer);
+                        createIndex(session, idxName, schemaNameForClass, tableName, colNames[0], writer);
                     }
                 }
             }
@@ -648,14 +647,13 @@ public class CassandraSchemaHandler
                         for (int i=0;i<clsIdxMds.length;i++)
                         {
                             IndexMetaData idxmd = clsIdxMds[i];
-                            ColumnMetaData[] colmds = idxmd.getColumnMetaData();
-                            if (colmds.length == 1)
+                            String[] colNames = idxmd.getColumnNames();
+                            if (colNames.length == 1)
                             {
-                                String colName = colmds[0].getName();
-                                ColumnDetails details = colsByName.get(colName.toLowerCase());
+                                ColumnDetails details = colsByName.get(colNames[0].toLowerCase());
                                 if (details == null || details.indexName == null)
                                 {
-                                    NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colName + " should have an index but doesn't");
+                                    NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colNames[0] + " should have an index but doesn't");
                                 }
                             }
                         }
