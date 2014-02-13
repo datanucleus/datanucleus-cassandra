@@ -354,7 +354,7 @@ public class CassandraSchemaHandler
                     }
                     else
                     {
-                        String idxName = (idxmd.getName() != null ? idxmd.getName() : namingFactory.getIndexName(cmd, idxmd, i));
+                        String idxName = namingFactory.getIndexName(cmd, idxmd, i);
                         createIndex(session, idxName, schemaNameForClass, tableName, colNames[0], writer);
                     }
                 }
@@ -369,7 +369,7 @@ public class CassandraSchemaHandler
                 if (idxmd != null)
                 {
                     String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                    String idxName = (idxmd.getName() != null ? idxmd.getName() : namingFactory.getIndexName(mmd, idxmd));
+                    String idxName = namingFactory.getIndexName(mmd, idxmd);
                     createIndex(session, idxName, schemaNameForClass, tableName, colName, writer);
                 }
             }
@@ -468,11 +468,7 @@ public class CassandraSchemaHandler
                                 {
                                     IndexMetaData idxmd = clsIdxMds[i];
                                     StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                    String idxName = idxmd.getName();
-                                    if (idxName == null)
-                                    {
-                                        idxName = namingFactory.getIndexName(cmd, idxmd, i);
-                                    }
+                                    String idxName = namingFactory.getIndexName(cmd, idxmd, i);
 
                                     if (ddlFileWriter == null)
                                     {
@@ -499,11 +495,7 @@ public class CassandraSchemaHandler
                                 if (idxmd != null)
                                 {
                                     StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                    String idxName = idxmd.getName();
-                                    if (idxName == null)
-                                    {
-                                        idxName = namingFactory.getIndexName(mmd, idxmd);
-                                    }
+                                    String idxName = namingFactory.getIndexName(mmd, idxmd);
 
                                     if (ddlFileWriter == null)
                                     {
