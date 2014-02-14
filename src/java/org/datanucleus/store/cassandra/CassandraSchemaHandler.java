@@ -35,6 +35,8 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.metadata.MetaDataManager;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -207,32 +209,42 @@ public class CassandraSchemaHandler
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
                 RelationType relationType = mmd.getRelationType(clr);
 
-                // TODO Detect and cater for embedded fields, including nested embedded also. See MetaDataUtils.isMemberEmbedded for a way of detecting
-                if (RelationType.isRelationSingleValued(relationType))
+                if (MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, mmd, relationType, null))
                 {
-                    
-                }
-                else if (RelationType.isRelationMultiValued(relationType))
-                {
-                    
-                }
-
-                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
-                if (cassandraType == null)
-                {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
+                    if (RelationType.isRelationSingleValued(relationType))
+                    {
+                        // Embedded PC field, so add columns for all fields of the embedded
+                        boolean colAdded = createSchemaForEmbeddedMember(new AbstractMemberMetaData[]{mmd}, clr, stmtBuilder, writer, firstCol);
+                        if (firstCol && colAdded)
+                        {
+                            firstCol = false;
+                        }
+                    }
+                    else if (RelationType.isRelationMultiValued(relationType))
+                    {
+                        // Don't support embedded collections
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " is an embedded collection. Not supported so ignoring");
+                    }
                 }
                 else
                 {
-                    if (!firstCol)
+                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+                    if (cassandraType == null)
                     {
-                        stmtBuilder.append(',');
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
                     }
-                    stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
-                }
-                if (i == 0)
-                {
-                    firstCol = false;
+                    else
+                    {
+                        if (!firstCol)
+                        {
+                            stmtBuilder.append(',');
+                        }
+                        stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
+                    }
+                    if (i == 0)
+                    {
+                        firstCol = false;
+                    }
                 }
             }
 
@@ -380,6 +392,73 @@ public class CassandraSchemaHandler
             }
             // TODO Index on version column? or discriminator?
         }
+    }
+
+    /**
+     * Method to create the schema (table/indexes) for an embedded member.
+     * TODO Find way of returning any required indexes
+     * @param mmds Metadata for the embedded member (last element), and any previous embedded members when this is nested embedded
+     * @param clr ClassLoader resolver
+     * @param stmtBuilder Builder for the statement to append columns to
+     * @param ddlWriter Optional DDL writer where we don't want to update the datastore, just to write the "DDL" to file.
+     * @return whether a column was added
+     */
+    protected boolean createSchemaForEmbeddedMember(AbstractMemberMetaData[] mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, FileWriter ddlWriter, boolean firstCol)
+    {
+        boolean columnAdded = false;
+
+        // TODO Support DDL
+        MetaDataManager mmgr = storeMgr.getMetaDataManager();
+        NamingFactory namingFactory = storeMgr.getNamingFactory();
+        AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(mmds[mmds.length-1].getType(), clr);
+        int[] memberPositions = embCmd.getAllMemberPositions();
+        for (int i=0;i<memberPositions.length;i++)
+        {
+            AbstractMemberMetaData mmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+            RelationType relationType = mmd.getRelationType(clr);
+            if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, mmds[mmds.length-1]))
+            {
+                if (RelationType.isRelationSingleValued(relationType))
+                {
+                    // Nested embedded PC, so recurse
+                    AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
+                    System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
+                    embMmds[mmds.length] = mmd;
+                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, ddlWriter, firstCol);
+                    if (added)
+                    {
+                        columnAdded = true;
+                    }
+                }
+                else
+                {
+                    // Don't support embedded collections/maps
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " is an embedded collection. Not supported so ignoring");
+                }
+            }
+            else
+            {
+                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+                if (cassandraType == null)
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
+                }
+                else
+                {
+                    AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
+                    System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
+                    embMmds[mmds.length] = mmd;
+                    String colName = namingFactory.getColumnName(mmds, 0);
+                    if (!firstCol)
+                    {
+                        stmtBuilder.append(',');
+                    }
+                    stmtBuilder.append(colName).append(' ').append(cassandraType);
+                    columnAdded = true;
+                }
+            }
+        }
+        return columnAdded;
     }
 
     /**
