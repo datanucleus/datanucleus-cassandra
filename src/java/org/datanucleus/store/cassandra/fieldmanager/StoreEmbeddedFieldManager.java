@@ -28,7 +28,7 @@ import org.datanucleus.state.ObjectProvider;
 public class StoreEmbeddedFieldManager extends StoreFieldManager
 {
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
-    protected List<AbstractMemberMetaData> mmds;
+    protected List<AbstractMemberMetaData> mmds; // TODO Is this needed, for example, to get column name?
 
     public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds)
     {

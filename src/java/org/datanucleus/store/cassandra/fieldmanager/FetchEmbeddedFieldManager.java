@@ -17,8 +17,11 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.util.List;
+
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.state.ObjectProvider;
 
 import com.datastax.driver.core.Row;
@@ -28,15 +31,33 @@ import com.datastax.driver.core.Row;
  */
 public class FetchEmbeddedFieldManager extends FetchFieldManager
 {
-    public FetchEmbeddedFieldManager(ObjectProvider op, Row row)
+    /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
+    protected List<AbstractMemberMetaData> mmds;
+
+    public FetchEmbeddedFieldManager(ObjectProvider op, Row row, List<AbstractMemberMetaData> mmds)
     {
         super(op, row);
+        this.mmds = mmds;
     }
 
-    public FetchEmbeddedFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd)
+    public FetchEmbeddedFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd, List<AbstractMemberMetaData> mmds)
     {
         super(ec, row, cmd);
-        // TODO Auto-generated constructor stub
+        this.mmds = mmds;
     }
 
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager#getColumnName(int)
+     */
+    @Override
+    protected String getColumnName(int fieldNumber)
+    {
+        // Find column name for embedded member
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.size()+1];
+        AbstractMemberMetaData[] inputMmds = mmds.toArray(new AbstractMemberMetaData[mmds.size()]);
+        System.arraycopy(inputMmds, 0, embMmds, 0, inputMmds.length);
+        embMmds[inputMmds.length] = mmd;
+        return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
+    }
 }
