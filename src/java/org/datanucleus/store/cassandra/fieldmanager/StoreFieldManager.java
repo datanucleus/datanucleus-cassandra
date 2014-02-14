@@ -43,9 +43,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 {
     Map<Integer, Object> objectValues = new HashMap<Integer, Object>();
 
-    /** Metadata of the owner field if this is for an embedded object. */
-    protected AbstractMemberMetaData ownerMmd = null;
-
     public StoreFieldManager(ObjectProvider op, boolean insert)
     {
         super(op, insert);
@@ -156,7 +153,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (relationType != RelationType.NONE)
         {
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, ownerMmd))
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))

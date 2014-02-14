@@ -54,9 +54,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 {
     protected Row row;
 
-    /** Metadata of the owner field if this is for an embedded object. */
-    protected AbstractMemberMetaData ownerMmd = null;
-
     public FetchFieldManager(ObjectProvider op, Row row)
     {
         super(op);
@@ -168,7 +165,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
         if (relationType != RelationType.NONE)
         {
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, ownerMmd))
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
