@@ -21,9 +21,11 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -189,10 +191,12 @@ public class CassandraSchemaHandler
 
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
+        // Generate the lists of schema statements required for tables and constraints
+        List<String> tableStmts = new ArrayList<String>();
+        List<String> constraintStmts = new ArrayList<String>();
         if (storeMgr.isAutoCreateTables() && !tableExists)
         {
-            // Create the table(s) required for this class
-            // CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)
+            // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
             StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
             if (schemaNameForClass != null)
             {
@@ -214,7 +218,7 @@ public class CassandraSchemaHandler
                     if (RelationType.isRelationSingleValued(relationType))
                     {
                         // Embedded PC field, so add columns for all fields of the embedded
-                        boolean colAdded = createSchemaForEmbeddedMember(new AbstractMemberMetaData[]{mmd}, clr, stmtBuilder, writer, firstCol);
+                        boolean colAdded = createSchemaForEmbeddedMember(new AbstractMemberMetaData[]{mmd}, clr, stmtBuilder, firstCol, constraintStmts);
                         if (firstCol && colAdded)
                         {
                             firstCol = false;
@@ -244,6 +248,19 @@ public class CassandraSchemaHandler
                     if (i == 0)
                     {
                         firstCol = false;
+                    }
+                }
+
+                if (storeMgr.isAutoCreateConstraints())
+                {
+                    IndexMetaData idxmd = mmd.getIndexMetaData();
+                    if (idxmd != null)
+                    {
+                        // Index specified on this member, so add it TODO Check existence first
+                        String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                        String idxName = namingFactory.getIndexName(mmd, idxmd);
+                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
+                        constraintStmts.add(indexStmt);
                     }
                 }
             }
@@ -316,43 +333,39 @@ public class CassandraSchemaHandler
 
             stmtBuilder.append(')');
             // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
-
-            if (writer == null)
-            {
-                NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmtBuilder.toString());
-                session.execute(stmtBuilder.toString());
-                NucleusLogger.DATASTORE_SCHEMA.debug("Created table for class " + cmd.getFullClassName() + " successfully");
-            }
-            else
-            {
-                try
-                {
-                    writer.write(stmtBuilder.toString() + ";\n");
-                }
-                catch (IOException ioe)
-                {}
-            }
-            tableExists = true;
+            tableStmts.add(stmtBuilder.toString());
         }
         else if (tableExists && storeMgr.isAutoCreateColumns())
         {
-            // TODO Add ability to add/delete columns to match the current definition
-            // ALTER TABLE schema.table ADD {colname} {typeName}
-            // ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
+            // Add/delete any columns to match the current definition (aka "schema evolution")
+            // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
+
+            // Go through all members for this class (inc superclasses)
+            int[] memberPositions = cmd.getAllMemberPositions();
+            for (int i=0;i<memberPositions.length;i++)
+            {
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+                // TODO Check if column exists and ADD if not present  "ALTER TABLE schema.table ADD {colname} {typename}"
+
+                if (storeMgr.isAutoCreateConstraints())
+                {
+                    IndexMetaData idxmd = mmd.getIndexMetaData();
+                    if (idxmd != null)
+                    {
+                        // Index specified on this member, so add it TODO Check existence first
+                        String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                        String idxName = namingFactory.getIndexName(mmd, idxmd);
+                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
+                        constraintStmts.add(indexStmt);
+                    }
+                }
+            }
         }
 
         if (storeMgr.isAutoCreateConstraints())
         {
-            if (!tableExists)
-            {
-                NucleusLogger.DATASTORE_SCHEMA.warn("Cannot create constraints for " + cmd.getFullClassName() +
-                    " since table doesn't exist : perhaps you should enable autoCreateTables ?");
-                return;
-            }
-
-            // TODO Check existence of indexes before creating
-
             // Add class-level indexes TODO What about superclass indexMetaData?
+            // TODO Check existence of indexes before creating
             IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
             if (clsIdxMds != null)
             {
@@ -367,22 +380,9 @@ public class CassandraSchemaHandler
                     else
                     {
                         String idxName = namingFactory.getIndexName(cmd, idxmd, i);
-                        createIndex(session, idxName, schemaNameForClass, tableName, colNames[0], writer);
+                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colNames[0]);
+                        constraintStmts.add(indexStmt);
                     }
-                }
-            }
-
-            // Add member-level indexes
-            int[] memberPositions = cmd.getAllMemberPositions();
-            for (int i=0;i<memberPositions.length;i++)
-            {
-                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                IndexMetaData idxmd = mmd.getIndexMetaData();
-                if (idxmd != null)
-                {
-                    String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                    String idxName = namingFactory.getIndexName(mmd, idxmd);
-                    createIndex(session, idxName, schemaNameForClass, tableName, colName, writer);
                 }
             }
 
@@ -392,22 +392,66 @@ public class CassandraSchemaHandler
             }
             // TODO Index on version column? or discriminator?
         }
+
+        // Process the required schema updates for tables
+        if (!tableStmts.isEmpty())
+        {
+            for (String stmt : tableStmts)
+            {
+                if (writer == null)
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmt);
+                    session.execute(stmt);
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Created table successfully");
+                }
+                else
+                {
+                    try
+                    {
+                        writer.write(stmt + ";\n");
+                    }
+                    catch (IOException ioe)
+                    {}
+                }
+            }
+        }
+        // Process the required schema updates for constraints
+        if (!constraintStmts.isEmpty())
+        {
+            for (String stmt : constraintStmts)
+            {
+                if (writer == null)
+                {
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating constraint : " + stmt);
+                    session.execute(stmt);
+                    NucleusLogger.DATASTORE_SCHEMA.debug("Created contraint successfully");
+                }
+                else
+                {
+                    try
+                    {
+                        writer.write(stmt + ";\n");
+                    }
+                    catch (IOException ioe)
+                    {}
+                }
+            }
+        }
     }
 
     /**
      * Method to create the schema (table/indexes) for an embedded member.
-     * TODO Find way of returning any required indexes
      * @param mmds Metadata for the embedded member (last element), and any previous embedded members when this is nested embedded
      * @param clr ClassLoader resolver
      * @param stmtBuilder Builder for the statement to append columns to
-     * @param ddlWriter Optional DDL writer where we don't want to update the datastore, just to write the "DDL" to file.
+     * @param firstCol Whether this will be adding the first column for this table
+     * @param constraintStmts List to add any constraint statements to (e.g if this embedded class has indexes)
      * @return whether a column was added
      */
-    protected boolean createSchemaForEmbeddedMember(AbstractMemberMetaData[] mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, FileWriter ddlWriter, boolean firstCol)
+    protected boolean createSchemaForEmbeddedMember(AbstractMemberMetaData[] mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, boolean firstCol, List<String> constraintStmts)
     {
         boolean columnAdded = false;
 
-        // TODO Support DDL
         MetaDataManager mmgr = storeMgr.getMetaDataManager();
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(mmds[mmds.length-1].getType(), clr);
@@ -424,7 +468,7 @@ public class CassandraSchemaHandler
                     AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
                     System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
                     embMmds[mmds.length] = mmd;
-                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, ddlWriter, firstCol);
+                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
                     if (added)
                     {
                         columnAdded = true;
@@ -759,7 +803,7 @@ public class CassandraSchemaHandler
         }
     }
 
-    protected void createIndex(Session session, String indexName, String schemaName, String tableName, String columnName, FileWriter writer)
+    protected String createIndexCQL(String indexName, String schemaName, String tableName, String columnName)
     {
         StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
         stmtBuilder.append(indexName);
@@ -770,21 +814,7 @@ public class CassandraSchemaHandler
         }
         stmtBuilder.append(tableName);
         stmtBuilder.append(" (").append(columnName).append(")");
-
-        if (writer == null)
-        {
-            NucleusLogger.DATASTORE_SCHEMA.debug("Creating index : " + stmtBuilder.toString());
-            session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug("Created index " + indexName + " for table " + tableName + " successfully");
-        }
-        else
-        {
-            try
-            {
-                writer.write(stmtBuilder.toString() + ";\n");
-            }
-            catch (IOException ioe) {}
-        }
+        return stmtBuilder.toString();
     }
 
     public static boolean checkTableExistence(Session session, String schemaName, String tableName)
