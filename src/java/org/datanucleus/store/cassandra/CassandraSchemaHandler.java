@@ -100,7 +100,7 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void createSchemaForClasses(Set<String> classNames, Properties props)
+    public void createSchemaForClasses(Set<String> classNames, Properties props, Session session)
     {
         String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
         //        String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
@@ -133,10 +133,18 @@ public class CassandraSchemaHandler
                 ddlFileWriter.write("------------------------------------------------------------------\n");
             }
 
-            ManagedConnection mconn = storeMgr.getConnection(-1);
+            ManagedConnection mconn = null;
             try
             {
-                Session session = (Session)mconn.getConnection();
+                if (session == null)
+                {
+                    mconn = storeMgr.getConnection(-1);
+                    session = (Session)mconn.getConnection();
+                }
+
+                // Allocate Lists for holding the required CQL statements needed for these classes
+                List<String> tableStmts = new ArrayList<String>();
+                List<String> constraintStmts = new ArrayList<String>();
 
                 Iterator<String> classIter = classNames.iterator();
                 ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
@@ -146,13 +154,61 @@ public class CassandraSchemaHandler
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null)
                     {
-                        createSchemaForClass(cmd, session, clr, ddlFileWriter);
+                        createSchemaForClass(cmd, session, clr, tableStmts, constraintStmts);
+                    }
+                }
+
+                if (!tableStmts.isEmpty())
+                {
+                    // Process the required schema updates for tables
+                    for (String stmt : tableStmts)
+                    {
+                        if (ddlFileWriter == null)
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmt);
+                            session.execute(stmt);
+                            NucleusLogger.DATASTORE_SCHEMA.debug("Created table successfully");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                ddlFileWriter.write(stmt + ";\n");
+                            }
+                            catch (IOException ioe)
+                            {}
+                        }
+                    }
+                }
+                if (!constraintStmts.isEmpty())
+                {
+                    // Process the required schema updates for constraints
+                    for (String stmt : constraintStmts)
+                    {
+                        if (ddlFileWriter == null)
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.debug("Creating constraint : " + stmt);
+                            session.execute(stmt);
+                            NucleusLogger.DATASTORE_SCHEMA.debug("Created contraint successfully");
+                        }
+                        else
+                        {
+                            try
+                            {
+                                ddlFileWriter.write(stmt + ";\n");
+                            }
+                            catch (IOException ioe)
+                            {}
+                        }
                     }
                 }
             }
             finally
             {
-                mconn.release();
+                if (mconn != null)
+                {
+                    mconn.release();
+                }
             }
         }
         catch (IOException ioe)
@@ -176,14 +232,20 @@ public class CassandraSchemaHandler
         }
     }
 
+    public void createSchemaForClasses(Set<String> classNames, Properties props)
+    {
+        createSchemaForClasses(classNames, props, null);
+    }
+
     /**
-     * Method to create the schema (table/indexes) for the specified class.
+     * Method to generate the necessary CQL to create the schema (table/indexes) for the specified class.
      * @param cmd Metadata for the class
-     * @param session Session to use for datastore connection
+     * @param session Session to use for checking of existence in datastore
      * @param clr ClassLoader resolver
-     * @param writer Optional DDL writer where we don't want to update the datastore, just to write the "DDL" to file.
+     * @param tableStmts List to add any table CQL statements to
+     * @param constraintStmts List to add any constraint CQL statements to
      */
-    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, FileWriter writer)
+    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, List<String> tableStmts, List<String> constraintStmts)
     {
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
@@ -191,9 +253,6 @@ public class CassandraSchemaHandler
 
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
-        // Generate the lists of schema statements required for tables and constraints
-        List<String> tableStmts = new ArrayList<String>();
-        List<String> constraintStmts = new ArrayList<String>();
         if (storeMgr.isAutoCreateTables() && !tableExists)
         {
             // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
@@ -205,6 +264,42 @@ public class CassandraSchemaHandler
             stmtBuilder.append(tableName);
             stmtBuilder.append(" (");
             boolean firstCol = true;
+
+            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+            {
+                // Add column for versioning
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                String cassandraType = "int";
+                if (cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME)
+                {
+                    cassandraType = "timestamp";
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append(" ").append(cassandraType);
+                firstCol = false;
+            }
+            if (cmd.hasDiscriminatorStrategy())
+            {
+                // Add discriminator column
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN)).append(" varchar");
+                firstCol = false;
+            }
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                // Add multitenancy discriminator column
+                if (!firstCol)
+                {
+                    stmtBuilder.append(',');
+                }
+                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append(" varchar");
+                firstCol = false;
+            }
 
             // Add columns for managed fields of this class and all superclasses
             int[] memberPositions = cmd.getAllMemberPositions();
@@ -265,40 +360,6 @@ public class CassandraSchemaHandler
                 }
             }
 
-            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
-            {
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                String cassandraType = "int";
-                if (cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME)
-                {
-                    cassandraType = "timestamp";
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append(" ").append(cassandraType);
-                firstCol = false;
-            }
-            if (cmd.hasDiscriminatorStrategy())
-            {
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN)).append(" varchar");
-                firstCol = false;
-            }
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
-            {
-                // Multitenancy discriminator
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append(" varchar");
-                firstCol = false;
-            }
-
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
                 if (!firstCol)
@@ -340,6 +401,19 @@ public class CassandraSchemaHandler
             // Add/delete any columns to match the current definition (aka "schema evolution")
             // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
 
+            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+            {
+                // TODO Check column for versioning
+            }
+            if (cmd.hasDiscriminatorStrategy())
+            {
+                // TODO Check discriminator column
+            }
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            {
+                // TODO Check multitenancy discriminator column
+            }
+
             // Go through all members for this class (inc superclasses)
             int[] memberPositions = cmd.getAllMemberPositions();
             for (int i=0;i<memberPositions.length;i++)
@@ -364,26 +438,31 @@ public class CassandraSchemaHandler
 
         if (storeMgr.isAutoCreateConstraints())
         {
-            // Add class-level indexes TODO What about superclass indexMetaData?
-            // TODO Check existence of indexes before creating
-            IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
-            if (clsIdxMds != null)
+            // Add class-level indexes, including those defined for superclasses (since we hold the fields of those classes too)
+            AbstractClassMetaData theCmd = cmd;
+            while (theCmd != null)
             {
-                for (int i=0;i<clsIdxMds.length;i++)
+                IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                if (clsIdxMds != null)
                 {
-                    IndexMetaData idxmd = clsIdxMds[i];
-                    String[] colNames = idxmd.getColumnNames();
-                    if (colNames.length > 1)
+                    for (int i=0;i<clsIdxMds.length;i++)
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Class " + cmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
-                    }
-                    else
-                    {
-                        String idxName = namingFactory.getIndexName(cmd, idxmd, i);
-                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colNames[0]);
-                        constraintStmts.add(indexStmt);
+                        // TODO Check existence before adding
+                        IndexMetaData idxmd = clsIdxMds[i];
+                        String[] colNames = idxmd.getColumnNames();
+                        if (colNames.length > 1)
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.warn("Class " + theCmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
+                        }
+                        else
+                        {
+                            String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
+                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colNames[0]);
+                            constraintStmts.add(indexStmt);
+                        }
                     }
                 }
+                theCmd = theCmd.getSuperAbstractClassMetaData();
             }
 
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
@@ -391,51 +470,6 @@ public class CassandraSchemaHandler
                 // TODO Add index on multitenancy discriminator
             }
             // TODO Index on version column? or discriminator?
-        }
-
-        // Process the required schema updates for tables
-        if (!tableStmts.isEmpty())
-        {
-            for (String stmt : tableStmts)
-            {
-                if (writer == null)
-                {
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmt);
-                    session.execute(stmt);
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Created table successfully");
-                }
-                else
-                {
-                    try
-                    {
-                        writer.write(stmt + ";\n");
-                    }
-                    catch (IOException ioe)
-                    {}
-                }
-            }
-        }
-        // Process the required schema updates for constraints
-        if (!constraintStmts.isEmpty())
-        {
-            for (String stmt : constraintStmts)
-            {
-                if (writer == null)
-                {
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Creating constraint : " + stmt);
-                    session.execute(stmt);
-                    NucleusLogger.DATASTORE_SCHEMA.debug("Created contraint successfully");
-                }
-                else
-                {
-                    try
-                    {
-                        writer.write(stmt + ";\n");
-                    }
-                    catch (IOException ioe)
-                    {}
-                }
-            }
         }
     }
 

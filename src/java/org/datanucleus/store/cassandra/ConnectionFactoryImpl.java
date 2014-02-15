@@ -231,6 +231,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             {
                 // Create new connection
                 conn = cluster.connect();
+                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - obtained connection");
             }
         }
 

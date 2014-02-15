@@ -126,8 +126,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
 
         // Filter out any "simple" type classes
-        String[] filteredClassNames = 
-            getNucleusContext().getTypeManager().filterOutSupportedSecondClassNames(classNames);
+        String[] filteredClassNames = getNucleusContext().getTypeManager().filterOutSupportedSecondClassNames(classNames);
 
         // Find the ClassMetaData for these classes and all referenced by these classes
         Iterator iter = getMetaDataManager().getReferencedClasses(filteredClassNames, clr).iterator();
@@ -145,7 +144,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     }
 
                     // Create schema for class
-                    schemaHandler.createSchemaForClass(cmd, session, clr, null);
+                    Set<String> clsNameSet = new HashSet<String>();
+                    clsNameSet.add(cmd.getFullClassName());
+                    schemaHandler.createSchemaForClasses(clsNameSet, null, session);
                 }
             }
         }
