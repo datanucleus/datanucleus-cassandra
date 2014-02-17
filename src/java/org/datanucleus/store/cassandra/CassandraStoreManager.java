@@ -43,8 +43,6 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
-    CassandraSchemaHandler schemaHandler;
-
     String schemaName = null;
 
     /**
@@ -154,26 +152,26 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     public void createSchema(String schemaName, Properties props)
     {
-        schemaHandler.createSchema(schemaName, props);
+        schemaHandler.createSchema(schemaName, props, null);
     }
 
     public void createSchemaForClasses(Set<String> classNames, Properties props)
     {
-        schemaHandler.createSchemaForClasses(classNames, props);
+        schemaHandler.createSchemaForClasses(classNames, props, null);
     }
 
     public void deleteSchema(String schemaName, Properties props)
     {
-        schemaHandler.deleteSchema(schemaName);
+        schemaHandler.deleteSchema(schemaName, props, null);
     }
 
     public void deleteSchemaForClasses(Set<String> classNames, Properties props)
     {
-        schemaHandler.deleteSchemaForClasses(classNames, props);
+        schemaHandler.deleteSchemaForClasses(classNames, props, null);
     }
 
     public void validateSchemaForClasses(Set<String> classNames, Properties props)
     {
-        schemaHandler.validateSchema(classNames, props);
+        schemaHandler.validateSchema(classNames, props, null);
     }
 }

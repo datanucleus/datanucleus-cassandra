@@ -42,6 +42,8 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
+import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
+import org.datanucleus.store.schema.StoreSchemaData;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.NucleusLogger;
@@ -55,13 +57,14 @@ import com.datastax.driver.core.Session;
 /**
  * Handler for schema management with Cassandra.
  */
-public class CassandraSchemaHandler
+public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 {
-    CassandraStoreManager storeMgr;
+    CassandraStoreManager casStoreMgr;
 
     public CassandraSchemaHandler(CassandraStoreManager storeMgr)
     {
-        this.storeMgr = storeMgr;
+        super(storeMgr);
+        this.casStoreMgr = (CassandraStoreManager)storeMgr;
     }
 
     /**
@@ -70,8 +73,9 @@ public class CassandraSchemaHandler
      * @param schemaName Name of the schema
      * @param props Any properties defining the new keyspace
      */
-    public void createSchema(String schemaName, Properties props)
+    public void createSchema(String schemaName, Properties props, Object connection)
     {
+        // TODO Respect input connection
         ManagedConnection mconn = storeMgr.getConnection(-1);
         try
         {
@@ -100,8 +104,9 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void createSchemaForClasses(Set<String> classNames, Properties props, Session session)
+    public void createSchemaForClasses(Set<String> classNames, Properties props, Object connection)
     {
+        Session session = (Session)connection;
         String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
         //        String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
         //        boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
@@ -232,11 +237,6 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void createSchemaForClasses(Set<String> classNames, Properties props)
-    {
-        createSchemaForClasses(classNames, props, null);
-    }
-
     /**
      * Method to generate the necessary CQL to create the schema (table/indexes) for the specified class.
      * @param cmd Metadata for the class
@@ -248,12 +248,12 @@ public class CassandraSchemaHandler
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, List<String> tableStmts, List<String> constraintStmts)
     {
         NamingFactory namingFactory = storeMgr.getNamingFactory();
-        String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String tableName = namingFactory.getTableName(cmd);
 
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
-        if (storeMgr.isAutoCreateTables() && !tableExists)
+        if (isAutoCreateTables() && !tableExists)
         {
             // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
             StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
@@ -346,7 +346,7 @@ public class CassandraSchemaHandler
                     }
                 }
 
-                if (storeMgr.isAutoCreateConstraints())
+                if (isAutoCreateConstraints())
                 {
                     IndexMetaData idxmd = mmd.getIndexMetaData();
                     if (idxmd != null)
@@ -396,7 +396,7 @@ public class CassandraSchemaHandler
             // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
             tableStmts.add(stmtBuilder.toString());
         }
-        else if (tableExists && storeMgr.isAutoCreateColumns())
+        else if (tableExists && isAutoCreateColumns())
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
             // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
@@ -421,7 +421,7 @@ public class CassandraSchemaHandler
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
                 // TODO Check if column exists and ADD if not present  "ALTER TABLE schema.table ADD {colname} {typename}"
 
-                if (storeMgr.isAutoCreateConstraints())
+                if (isAutoCreateConstraints())
                 {
                     IndexMetaData idxmd = mmd.getIndexMetaData();
                     if (idxmd != null)
@@ -436,7 +436,7 @@ public class CassandraSchemaHandler
             }
         }
 
-        if (storeMgr.isAutoCreateConstraints())
+        if (isAutoCreateConstraints())
         {
             // Add class-level indexes, including those defined for superclasses (since we hold the fields of those classes too)
             AbstractClassMetaData theCmd = cmd;
@@ -542,9 +542,12 @@ public class CassandraSchemaHandler
     /**
      * Method to drop a schema (keyspace) in Cassandra.
      * @param schemaName Name of the schema (keyspace).
+     * @param props Any properties controlling deletion
+     * @param connection Connection to use (null implies this will obtain its own connection)
      */
-    public void deleteSchema(String schemaName)
+    public void deleteSchema(String schemaName, Properties props, Object connection)
     {
+        // TODO Use input connection
         ManagedConnection mconn = storeMgr.getConnection(-1);
         try
         {
@@ -563,8 +566,9 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void deleteSchemaForClasses(Set<String> classNames, Properties props)
+    public void deleteSchemaForClasses(Set<String> classNames, Properties props, Object connection)
     {
+        // TODO Use input connection
         String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
 //      String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
 //      boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
@@ -612,7 +616,7 @@ public class CassandraSchemaHandler
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null)
                     {
-                        String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+                        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
                         String tableName = namingFactory.getTableName(cmd);
                         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
                         if (tableExists)
@@ -727,8 +731,9 @@ public class CassandraSchemaHandler
         }
     }
 
-    public void validateSchema(Set<String> classNames, Properties props)
+    public void validateSchema(Set<String> classNames, Properties props, Object connection)
     {
+        // TODO Use input connection
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         boolean success = true;
         ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
@@ -741,7 +746,7 @@ public class CassandraSchemaHandler
             {
                 AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
 
-                String schemaNameForClass = storeMgr.getSchemaNameForClass(cmd);
+                String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd);
                 String tableName = namingFactory.getTableName(cmd);
 
                 boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
@@ -920,5 +925,25 @@ public class CassandraSchemaHandler
             this.indexName = idxName;
             this.typeName = typeName;
         }
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.schema.StoreSchemaHandler#clear()
+     */
+    @Override
+    public void clear()
+    {
+        // TODO Auto-generated method stub
+        
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.schema.StoreSchemaHandler#getSchemaData(java.lang.Object, java.lang.String, java.lang.Object[])
+     */
+    @Override
+    public StoreSchemaData getSchemaData(Object conn, String name, Object[] values)
+    {
+        // TODO Auto-generated method stub
+        return null;
     }
 }

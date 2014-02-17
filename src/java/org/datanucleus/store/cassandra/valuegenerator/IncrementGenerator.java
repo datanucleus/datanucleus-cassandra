@@ -188,7 +188,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
                 return true;
             }
 
-            if (storeMgr.isAutoCreateTables())
+            if (storeMgr.getSchemaHandler().isAutoCreateTables())
             {
                 StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
                 stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(");
