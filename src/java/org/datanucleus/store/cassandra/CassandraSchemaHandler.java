@@ -43,7 +43,6 @@ import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
-import org.datanucleus.store.schema.StoreSchemaData;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.util.NucleusLogger;
@@ -925,25 +924,5 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             this.indexName = idxName;
             this.typeName = typeName;
         }
-    }
-
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.StoreSchemaHandler#clear()
-     */
-    @Override
-    public void clear()
-    {
-        // TODO Auto-generated method stub
-        
-    }
-
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.StoreSchemaHandler#getSchemaData(java.lang.Object, java.lang.String, java.lang.Object[])
-     */
-    @Override
-    public StoreSchemaData getSchemaData(Object conn, String name, Object[] values)
-    {
-        // TODO Auto-generated method stub
-        return null;
     }
 }
