@@ -280,6 +280,20 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             }
             return xaRes;
         }
+
+        /* (non-Javadoc)
+         * @see org.datanucleus.store.connection.AbstractManagedConnection#closeAfterTransactionEnd()
+         */
+        @Override
+        public boolean closeAfterTransactionEnd()
+        {
+            if (storeMgr.getBooleanProperty(PropertyNames.PROPERTY_CONNECTION_SINGLE_CONNECTION))
+            {
+                // Hang on to connection
+                return false;
+            }
+            return super.closeAfterTransactionEnd();
+        }
     }
 
     /**
