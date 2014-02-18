@@ -22,15 +22,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import javax.transaction.xa.XAException;
 import javax.transaction.xa.XAResource;
-import javax.transaction.xa.Xid;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.connection.AbstractConnectionFactory;
+import org.datanucleus.store.connection.AbstractEmulatedXAResource;
 import org.datanucleus.store.connection.AbstractManagedConnection;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.connection.ManagedConnectionResourceListener;
@@ -286,61 +285,15 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     /**
      * Emulate the two phase protocol for non XA.
      */
-    static class EmulatedXAResource implements XAResource
+    static class EmulatedXAResource extends AbstractEmulatedXAResource
     {
-        ManagedConnectionImpl mconn;
         Session session;
 
         EmulatedXAResource(ManagedConnectionImpl mconn, Session session)
         {
-            this.mconn = mconn;
+            super(mconn);
             this.session = session;
         }
-
-        public void commit(Xid xid, boolean onePhase) throws XAException
-        {
-            // There is no commit in Cassandra, so just log it
-            NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
-                " committed connection for transaction "+xid.toString()+" with onePhase="+onePhase);
-        }
-
-        public void rollback(Xid xid) throws XAException
-        {
-            // There is no rollback in Cassandra, so just log it
-            NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
-                " rolled back connection for transaction "+xid.toString());
-        }
-
-        public void start(Xid xid, int flags) throws XAException
-        {
-        }
-        public int prepare(Xid xid) throws XAException
-        {
-            NucleusLogger.CONNECTION.debug("Managed connection "+this.toString()+
-                " is preparing for transaction "+xid.toString());
-            return 0;
-        }
-        public void forget(Xid xid) throws XAException
-        {
-        }
-        public void end(Xid xid, int flags) throws XAException
-        {
-        }
-        public Xid[] recover(int flags) throws XAException
-        {
-            throw new XAException("Unsupported operation");
-        }
-        public int getTransactionTimeout() throws XAException
-        {
-            return 0;
-        }
-        public boolean setTransactionTimeout(int timeout) throws XAException
-        {
-            return false;
-        }
-        public boolean isSameRM(XAResource xares) throws XAException
-        {
-            return (this == xares);
-        }
+        // Cassandra has no commit/rollback as such so just use superclass logging
     }
 }
