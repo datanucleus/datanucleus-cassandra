@@ -249,6 +249,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String tableName = namingFactory.getTableName(cmd);
+        if (cmd.isEmbeddedOnly())
+        {
+            // No table required here
+            return;
+        }
 
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
@@ -525,7 +530,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
                     System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
                     embMmds[mmds.length] = mmd;
-                    String colName = namingFactory.getColumnName(mmds, 0);
+                    String colName = namingFactory.getColumnName(embMmds, 0);
                     if (!firstCol)
                     {
                         stmtBuilder.append(',');
@@ -860,6 +865,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
         PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
         {
@@ -873,6 +879,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
         PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
         Iterator<Row> iter = rs.iterator();
