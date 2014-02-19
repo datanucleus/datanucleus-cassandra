@@ -231,7 +231,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             {
                 // Create new connection
                 conn = cluster.connect();
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - obtained connection");
+                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - obtained connection");
             }
         }
 
@@ -239,7 +239,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         {
             if (commitOnRelease)
             {
-                NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - released connection");
+                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - released connection");
             }
         }
 
@@ -256,7 +256,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPreClose();
             }
 
-            NucleusLogger.CONNECTION.debug("Managed connection " + this.toString() + " - closed connection");
+            NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - closed connection");
 
             // Removes the connection from pooling
             for (int i=0; i<listeners.size(); i++)
@@ -266,6 +266,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
             ((Session)conn).shutdown();
             conn = null;
+            xaRes = null;
         }
 
         public XAResource getXAResource()
