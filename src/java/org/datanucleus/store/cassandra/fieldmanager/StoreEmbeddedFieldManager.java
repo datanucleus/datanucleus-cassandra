@@ -28,12 +28,23 @@ import org.datanucleus.state.ObjectProvider;
 public class StoreEmbeddedFieldManager extends StoreFieldManager
 {
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
-    protected List<AbstractMemberMetaData> mmds; // TODO Is this needed, for example, to get column name?
+    protected List<AbstractMemberMetaData> mmds;
 
     public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds)
     {
         super(op, insert);
         this.mmds = mmds;
+    }
+
+    protected String getColumnName(int fieldNumber)
+    {
+        // Find column name for embedded member
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.size()+1];
+        AbstractMemberMetaData[] inputMmds = mmds.toArray(new AbstractMemberMetaData[mmds.size()]);
+        System.arraycopy(inputMmds, 0, embMmds, 0, inputMmds.length);
+        embMmds[inputMmds.length] = mmd;
+        return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
     }
 
     /* (non-Javadoc)

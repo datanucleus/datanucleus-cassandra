@@ -108,10 +108,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmt = insertStatementByClassName.get(cmd.getFullClassName());
             }
+
+            // Use StoreFieldManager to work out the column names and values
+            // TODO If we ever support identity set in datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
+            StoreFieldManager storeFM = new StoreFieldManager(op, true);
+            op.provideFields(cmd.getAllMemberPositions() , storeFM);
+            Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
+
             if (insertStmt == null)
             {
                 // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-                insertStmt = getInsertStatementForClass(cmd);
+                insertStmt = getInsertStatementForClass(cmd, columnValuesByName);
 
                 // Cache the statement
                 if (insertStatementByClassName == null)
@@ -182,12 +189,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
             }
 
-            // Obtain the values to populate the statement with by using StoreFieldManager
-            // TODO If we are attributing this object in the datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
-            StoreFieldManager storeFM = new StoreFieldManager(op, true);
-            op.provideFields(cmd.getAllMemberPositions() , storeFM); // Note that jdoProvideFields in enhancement contract can do these in reverse order TODO Fix enhancement
-            Object[] fieldValues = storeFM.getValuesToStore();
-            int numValues = fieldValues.length;
+            int numValues = columnValuesByName.size();
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
                 numValues++;
@@ -204,32 +206,27 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 numValues++;
             }
-            Object[] stmtValues;
-            if (numValues == fieldValues.length)
+            Object[] stmtValues = new Object[numValues];
+            int pos = 0;
+            for (String colName : columnValuesByName.keySet())
             {
-                stmtValues = fieldValues;
+                stmtValues[pos++] = columnValuesByName.get(colName);
             }
-            else
+            if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtValues = new Object[numValues];
-                System.arraycopy(fieldValues, 0, stmtValues, 0, fieldValues.length);
-                int pos = fieldValues.length;
-                if (cmd.getIdentityType() == IdentityType.DATASTORE)
-                {
-                    stmtValues[pos++] = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Cater for datastore attributed ID
-                }
-                if (versionValue != null)
-                {
-                    stmtValues[pos++] = versionValue;
-                }
-                if (discrimValue != null)
-                {
-                    stmtValues[pos++] = discrimValue;
-                }
-                if (multitenancyValue != null)
-                {
-                    stmtValues[pos++] = multitenancyValue;
-                }
+                stmtValues[pos++] = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Cater for datastore attributed ID
+            }
+            if (versionValue != null)
+            {
+                stmtValues[pos++] = versionValue;
+            }
+            if (discrimValue != null)
+            {
+                stmtValues[pos++] = discrimValue;
+            }
+            if (multitenancyValue != null)
+            {
+                stmtValues[pos++] = multitenancyValue;
             }
 
             CassandraUtils.logCqlStatement(insertStmt, stmtValues, NucleusLogger.DATASTORE_NATIVE);
@@ -273,7 +270,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * @param cmd Metadata for the class
      * @return The INSERT statement
      */
-    protected String getInsertStatementForClass(AbstractClassMetaData cmd)
+    protected String getInsertStatementForClass(AbstractClassMetaData cmd, Map<String, Object> colValuesByName)
     {
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
@@ -285,16 +282,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
 
         int numParams = 0;
-        int[] memberPositions = cmd.getAllMemberPositions();
-        for (int i = 0;i<memberPositions.length;i++)
+        if (colValuesByName != null && !colValuesByName.isEmpty())
         {
-            AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-            if (i > 0)
+            for (String colName : colValuesByName.keySet())
             {
-                insertStmtBuilder.append(',');
+                if (numParams > 0)
+                {
+                    insertStmtBuilder.append(',');
+                }
+                insertStmtBuilder.append(colName);
+                numParams++;
             }
-            insertStmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
-            numParams++;
         }
 
         if (cmd.getIdentityType() == IdentityType.DATASTORE) // TODO Cater for datastore attributed ID
@@ -408,6 +406,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
+
+            StoreFieldManager storeFM = new StoreFieldManager(op, false);
+            op.provideFields(fieldNumbers , storeFM);
+            Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
+
             StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
             String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
             if (schemaName != null)
@@ -418,15 +421,18 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // TODO Support any USING clauses
 
             stmtBuilder.append(" SET ");
-            for (int i=0;i<fieldNumbers.length;i++)
+            if (columnValuesByName != null && !columnValuesByName.isEmpty())
             {
-                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);
-                if (i > 0)
+                boolean first = true;
+                for (String colName : columnValuesByName.keySet())
                 {
-                    stmtBuilder.append(',');
+                    if (!first)
+                    {
+                        stmtBuilder.append(',');
+                    }
+                    stmtBuilder.append(colName).append("=?");
+                    first = false;
                 }
-                stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN));
-                stmtBuilder.append("=?");
             }
             Object[] verVals = new Object[0];
             if (cmd.isVersioned())
@@ -482,14 +488,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
             }
 
-            StoreFieldManager storeFM = new StoreFieldManager(op, false);
-            op.provideFields(fieldNumbers , storeFM); // Note that jdoProvideFields in enhancement contract can do these in reverse order TODO Fix enhancement
-            Object[] setVals = storeFM.getValuesToStore();
-
-            Object[] stmtVals = new Object[setVals.length + pkVals.length + verVals.length];
-            System.arraycopy(setVals, 0, stmtVals, 0, setVals.length);
-            System.arraycopy(pkVals, 0, stmtVals, setVals.length, pkVals.length);
-            System.arraycopy(verVals, 0, stmtVals, setVals.length+pkVals.length, verVals.length);
+            Object[] stmtVals = new Object[columnValuesByName.size() + pkVals.length + verVals.length];
+            int pos = 0;
+            for (String colName : columnValuesByName.keySet())
+            {
+                stmtVals[pos++] = columnValuesByName.get(colName);
+            }
+            System.arraycopy(pkVals, 0, stmtVals, columnValuesByName.size(), pkVals.length);
+            System.arraycopy(verVals, 0, stmtVals, columnValuesByName.size()+pkVals.length, verVals.length);
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtVals, NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
