@@ -618,7 +618,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     String className = classIter.next();
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
-                    if (cmd != null)
+                    if (cmd != null && !cmd.isEmbeddedOnly())
                     {
                         String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
                         String tableName = namingFactory.getTableName(cmd);
@@ -749,6 +749,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             for (String className : classNames)
             {
                 AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
+                if (cmd.isEmbeddedOnly())
+                {
+                    continue;
+                }
 
                 String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd);
                 String tableName = namingFactory.getTableName(cmd);
