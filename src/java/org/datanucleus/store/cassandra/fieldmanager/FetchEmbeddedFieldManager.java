@@ -84,7 +84,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                     embMmds.add(mmd);
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);

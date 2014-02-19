@@ -18,10 +18,13 @@ Contributors:
 package org.datanucleus.store.cassandra;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
@@ -32,6 +35,8 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.DiscriminatorStrategy;
 import org.datanucleus.metadata.IdentityType;
+import org.datanucleus.metadata.MetaDataUtils;
+import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.state.ObjectProvider;
@@ -674,18 +679,41 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
+            ClassLoaderResolver clr = ec.getClassLoaderResolver();
+            boolean first = true;
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
-            // TODO Change this to include embedded fields
             for (int i=0;i<fieldNumbers.length;i++)
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);
+                RelationType relationType = mmd.getRelationType(clr);
+                if (RelationType.isRelationSingleValued(relationType) && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+                {
+                    // Embedded PC, so add columns for all fields (and nested fields)
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                    embMmds.add(mmd);
+                    List<String> embColNames = new ArrayList<String>();
+                    getColumnNamesForEmbeddedMember(embMmds, embColNames, ec);
+                    for (String embColName : embColNames)
+                    {
+                        if (!first)
+                        {
+                            stmtBuilder.append(',');
+                        }
+                        stmtBuilder.append(embColName);
+                        first = false;
+                    }
+                    continue;
+                }
+
                 String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                if (i > 0)
+                if (!first)
                 {
                     stmtBuilder.append(',');
                 }
                 stmtBuilder.append(colName);
+                first = false;
             }
+
             stmtBuilder.append(" FROM ");
             String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
             if (schemaName != null)
@@ -778,6 +806,41 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         finally
         {
             mconn.release();
+        }
+    }
+
+    /**
+     * Convenience method to populate the "colNames" argument list with column names for the specified embedded field.
+     * @param mmds Metadata defining the embedded field (possibly nested, maybe multiple levels).
+     * @param colNames List that will have column names added to it
+     * @param ec ExecutionContext
+     */
+    protected void getColumnNamesForEmbeddedMember(List<AbstractMemberMetaData> mmds, List<String> colNames, ExecutionContext ec)
+    {
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
+        AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmds.get(mmds.size()-1).getType(), clr);
+        int[] embFieldNums = embCmd.getAllMemberPositions();
+        for (int i=0;i<embFieldNums.length;i++)
+        {
+            AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embFieldNums[i]);
+            RelationType relationType = embMmd.getRelationType(clr);
+            if (RelationType.isRelationSingleValued(relationType) && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, embMmd, relationType, mmds.get(mmds.size()-1)))
+            {
+                // Nested embedded
+                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                embMmds.add(embMmd);
+                getColumnNamesForEmbeddedMember(embMmds, colNames, ec);
+                continue;
+            }
+            AbstractMemberMetaData[] mmdArray = new AbstractMemberMetaData[mmds.size()+1];
+            int pos = 0;
+            for (AbstractMemberMetaData myMmd : mmds)
+            {
+                mmdArray[pos++] = myMmd;
+            }
+            mmdArray[pos] = embMmd;
+            String colName = ec.getStoreManager().getNamingFactory().getColumnName(mmdArray, 0);
+            colNames.add(colName);
         }
     }
 

@@ -369,7 +369,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             while (idIter.hasNext())
             {
                 String persistableId = idIter.next();
-                NucleusLogger.GENERAL.info(">> coll elemIdStr=" + persistableId);
                 if (persistableId == null) // TODO Can you store null elements in a Cassandra Set/List?
                 {
                     coll.add(null);
