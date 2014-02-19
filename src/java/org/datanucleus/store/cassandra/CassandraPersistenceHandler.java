@@ -675,6 +675,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
+            // TODO Change this to include embedded fields
             for (int i=0;i<fieldNumbers.length;i++)
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);

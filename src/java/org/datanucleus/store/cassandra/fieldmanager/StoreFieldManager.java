@@ -45,9 +45,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 {
     Map<String, Object> columnValueByName = new HashMap<String, Object>();
 
-    // TODO Remove this, we need to key by the column name
-    Map<Integer, Object> objectValues = new HashMap<Integer, Object>();
-
     public StoreFieldManager(ObjectProvider op, boolean insert)
     {
         super(op, insert);
@@ -63,18 +60,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         return columnValueByName;
     }
 
-    public Object[] getValuesToStore()
-    {
-        // Make sure we return them in field order
-        Object[] values = new Object[objectValues.size()];
-        int i = 0;
-        for (Integer fieldNum : objectValues.keySet())
-        {
-            values[i++] = objectValues.get(fieldNum);
-        }
-        return values;
-    }
-
     /* (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeBooleanField(int, boolean)
      */
@@ -82,7 +67,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeBooleanField(int fieldNumber, boolean value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -92,7 +76,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeCharField(int fieldNumber, char value)
     {
         columnValueByName.put(getColumnName(fieldNumber), ""+value);
-        objectValues.put(fieldNumber, "" + value);
     }
 
     /* (non-Javadoc)
@@ -102,7 +85,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeByteField(int fieldNumber, byte value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, (int)value);
     }
 
     /* (non-Javadoc)
@@ -112,7 +94,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeShortField(int fieldNumber, short value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -122,7 +103,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeIntField(int fieldNumber, int value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -132,7 +112,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeLongField(int fieldNumber, long value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -142,7 +121,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeFloatField(int fieldNumber, float value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -152,7 +130,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeDoubleField(int fieldNumber, double value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -162,7 +139,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     public void storeStringField(int fieldNumber, String value)
     {
         columnValueByName.put(getColumnName(fieldNumber), value);
-        objectValues.put(fieldNumber, value);
     }
 
     /* (non-Javadoc)
@@ -182,6 +158,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
+                    if (value == null)
+                    {
+                        // TODO Maybe set a column to null rather than ignoring it
+                        return;
+                    }
+
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
                     embMmds.add(mmd);
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(value.getClass(), clr);
@@ -197,7 +179,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
                     columnValueByName.put(getColumnName(fieldNumber), null); // Remove this when we support embedded
-                    objectValues.put(fieldNumber, null); // Remove this when we support embedded
                     return;
                 }
             }
@@ -213,7 +194,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         if (value == null)
         {
             columnValueByName.put(getColumnName(fieldNumber), null);
-            objectValues.put(fieldNumber, null);
             return;
         }
 
@@ -222,7 +202,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             columnValueByName.put(getColumnName(fieldNumber), IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
-            objectValues.put(fieldNumber, IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
             return;
         }
         else if (RelationType.isRelationMultiValued(relationType))
@@ -241,7 +220,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     idColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
                 }
                 columnValueByName.put(getColumnName(fieldNumber), idColl);
-                objectValues.put(fieldNumber, idColl);
                 return;
             }
             else if (mmd.hasMap())
@@ -291,7 +269,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     idMap.put(key, value);
                 }
                 columnValueByName.put(getColumnName(fieldNumber), idMap);
-                objectValues.put(fieldNumber, idMap);
                 return;
             }
             else if (mmd.hasArray())
@@ -323,7 +300,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
                 columnValueByName.put(getColumnName(fieldNumber), cassColl);
-                objectValues.put(fieldNumber, cassColl);
                 return;
             }
             else if (mmd.hasMap())
@@ -347,7 +323,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassMap.put(key, value);
                 }
                 columnValueByName.put(getColumnName(fieldNumber), cassMap);
-                objectValues.put(fieldNumber, cassMap);
                 return;
             }
             else if (mmd.hasArray())
@@ -359,13 +334,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
             if (datastoreValue != null)
             {
-                objectValues.put(fieldNumber, datastoreValue);
+                columnValueByName.put(getColumnName(fieldNumber), datastoreValue);
                 return;
             }
         }
 
         NucleusLogger.PERSISTENCE.warn("Not generated persistable value for field " + mmd.getFullFieldName() + " so putting null");
         columnValueByName.put(getColumnName(fieldNumber), null);
-        objectValues.put(fieldNumber, null);
     }
 }

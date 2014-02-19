@@ -72,6 +72,12 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
+                    if (value == null)
+                    {
+                        // TODO Maybe set a column to null rather than ignoring it
+                        return;
+                    }
+
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
                     embMmds.addAll(mmds);
                     embMmds.add(mmd);
@@ -88,7 +94,6 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
                     columnValueByName.put(getColumnName(fieldNumber), null); // Remove this when we support embedded
-                    objectValues.put(fieldNumber, null); // Remove this when we support embedded
                     return;
                 }
             }
