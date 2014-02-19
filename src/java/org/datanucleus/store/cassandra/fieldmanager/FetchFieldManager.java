@@ -20,6 +20,7 @@ package org.datanucleus.store.cassandra.fieldmanager;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.sql.Date;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -39,6 +40,7 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
+import org.datanucleus.store.fieldmanager.FieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
@@ -161,7 +163,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         RelationType relationType = mmd.getRelationType(clr);
-        String colName = getColumnName(fieldNumber);
 
         if (relationType != RelationType.NONE)
         {
@@ -170,17 +171,31 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    // TODO Embedded PC object
-                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                    // TODO Null detection
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                    embMmds.add(mmd);
+                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                    ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
+                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds);
+                    embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
+                    return embOP.getObject();
                 }
                 else if (RelationType.isRelationMultiValued(relationType))
                 {
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                    return null; // Remove this when we support embedded
                 }
-                return null; // Remove this when we support embedded
             }
         }
+
+        return fetchNonEmbeddedObjectField(mmd, relationType, clr);
+    }
+
+    protected Object fetchNonEmbeddedObjectField(AbstractMemberMetaData mmd, RelationType relationType, ClassLoaderResolver clr)
+    {
+        int fieldNumber = mmd.getAbsoluteFieldNumber();
+        String colName = getColumnName(fieldNumber);
 
         if (RelationType.isRelationSingleValued(relationType))
         {

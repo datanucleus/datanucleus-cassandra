@@ -17,12 +17,18 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.MetaDataUtils;
+import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.fieldmanager.FieldManager;
+import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
 
@@ -59,5 +65,42 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         System.arraycopy(inputMmds, 0, embMmds, 0, inputMmds.length);
         embMmds[inputMmds.length] = mmd;
         return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager#fetchObjectField(int)
+     */
+    @Override
+    public Object fetchObjectField(int fieldNumber)
+    {
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        RelationType relationType = mmd.getRelationType(clr);
+
+        if (relationType != RelationType.NONE)
+        {
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+            {
+                // Embedded field
+                if (RelationType.isRelationSingleValued(relationType))
+                {
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                    embMmds.add(mmd);
+                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                    ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
+                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds);
+                    embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
+                    return embOP.getObject();
+                }
+                else if (RelationType.isRelationMultiValued(relationType))
+                {
+                    // TODO Embedded Collection
+                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+                }
+                return null; // Remove this when we support embedded
+            }
+        }
+
+        return fetchNonEmbeddedObjectField(mmd, relationType, clr);
     }
 }
