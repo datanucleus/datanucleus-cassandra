@@ -27,6 +27,7 @@ import java.util.Map;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.identity.IdentityUtils;
+import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
@@ -181,19 +182,33 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    // TODO Embedded PC object
-                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                    embMmds.add(mmd);
+                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(value.getClass(), clr);
+                    ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
+                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds);
+                    embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
+                    Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
+                    columnValueByName.putAll(embColValuesByName);
+                    return;
                 }
                 else if (RelationType.isRelationMultiValued(relationType))
                 {
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                    columnValueByName.put(getColumnName(fieldNumber), null); // Remove this when we support embedded
+                    objectValues.put(fieldNumber, null); // Remove this when we support embedded
+                    return;
                 }
-                columnValueByName.put(getColumnName(fieldNumber), null); // Remove this when we support embedded
-                objectValues.put(fieldNumber, null); // Remove this when we support embedded
-                return;
             }
         }
+
+        storeNonEmbeddedObjectField(mmd, relationType, clr, value);
+    }
+
+    protected void storeNonEmbeddedObjectField(AbstractMemberMetaData mmd, RelationType relationType, ClassLoaderResolver clr, Object value)
+    {
+        int fieldNumber = mmd.getAbsoluteFieldNumber();
 
         if (value == null)
         {
