@@ -18,6 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.sql.Date;
 import java.util.ArrayList;
@@ -233,6 +234,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (mmd.hasArray())
             {
+                value = row.getList(colName, String.class);
                 // TODO Support arrays (use List)
             }
             return getValueForContainerRelationField(mmd, value, clr);
@@ -529,8 +531,67 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         else if (mmd.hasArray())
         {
             // "a,b,c,d,..."
-            // TODO Support arrays
-            return null;
+            AbstractClassMetaData elemCmd = mmd.getArray().getElementClassMetaData(clr, ec.getMetaDataManager());
+            if (elemCmd == null)
+            {
+                // Try any listed implementations
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
+                    FieldRole.ROLE_ARRAY_ELEMENT, clr, ec.getMetaDataManager());
+                if (implNames != null && implNames.length == 1)
+                {
+                    elemCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                }
+                if (elemCmd == null)
+                {
+                    throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
+                        " which has an array of interdeterminate element type (e.g interface or Object element types)");
+                }
+            }
+
+            Collection<String> collIds = (Collection<String>)value;
+            Object array = Array.newInstance(mmd.getType().getComponentType(), collIds.size());
+            Iterator<String> idIter = collIds.iterator();
+            boolean changeDetected = false;
+            int pos = 0;
+            while (idIter.hasNext())
+            {
+                String persistableId = idIter.next();
+                if (persistableId == null) // TODO Can you store null elements in a Cassandra Set/List?
+                {
+                    Array.set(array, pos++, null);
+                }
+                else
+                {
+                    try
+                    {
+                        Array.set(array, pos++, IdentityUtils.getObjectFromPersistableIdentity(persistableId, elemCmd, ec));
+                    }
+                    catch (NucleusObjectNotFoundException onfe)
+                    {
+                        // Object no longer exists. Deleted by user? so ignore
+                        changeDetected = true;
+                    }
+                }
+            }
+
+            if (changeDetected)
+            {
+                if (pos < collIds.size())
+                {
+                    // Some elements not found, so resize the array
+                    Object arrayOld = array;
+                    array = Array.newInstance(mmd.getType().getComponentType(), pos);
+                    for (int j=0;j<pos;j++)
+                    {
+                        Array.set(array, j, Array.get(arrayOld, j));
+                    }
+                }
+                if (op != null)
+                {
+                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                }
+            }
+            return array;
         }
         else
         {

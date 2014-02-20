@@ -17,6 +17,7 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -27,6 +28,7 @@ import java.util.Map;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -167,6 +169,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
+                    // TODO Support discriminator on embedded object
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     int[] embMmdPosns = embCmd.getAllMemberPositions();
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
@@ -301,6 +304,29 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasArray())
             {
+                Collection cassColl = new ArrayList();
+                for (int i=0;i<Array.getLength(value);i++)
+                {
+                    if (mmd.getArray().isSerializedElement())
+                    {
+                        // TODO Support Serialised elements
+                        throw new NucleusUserException("Don't currently support serialised array elements at " + 
+                            mmd.getFullFieldName() + ". Serialise the whole field");
+                    }
+                    Object element = Array.get(value, i);
+                    if (element != null)
+                    {
+                        Object elementPC = ec.persistObjectInternal(element, null, -1, -1);
+                        Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
+                        cassColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
+                    }
+                    else
+                    {
+                        cassColl.add(null);
+                    }
+                }
+                columnValueByName.put(getColumnName(fieldNumber), cassColl);
+                return;
                 // TODO Support arrays
             }
         }

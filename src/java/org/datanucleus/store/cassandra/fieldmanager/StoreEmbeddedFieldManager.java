@@ -76,7 +76,6 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
 
         if (relationType != RelationType.NONE)
         {
-            // TODO Likely need to update this method to pass in all mmds in future?
             if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, mmds.get(mmds.size()-1)))
             {
                 // Embedded field
