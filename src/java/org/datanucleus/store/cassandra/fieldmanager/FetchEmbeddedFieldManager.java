@@ -59,11 +59,8 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
     protected String getColumnName(int fieldNumber)
     {
         // Find column name for embedded member
-        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.size()+1];
-        AbstractMemberMetaData[] inputMmds = mmds.toArray(new AbstractMemberMetaData[mmds.size()]);
-        System.arraycopy(inputMmds, 0, embMmds, 0, inputMmds.length);
-        embMmds[inputMmds.length] = mmd;
+        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+        embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
         return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
     }
 

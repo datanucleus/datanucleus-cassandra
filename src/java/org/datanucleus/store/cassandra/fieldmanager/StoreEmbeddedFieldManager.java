@@ -22,12 +22,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.ExecutionContext;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 /**
  * FieldManager for the persistence of an embedded PC object.
@@ -36,6 +39,15 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
 {
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
     protected List<AbstractMemberMetaData> mmds;
+
+    /**
+     * Constructor called when it is needed to null out all columns of an embedded object (and nsted embedded columns).
+     */
+    public StoreEmbeddedFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, List<AbstractMemberMetaData> mmds)
+    {
+        super(ec, cmd, insert);
+        this.mmds = mmds;
+    }
 
     public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds)
     {
@@ -46,11 +58,9 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     protected String getColumnName(int fieldNumber)
     {
         // Find column name for embedded member
-        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.size()+1];
-        AbstractMemberMetaData[] inputMmds = mmds.toArray(new AbstractMemberMetaData[mmds.size()]);
-        System.arraycopy(inputMmds, 0, embMmds, 0, inputMmds.length);
-        embMmds[inputMmds.length] = mmd;
+        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+        embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
+        NucleusLogger.GENERAL.info(">> StoreEmbFM.getCol embMmds=" + StringUtils.collectionToString(embMmds) + " num=" + embMmds.size() + " col=" + ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0));
         return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
     }
 
@@ -66,22 +76,40 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
 
         if (relationType != RelationType.NONE)
         {
-            // TODO Likely need to update this method to pass in mmds in future?
+            // TODO Likely need to update this method to pass in all mmds in future?
             if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, mmds.get(mmds.size()-1)))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
+                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                    int[] embMmdPosns = embCmd.getAllMemberPositions();
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                    embMmds.add(mmd);
                     if (value == null)
                     {
-                        // TODO Maybe set a column to null rather than ignoring it
+                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds);
+                        for (int i=0;i<embMmdPosns.length;i++)
+                        {
+                            AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
+                            if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
+                            {
+                                // Store a null for any primitive/wrapper/String fields
+                                List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
+                                colEmbMmds.add(embMmd);
+                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
+                                columnValueByName.put(colName, null);
+                            }
+                            else if (Object.class.isAssignableFrom(embMmd.getType()))
+                            {
+                                storeEmbFM.storeObjectField(embMmdPosns[i], null);
+                            }
+                        }
+                        Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
+                        columnValueByName.putAll(embColValuesByName);
                         return;
                     }
 
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
-                    embMmds.addAll(mmds);
-                    embMmds.add(mmd);
-                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(value.getClass(), clr);
                     ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
                     StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds);
                     embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
@@ -93,12 +121,18 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                 {
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                    columnValueByName.put(getColumnName(fieldNumber), null); // Remove this when we support embedded
+                    columnValueByName.put(getColumnName(fieldNumber), null);
                     return;
                 }
             }
         }
 
+        if (op == null)
+        {
+            // Null the column
+            columnValueByName.put(getColumnName(fieldNumber), null);
+            return;
+        }
         storeNonEmbeddedObjectField(mmd, relationType, clr, value);
     }
 }

@@ -317,7 +317,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     if (RelationType.isRelationSingleValued(relationType))
                     {
                         // Embedded PC field, so add columns for all fields of the embedded
-                        boolean colAdded = createSchemaForEmbeddedMember(new AbstractMemberMetaData[]{mmd}, clr, stmtBuilder, firstCol, constraintStmts);
+                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                        embMmds.add(mmd);
+                        boolean colAdded = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
                         if (firstCol && colAdded)
                         {
                             firstCol = false;
@@ -486,26 +488,26 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      * @param constraintStmts List to add any constraint statements to (e.g if this embedded class has indexes)
      * @return whether a column was added
      */
-    protected boolean createSchemaForEmbeddedMember(AbstractMemberMetaData[] mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, boolean firstCol, List<String> constraintStmts)
+    protected boolean createSchemaForEmbeddedMember(List<AbstractMemberMetaData> mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, boolean firstCol, List<String> constraintStmts)
     {
         boolean columnAdded = false;
 
+        AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
         MetaDataManager mmgr = storeMgr.getMetaDataManager();
         NamingFactory namingFactory = storeMgr.getNamingFactory();
-        AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(mmds[mmds.length-1].getType(), clr);
+        AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(lastMmd.getType(), clr);
         int[] memberPositions = embCmd.getAllMemberPositions();
         for (int i=0;i<memberPositions.length;i++)
         {
             AbstractMemberMetaData mmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
             RelationType relationType = mmd.getRelationType(clr);
-            if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, mmds[mmds.length-1]))
+            if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, lastMmd))
             {
                 if (RelationType.isRelationSingleValued(relationType))
                 {
                     // Nested embedded PC, so recurse
-                    AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
-                    System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
-                    embMmds[mmds.length] = mmd;
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                    embMmds.add(mmd);
                     boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
                     if (added)
                     {
@@ -527,9 +529,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
                 else
                 {
-                    AbstractMemberMetaData[] embMmds = new AbstractMemberMetaData[mmds.length+1];
-                    System.arraycopy(mmds, 0, embMmds, 0, mmds.length);
-                    embMmds[mmds.length] = mmd;
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                    embMmds.add(mmd);
                     String colName = namingFactory.getColumnName(embMmds, 0);
                     if (!firstCol)
                     {

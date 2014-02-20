@@ -832,14 +832,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 getColumnNamesForEmbeddedMember(embMmds, colNames, ec);
                 continue;
             }
-            AbstractMemberMetaData[] mmdArray = new AbstractMemberMetaData[mmds.size()+1];
-            int pos = 0;
-            for (AbstractMemberMetaData myMmd : mmds)
-            {
-                mmdArray[pos++] = myMmd;
-            }
-            mmdArray[pos] = embMmd;
-            String colName = ec.getStoreManager().getNamingFactory().getColumnName(mmdArray, 0);
+            List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+            colMmds.add(embMmd);
+            String colName = ec.getStoreManager().getNamingFactory().getColumnName(colMmds, 0);
             colNames.add(colName);
         }
     }
