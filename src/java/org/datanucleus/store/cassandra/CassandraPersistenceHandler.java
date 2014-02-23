@@ -483,7 +483,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
                     stmtBuilder.append("=?");
-                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                    String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
+                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -602,7 +604,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
-                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                    String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
+                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -749,7 +753,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
-                    pkVals[i] = op.provideField(pkFieldNums[i]);
+                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                    String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
+                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -919,7 +925,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkVals = new Object[pkFieldNums.length];
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
-                        pkVals[i] = op.provideField(pkFieldNums[i]);
+                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                        String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
+                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
