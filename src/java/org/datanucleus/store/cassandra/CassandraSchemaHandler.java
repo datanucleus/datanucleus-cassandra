@@ -503,6 +503,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             RelationType relationType = mmd.getRelationType(clr);
             if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, lastMmd))
             {
+                // TODO Support owner-field of the embeddedMd to avoid adding recursion
                 if (RelationType.isRelationSingleValued(relationType))
                 {
                     // Nested embedded PC, so recurse
@@ -512,6 +513,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     if (added)
                     {
                         columnAdded = true;
+                        firstCol = false;
                     }
                 }
                 else
@@ -538,6 +540,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     }
                     stmtBuilder.append(colName).append(' ').append(cassandraType);
                     columnAdded = true;
+                    firstCol = false;
                 }
             }
         }

@@ -60,7 +60,6 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         // Find column name for embedded member
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
-        NucleusLogger.GENERAL.info(">> StoreEmbFM.getCol embMmds=" + StringUtils.collectionToString(embMmds) + " num=" + embMmds.size() + " col=" + ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0));
         return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
     }
 
