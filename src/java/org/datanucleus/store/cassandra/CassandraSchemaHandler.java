@@ -512,7 +512,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
                     }
                     else
-                    {       
+                    {
                         // Nested embedded PC, so recurse
                         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                         embMmds.add(mmd);

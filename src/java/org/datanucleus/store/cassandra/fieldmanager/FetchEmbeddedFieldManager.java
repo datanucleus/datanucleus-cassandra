@@ -78,17 +78,18 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         if (relationType != RelationType.NONE)
         {
             EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
+            if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
+            {
+                // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+                ObjectProvider[] ownerOps = op.getEmbeddedOwners();
+                return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
+            }
+
             if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
-                    {
-                        // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-                        return op.getObject();
-                    }
-
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                     embMmds.add(mmd);
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
