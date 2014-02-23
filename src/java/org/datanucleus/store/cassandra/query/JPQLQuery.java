@@ -150,6 +150,9 @@ public class JPQLQuery extends AbstractJPQLQuery
             MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
         for (AbstractClassMetaData cmd : cmds)
         {
+            // TODO Remove this and when class is registered, use listener to manage it
+            storeMgr.manageClasses(clr, cmd.getFullClassName());
+
             // Obtain candidate objects for this class
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
             stmtBuilder.append(storeMgr.getSchemaNameForClass(cmd)).append('.').append(storeMgr.getNamingFactory().getTableName(cmd));

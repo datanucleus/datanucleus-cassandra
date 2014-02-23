@@ -49,6 +49,7 @@ import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
@@ -308,6 +309,14 @@ public class CassandraUtils
             TypeConverter serialConv = typeMgr.getTypeConverterForType(Serializable.class, byte[].class);
             return serialConv.toDatastoreType(value);
         }
+        else if (value.getClass() == Character.class)
+        {
+            return "" + value;
+        }
+        else if (ClassUtils.isPrimitiveWrapperType(value.getClass().getName()))
+        {
+            return value;
+        }
         else if (value instanceof Enum)
         {
             // Persist as ordinal unless user specifies jdbc-type of "varchar"
@@ -469,7 +478,7 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                version = row.getLong(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
+                version = row.getInt(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
             }
             op.setVersion(version);
         }

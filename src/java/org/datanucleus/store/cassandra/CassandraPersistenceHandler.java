@@ -140,7 +140,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                 if (vermd.getVersionStrategy() == VersionStrategy.VERSION_NUMBER)
                 {
-                    long versionNumber = 1;
+                    int versionNumber = 1;
                     op.setTransactionalVersion(Long.valueOf(versionNumber));
 
                     if (vermd.getFieldName() != null)
@@ -425,21 +425,23 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             stmtBuilder.append(namingFactory.getTableName(cmd));
             // TODO Support any USING clauses
 
+            List setVals = new ArrayList();
             stmtBuilder.append(" SET ");
             if (columnValuesByName != null && !columnValuesByName.isEmpty())
             {
                 boolean first = true;
-                for (String colName : columnValuesByName.keySet())
+                for (Map.Entry<String, Object> entry : columnValuesByName.entrySet())
                 {
                     if (!first)
                     {
                         stmtBuilder.append(',');
                     }
-                    stmtBuilder.append(colName).append("=?");
+                    stmtBuilder.append(entry.getKey()).append("=?");
                     first = false;
+                    setVals.add(entry.getValue());
                 }
             }
-            Object[] verVals = new Object[0];
+
             if (cmd.isVersioned())
             {
                 VersionMetaData vermd = cmd.getVersionMetaDataForClass();
@@ -458,23 +460,26 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     if (updatingVerField)
                     {
                         stmtBuilder.append(',').append(namingFactory.getColumnName(verMmd, ColumnType.COLUMN)).append("=?");
-                        verVals = new Object[]{op.getTransactionalVersion()};
+                        setVals.add(op.getTransactionalVersion());
                     }
                 }
                 else
                 {
                     // Update the stored surrogate value
                     stmtBuilder.append(",").append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append("=?");
-                    verVals = new Object[]{op.getTransactionalVersion()};
+                    Object verVal = op.getTransactionalVersion();
+                    if (verVal instanceof Long)
+                    {
+                        verVal = Integer.valueOf(((Long)op.getTransactionalVersion()).intValue());
+                    }
+                    setVals.add(verVal);
                 }
             }
 
             stmtBuilder.append(" WHERE ");
-            Object[] pkVals = null;
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
                 int[] pkFieldNums = cmd.getPKMemberPositions();
-                pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
                     if (i > 0)
@@ -485,29 +490,21 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     stmtBuilder.append("=?");
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
                     String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
-                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
                 stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
                 stmtBuilder.append("=?");
-                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+                Object oidVal = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Don't hardcode "bigint" (see also CassandraSchemaHandler)
+                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, "bigint", false, storeMgr.getNucleusContext().getTypeManager()));
             }
 
-            Object[] stmtVals = new Object[columnValuesByName.size() + pkVals.length + verVals.length];
-            int pos = 0;
-            for (String colName : columnValuesByName.keySet())
-            {
-                stmtVals[pos++] = columnValuesByName.get(colName);
-            }
-            System.arraycopy(pkVals, 0, stmtVals, columnValuesByName.size(), pkVals.length);
-            System.arraycopy(verVals, 0, stmtVals, columnValuesByName.size()+pkVals.length, verVals.length);
-
-            CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtVals, NucleusLogger.DATASTORE_NATIVE);
+            CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
-            session.execute(stmt.bind(stmtVals));
+            session.execute(stmt.bind(setVals.toArray()));
 
             if (ec.getStatistics() != null)
             {

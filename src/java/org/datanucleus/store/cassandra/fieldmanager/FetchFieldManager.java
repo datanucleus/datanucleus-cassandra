@@ -198,6 +198,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         int fieldNumber = mmd.getAbsoluteFieldNumber();
         String colName = getColumnName(fieldNumber);
 
+        if (row.isNull(colName))
+        {
+            return null;
+        }
+
         if (RelationType.isRelationSingleValued(relationType))
         {
             Object value = row.getString(colName);
@@ -241,6 +246,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
+            // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
             if (mmd.hasCollection())
             {
                 Collection cassColl = null;
@@ -275,6 +281,34 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 byte[] bytes = byteBuffer.array();
                 TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
                 return serialConv.toMemberType(bytes);
+            }
+            else if (Character.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getString(colName).charAt(0);
+            }
+            else if (Double.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getDouble(colName);
+            }
+            else if (Float.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getFloat(colName);
+            }
+            else if (Long.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getLong(colName);
+            }
+            else if (Integer.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getInt(colName);
+            }
+            else if (Short.class.isAssignableFrom(mmd.getType()))
+            {
+                return (short)row.getInt(colName);
+            }
+            else if (Boolean.class.isAssignableFrom(mmd.getType()))
+            {
+                return row.getBool(colName);
             }
             else if (Enum.class.isAssignableFrom(mmd.getType()))
             {

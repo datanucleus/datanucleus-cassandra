@@ -221,10 +221,11 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     protected void storeNonEmbeddedObjectField(AbstractMemberMetaData mmd, RelationType relationType, ClassLoaderResolver clr, Object value)
     {
         int fieldNumber = mmd.getAbsoluteFieldNumber();
+        String colName = getColumnName(fieldNumber);
 
         if (value == null)
         {
-            columnValueByName.put(getColumnName(fieldNumber), null);
+            columnValueByName.put(colName, null);
             return;
         }
 
@@ -232,7 +233,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
-            columnValueByName.put(getColumnName(fieldNumber), IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
+            columnValueByName.put(colName, IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
             return;
         }
         else if (RelationType.isRelationMultiValued(relationType))
@@ -250,7 +251,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
                     idColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
                 }
-                columnValueByName.put(getColumnName(fieldNumber), idColl);
+                columnValueByName.put(colName, idColl);
                 return;
             }
             else if (mmd.hasMap())
@@ -299,7 +300,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                     idMap.put(key, value);
                 }
-                columnValueByName.put(getColumnName(fieldNumber), idMap);
+                columnValueByName.put(colName, idMap);
                 return;
             }
             else if (mmd.hasArray())
@@ -325,7 +326,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         cassColl.add(null);
                     }
                 }
-                columnValueByName.put(getColumnName(fieldNumber), cassColl);
+                columnValueByName.put(colName, cassColl);
                 return;
                 // TODO Support arrays
             }
@@ -353,7 +354,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = collIter.next();
                     cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
-                columnValueByName.put(getColumnName(fieldNumber), cassColl);
+                columnValueByName.put(colName, cassColl);
                 return;
             }
             else if (mmd.hasMap())
@@ -376,7 +377,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
                     cassMap.put(key, value);
                 }
-                columnValueByName.put(getColumnName(fieldNumber), cassMap);
+                columnValueByName.put(colName, cassMap);
                 return;
             }
             else if (mmd.hasArray())
@@ -388,12 +389,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
             if (datastoreValue != null)
             {
-                columnValueByName.put(getColumnName(fieldNumber), datastoreValue);
+                columnValueByName.put(colName, datastoreValue);
                 return;
             }
         }
 
         NucleusLogger.PERSISTENCE.warn("Not generated persistable value for field " + mmd.getFullFieldName() + " so putting null");
-        columnValueByName.put(getColumnName(fieldNumber), null);
+        columnValueByName.put(colName, null);
     }
 }
