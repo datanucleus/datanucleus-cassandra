@@ -25,12 +25,12 @@ import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.EmbeddedMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 /**
  * FieldManager for the persistence of an embedded PC object.
@@ -69,17 +69,25 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     @Override
     public void storeObjectField(int fieldNumber, Object value)
     {
-        AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
         if (relationType != RelationType.NONE)
         {
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, mmds.get(mmds.size()-1)))
+            AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
+            EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
+            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, lastMmd))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
+                    if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
+                    {
+                        // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+                        return;
+                    }
+
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     int[] embMmdPosns = embCmd.getAllMemberPositions();
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);

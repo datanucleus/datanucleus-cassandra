@@ -35,6 +35,7 @@ import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.EmbeddedMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.metadata.MetaDataManager;
@@ -493,6 +494,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         boolean columnAdded = false;
 
         AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
+        EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
         MetaDataManager mmgr = storeMgr.getMetaDataManager();
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(lastMmd.getType(), clr);
@@ -503,17 +505,23 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             RelationType relationType = mmd.getRelationType(clr);
             if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, lastMmd))
             {
-                // TODO Support owner-field of the embeddedMd to avoid adding recursion
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    // Nested embedded PC, so recurse
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                    embMmds.add(mmd);
-                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
-                    if (added)
+                    if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
                     {
-                        columnAdded = true;
-                        firstCol = false;
+                        // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+                    }
+                    else
+                    {       
+                        // Nested embedded PC, so recurse
+                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                        embMmds.add(mmd);
+                        boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
+                        if (added)
+                        {
+                            columnAdded = true;
+                            firstCol = false;
+                        }
                     }
                 }
                 else
