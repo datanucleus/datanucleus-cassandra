@@ -678,6 +678,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
+            // TODO Check for fields that are not persistable, which may mean no CQL to execute
+
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
             NamingFactory namingFactory = storeMgr.getNamingFactory();
             ClassLoaderResolver clr = ec.getClassLoaderResolver();

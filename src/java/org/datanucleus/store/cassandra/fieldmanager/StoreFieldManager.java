@@ -77,6 +77,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeBooleanField(int fieldNumber, boolean value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -86,6 +90,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeCharField(int fieldNumber, char value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), ""+value);
     }
 
@@ -95,6 +103,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeByteField(int fieldNumber, byte value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -104,6 +116,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeShortField(int fieldNumber, short value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -113,6 +129,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeIntField(int fieldNumber, int value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -122,6 +142,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeLongField(int fieldNumber, long value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -131,6 +155,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeFloatField(int fieldNumber, float value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -140,6 +168,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeDoubleField(int fieldNumber, double value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -149,6 +181,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeStringField(int fieldNumber, String value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         columnValueByName.put(getColumnName(fieldNumber), value);
     }
 
@@ -158,6 +194,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     @Override
     public void storeObjectField(int fieldNumber, Object value)
     {
+        if (!isStorable(fieldNumber))
+        {
+            return;
+        }
         AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);

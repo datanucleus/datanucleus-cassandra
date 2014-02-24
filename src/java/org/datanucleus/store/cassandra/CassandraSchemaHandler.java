@@ -36,6 +36,7 @@ import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.EmbeddedMetaData;
+import org.datanucleus.metadata.FieldPersistenceModifier;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.metadata.MetaDataManager;
@@ -312,6 +313,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
                 RelationType relationType = mmd.getRelationType(clr);
+                if (mmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
+                {
+                    continue;
+                }
 
                 if (MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, mmd, relationType, null))
                 {
