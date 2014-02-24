@@ -144,7 +144,14 @@ public class CassandraUtils
                 }
                 else
                 {
-                	return "list<varchar>";
+                	if (mmd.getOrderMetaData() != null)
+                	{
+                		return "list<varchar>";
+                	}
+                	else
+                	{
+                		return "set<varchar>";
+                	}
                 }
             }
             else if (mmd.hasMap())
@@ -188,7 +195,14 @@ public class CassandraUtils
                     }
                     else
                     {
-                    	return "list<" + cqlElementType + ">";
+                    	if (mmd.getOrderMetaData() != null)
+                    	{
+                    		return "list<" + cqlElementType + ">";
+                    	}
+                    	else
+                    	{
+                    		return "set<" + cqlElementType + ">";
+                    	}
                     }
                 }
                 else
