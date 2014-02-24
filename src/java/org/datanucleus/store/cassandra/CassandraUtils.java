@@ -142,6 +142,10 @@ public class CassandraUtils
                 {
                     return "set<varchar>";
                 }
+                else
+                {
+                	return "list<varchar>";
+                }
             }
             else if (mmd.hasMap())
             {
@@ -181,6 +185,10 @@ public class CassandraUtils
                     else if (Set.class.isAssignableFrom(mmd.getType()))
                     {
                         return "set<" + cqlElementType + ">";
+                    }
+                    else
+                    {
+                    	return "list<" + cqlElementType + ">";
                     }
                 }
                 else
