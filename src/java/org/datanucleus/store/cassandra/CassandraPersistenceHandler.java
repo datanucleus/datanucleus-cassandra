@@ -21,8 +21,10 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -34,6 +36,7 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.DiscriminatorStrategy;
+import org.datanucleus.metadata.FieldPersistenceModifier;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
@@ -678,9 +681,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // TODO Check for fields that are not persistable, which may mean no CQL to execute
-
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            Set<Integer> nonpersistableFields = null;
             NamingFactory namingFactory = storeMgr.getNamingFactory();
             ClassLoaderResolver clr = ec.getClassLoaderResolver();
             boolean first = true;
@@ -688,119 +690,157 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             for (int i=0;i<fieldNumbers.length;i++)
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]);
-                RelationType relationType = mmd.getRelationType(clr);
-                if (RelationType.isRelationSingleValued(relationType) && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+                if (mmd.getPersistenceModifier() == FieldPersistenceModifier.PERSISTENT)
                 {
-                    // Embedded PC, so add columns for all fields (and nested fields)
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
-                    embMmds.add(mmd);
-                    List<String> embColNames = new ArrayList<String>();
-                    getColumnNamesForEmbeddedMember(embMmds, embColNames, ec);
-                    for (String embColName : embColNames)
+                    RelationType relationType = mmd.getRelationType(clr);
+                    if (RelationType.isRelationSingleValued(relationType) && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
                     {
-                        if (!first)
+                        // Embedded PC, so add columns for all fields (and nested fields)
+                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                        embMmds.add(mmd);
+                        List<String> embColNames = new ArrayList<String>();
+                        getColumnNamesForEmbeddedMember(embMmds, embColNames, ec);
+                        for (String embColName : embColNames)
                         {
-                            stmtBuilder.append(',');
+                            if (!first)
+                            {
+                                stmtBuilder.append(',');
+                            }
+                            stmtBuilder.append(embColName);
+                            first = false;
                         }
-                        stmtBuilder.append(embColName);
-                        first = false;
+                        continue;
                     }
-                    continue;
-                }
 
-                String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                if (!first)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append(colName);
-                first = false;
-            }
-
-            stmtBuilder.append(" FROM ");
-            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
-            if (schemaName != null)
-            {
-                stmtBuilder.append(schemaName).append('.');
-            }
-            stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
-
-            if (cmd.getIdentityType() == IdentityType.APPLICATION)
-            {
-                int[] pkFieldNums = cmd.getPKMemberPositions();
-                for (int i=0;i<pkFieldNums.length;i++)
-                {
-                    if (i > 0)
+                    String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                    if (!first)
                     {
-                        stmtBuilder.append(" AND ");
+                        stmtBuilder.append(',');
                     }
-                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
-                    stmtBuilder.append("=?");
-                }
-            }
-            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-            {
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
-                stmtBuilder.append("=?");
-            }
-            // TODO Support any USING clauses
-
-            Object[] pkVals = null;
-            if (cmd.getIdentityType() == IdentityType.APPLICATION)
-            {
-                int[] pkFieldNums = cmd.getPKMemberPositions();
-                pkVals = new Object[pkFieldNums.length];
-                for (int i=0;i<pkFieldNums.length;i++)
-                {
-                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
-                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
-                }
-            }
-            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-            {
-                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
-            }
-
-            CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
-            Session session = (Session)mconn.getConnection();
-            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
-            ResultSet rs = session.execute(stmt.bind(pkVals));
-            if (rs.isExhausted())
-            {
-                throw new NucleusDataStoreException("Attempt to fetch fields for " + op + " yet no data exists for this object in its table");
-            }
-            Row row = rs.one();
-            FetchFieldManager fetchFM = new FetchFieldManager(op, row);
-            op.replaceFields(fieldNumbers, fetchFM);
-
-            if (cmd.isVersioned() && op.getTransactionalVersion() == null)
-            {
-                // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
-                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-                if (vermd.getFieldName() != null)
-                {
-                    // Version stored in a field
-                    Object datastoreVersion = op.provideField(cmd.getAbsolutePositionOfMember(vermd.getFieldName()));
-                    op.setVersion(datastoreVersion);
+                    stmtBuilder.append(colName);
+                    first = false;
                 }
                 else
                 {
-                    // Surrogate version
-                    String versColName = storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN);
-                    Object datastoreVersion = row.getInt(versColName);
-                    op.setVersion(datastoreVersion);
+                    if (nonpersistableFields == null)
+                    {
+                        nonpersistableFields = new HashSet<Integer>();
+                    }
+                    nonpersistableFields.add(fieldNumbers[i]);
                 }
             }
 
-            if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
+            if (nonpersistableFields != null)
             {
-                NucleusLogger.DATASTORE_RETRIEVE.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime",
-                    (System.currentTimeMillis() - startTime)));
+                // Just go through motions for non-persistable fields
+                for (Integer fieldNum : nonpersistableFields)
+                {
+                    op.replaceField(fieldNum, op.provideField(fieldNum));
+                }
             }
-            if (ec.getStatistics() != null)
+
+            if (nonpersistableFields == null || nonpersistableFields.size() != fieldNumbers.length)
             {
-                ec.getStatistics().incrementFetchCount();
+                // Some fields needed to be pulled back from the datastore
+                stmtBuilder.append(" FROM ");
+                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                if (schemaName != null)
+                {
+                    stmtBuilder.append(schemaName).append('.');
+                }
+                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                {
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    for (int i=0;i<pkFieldNums.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                        stmtBuilder.append("=?");
+                    }
+                }
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    stmtBuilder.append("=?");
+                }
+                // TODO Support any USING clauses
+
+                Object[] pkVals = null;
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
+                {
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    pkVals = new Object[pkFieldNums.length];
+                    for (int i=0;i<pkFieldNums.length;i++)
+                    {
+                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                        String cassandraType = CassandraUtils.getCassandraTypeForNonPersistableType(pkMmd.getType(), false, storeMgr.getNucleusContext().getTypeManager(), null);
+                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    }
+                }
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+                }
+
+                CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
+                Session session = (Session)mconn.getConnection();
+                PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+                ResultSet rs = session.execute(stmt.bind(pkVals));
+                if (rs.isExhausted())
+                {
+                    throw new NucleusDataStoreException("Attempt to fetch fields for " + op + " yet no data exists for this object in its table");
+                }
+                Row row = rs.one();
+                FetchFieldManager fetchFM = new FetchFieldManager(op, row);
+                if (nonpersistableFields != null)
+                {
+                    // Strip out any nonpersistable fields
+                    int[] persistableFieldNums = new int[fieldNumbers.length - nonpersistableFields.size()];
+                    int pos = 0;
+                    for (int i=0;i<fieldNumbers.length;i++)
+                    {
+                        if (!nonpersistableFields.contains(fieldNumbers[i]))
+                        {
+                            persistableFieldNums[pos++] = fieldNumbers[i];
+                        }
+                    }
+                    fieldNumbers = persistableFieldNums;
+                }
+                op.replaceFields(fieldNumbers, fetchFM);
+
+                if (cmd.isVersioned() && op.getTransactionalVersion() == null)
+                {
+                    // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
+                    VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                    if (vermd.getFieldName() != null)
+                    {
+                        // Version stored in a field
+                        Object datastoreVersion = op.provideField(cmd.getAbsolutePositionOfMember(vermd.getFieldName()));
+                        op.setVersion(datastoreVersion);
+                    }
+                    else
+                    {
+                        // Surrogate version
+                        String versColName = storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN);
+                        Object datastoreVersion = row.getInt(versColName);
+                        op.setVersion(datastoreVersion);
+                    }
+                }
+
+                if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
+                {
+                    NucleusLogger.DATASTORE_RETRIEVE.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime",
+                        (System.currentTimeMillis() - startTime)));
+                }
+                if (ec.getStatistics() != null)
+                {
+                    ec.getStatistics().incrementFetchCount();
+                }
             }
         }
         catch (DriverException e)
