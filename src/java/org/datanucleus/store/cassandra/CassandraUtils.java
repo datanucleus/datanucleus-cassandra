@@ -339,9 +339,21 @@ public class CassandraUtils
         {
         	return ((Byte)value).intValue();
         }
+        else if (value.getClass() == Short.class)
+        {
+        	return ((Short)value).intValue();
+        }
         else if (ClassUtils.isPrimitiveWrapperType(value.getClass().getName()))
         {
             return value;
+        }
+        else if (value.getClass() == BigInteger.class)
+        {
+        	return ((BigInteger)value).longValue();
+        }
+        else if (value.getClass() == BigDecimal.class)
+        {
+        	return ((BigDecimal)value).doubleValue();
         }
         else if (value instanceof Enum)
         {

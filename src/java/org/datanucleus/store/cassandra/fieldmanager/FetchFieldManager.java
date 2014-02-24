@@ -19,6 +19,8 @@ package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -281,6 +283,14 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 byte[] bytes = byteBuffer.array();
                 TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
                 return serialConv.toMemberType(bytes);
+            }
+            else if (BigInteger.class.isAssignableFrom(mmd.getType()))
+            {
+            	return BigInteger.valueOf(row.getLong(colName));
+            }
+            else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
+            {
+            	return BigDecimal.valueOf(row.getDouble(colName));
             }
             else if (Byte.class.isAssignableFrom(mmd.getType()))
             {
