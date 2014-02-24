@@ -282,6 +282,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
                 return serialConv.toMemberType(bytes);
             }
+            else if (Byte.class.isAssignableFrom(mmd.getType()))
+            {
+                return (byte)row.getInt(colName);
+            }
             else if (Character.class.isAssignableFrom(mmd.getType()))
             {
                 return row.getString(colName).charAt(0);

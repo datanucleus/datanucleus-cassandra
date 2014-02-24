@@ -107,7 +107,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnName(fieldNumber), value);
+        columnValueByName.put(getColumnName(fieldNumber), Integer.valueOf(value));
     }
 
     /* (non-Javadoc)
@@ -120,7 +120,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnName(fieldNumber), value);
+        columnValueByName.put(getColumnName(fieldNumber), Integer.valueOf(value));
     }
 
     /* (non-Javadoc)

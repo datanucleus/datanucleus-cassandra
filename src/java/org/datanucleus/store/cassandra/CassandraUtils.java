@@ -335,6 +335,10 @@ public class CassandraUtils
         {
             return "" + value;
         }
+        else if (value.getClass() == Byte.class)
+        {
+        	return ((Byte)value).intValue();
+        }
         else if (ClassUtils.isPrimitiveWrapperType(value.getClass().getName()))
         {
             return value;
