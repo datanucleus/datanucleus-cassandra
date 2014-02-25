@@ -273,6 +273,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
+            if (mmd.isSerialized())
+            {
+            	// TODO Support persistable object
+                throw new NucleusUserException("Don't currently support serialised PC fields at " + 
+                        mmd.getFullFieldName() + ". Dont serialise it");
+            }
             columnValueByName.put(colName, IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
             return;
         }
@@ -289,6 +295,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = collIter.next();
                     Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
                     Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
+                    if (mmd.getCollection().isSerializedElement())
+                    {
+                    	// TODO Support persistable element
+                        throw new NucleusUserException("Don't currently support serialised collection elements at " + 
+                                mmd.getFullFieldName() + ". Serialise the whole field");
+                    }
                     idColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
                 }
                 columnValueByName.put(colName, idColl);
@@ -321,6 +333,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         Object keyPC = ec.persistObjectInternal(key, op, fieldNumber, -1);
                         Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
+                        if (mmd.getMap().isSerializedKey())
+                        {
+                        	// TODO Support persistable key
+                            throw new NucleusUserException("Don't currently support serialised map keys at " + 
+                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                        }
                         key = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), keyID);
                     }
                     else
@@ -331,6 +349,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
                         Object valID = ec.getApiAdapter().getIdForObject(valPC);
+                        if (mmd.getMap().isSerializedValue())
+                        {
+                        	// TODO Support persistable value
+                            throw new NucleusUserException("Don't currently support serialised map values at " + 
+                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                        }
                         val = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valID);
                     }
                     else
@@ -368,7 +392,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 }
                 columnValueByName.put(colName, cassColl);
                 return;
-                // TODO Support arrays
             }
         }
         else

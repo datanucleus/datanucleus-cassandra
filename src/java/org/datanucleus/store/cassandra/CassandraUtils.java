@@ -128,7 +128,7 @@ public class CassandraUtils
 
         if (RelationType.isRelationSingleValued(relType))
         {
-            return "varchar";
+            return mmd.isSerialized() ? "blob" : "varchar";
         }
         else if (RelationType.isRelationMultiValued(relType))
         {
@@ -136,21 +136,21 @@ public class CassandraUtils
             {
                 if (List.class.isAssignableFrom(mmd.getType()))
                 {
-                    return "list<varchar>";
+                    return mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
                 }
                 else if (Set.class.isAssignableFrom(mmd.getType()))
                 {
-                    return "set<varchar>";
+                    return mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
                 }
                 else
                 {
                 	if (mmd.getOrderMetaData() != null)
                 	{
-                		return "list<varchar>";
+                        return mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
                 	}
                 	else
                 	{
-                		return "set<varchar>";
+                        return mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
                 	}
                 }
             }
@@ -160,7 +160,7 @@ public class CassandraUtils
                 String valType = null;
                 if (mmd.getMap().keyIsPersistent())
                 {
-                    keyType = "varchar";
+                    keyType = mmd.getMap().isSerializedKey() ? "blob" : "varchar";
                 }
                 else
                 {
@@ -168,7 +168,7 @@ public class CassandraUtils
                 }
                 if (mmd.getMap().valueIsPersistent())
                 {
-                    valType = "varchar";
+                    valType = mmd.getMap().isSerializedValue() ? "blob" : "varchar";
                 }
                 else
                 {
@@ -182,7 +182,7 @@ public class CassandraUtils
             if (mmd.hasCollection())
             {
                 String elementType = mmd.getCollection().getElementType();
-                String cqlElementType = cassandraTypeByJavaType.get(elementType);
+                String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : cassandraTypeByJavaType.get(elementType);
                 if (cqlElementType != null)
                 {
                     if (List.class.isAssignableFrom(mmd.getType()))
@@ -214,8 +214,8 @@ public class CassandraUtils
             {
                 String keyType = mmd.getMap().getKeyType();
                 String valType = mmd.getMap().getValueType();
-                String cqlKeyType = cassandraTypeByJavaType.get(keyType);
-                String cqlValType = cassandraTypeByJavaType.get(valType);
+                String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : cassandraTypeByJavaType.get(keyType);
+                String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : cassandraTypeByJavaType.get(valType);
                 if (cqlKeyType != null && cqlValType != null)
                 {
                     return "map<" + cqlKeyType + "," + cqlValType + ">";
