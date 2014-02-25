@@ -337,6 +337,18 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 return mmd.getType().getEnumConstants()[row.getInt(colName)];
             }
+            else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
+            {
+            	return new java.sql.Date(row.getDate(colName).getTime());
+            }
+            else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
+            {
+            	return new java.sql.Time(row.getDate(colName).getTime());
+            }
+            else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
+            {
+            	return new java.sql.Timestamp(row.getDate(colName).getTime());
+            }
             else if (Date.class.isAssignableFrom(mmd.getType()))
             {
                 return row.getDate(colName);

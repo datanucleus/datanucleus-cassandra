@@ -793,8 +793,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ResultSet rs = session.execute(stmt.bind(pkVals));
                 if (rs.isExhausted())
                 {
-                    throw new NucleusDataStoreException("Attempt to fetch fields for " + op + " yet no data exists for this object in its table");
+                    throw new NucleusObjectNotFoundException("Could not find object with id " + op.getInternalObjectId() + " op="+op);
                 }
+
                 Row row = rs.one();
                 FetchFieldManager fetchFM = new FetchFieldManager(op, row);
                 if (nonpersistableFields != null)
