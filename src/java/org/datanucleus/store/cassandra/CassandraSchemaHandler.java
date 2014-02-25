@@ -66,6 +66,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
     {
         super(storeMgr);
         this.casStoreMgr = (CassandraStoreManager)storeMgr;
+        // TODO Check if the schema exists and create it according to isAutoCreateSchema()
     }
 
     /**
