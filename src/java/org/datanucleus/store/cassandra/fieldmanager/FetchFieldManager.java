@@ -223,7 +223,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     value = row.getSet(colName, String.class);
                 }
-                NucleusLogger.DATASTORE_RETRIEVE.info(">> FetchFM " + mmd.getFullFieldName() + " coll=" + StringUtils.collectionToString((Collection) value));
             }
             else if (mmd.hasMap())
             {
@@ -369,7 +368,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
 
         // TODO Support other types
-        NucleusLogger.PERSISTENCE.info(">> FetchFM field=" + mmd.getFullFieldName() + " not supported currently. Type=" + mmd.getTypeName());
+        NucleusLogger.PERSISTENCE.info("TODO FetchFM field=" + mmd.getFullFieldName() + " not supported currently. Type=" + mmd.getTypeName());
         return null;
     }
 
