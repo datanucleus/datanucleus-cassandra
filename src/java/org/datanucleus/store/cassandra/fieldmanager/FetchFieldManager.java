@@ -38,11 +38,11 @@ import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
 import org.datanucleus.store.fieldmanager.FieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
@@ -248,6 +248,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
+            String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, ec.getTypeManager(), clr);
             // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
             if (mmd.hasCollection())
             {
@@ -329,33 +330,61 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (Enum.class.isAssignableFrom(mmd.getType()))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
-                ColumnMetaData[] colmds = mmd.getColumnMetaData();
-                if (colmds != null && colmds.length == 1)
-                {
-                    if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
-                    {
-                        return Enum.valueOf(mmd.getType(), row.getString(colName));
-                    }
-                }
+            	if (cassandraType.equals("varchar"))
+            	{
+            		return Enum.valueOf(mmd.getType(), row.getString(colName));
+            	}
                 return mmd.getType().getEnumConstants()[row.getInt(colName)];
             }
             else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
             {
+            	if (cassandraType.equals("varchar"))
+            	{
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(colName));
+                    }
+            	}
             	// TODO There is a TypeConverter for this
             	return new java.sql.Date(row.getDate(colName).getTime());
             }
             else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
             {
+            	if (cassandraType.equals("varchar"))
+            	{
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(colName));
+                    }
+            	}
             	// TODO There is a TypeConverter for this
             	return new java.sql.Time(row.getDate(colName).getTime());
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
             {
+            	if (cassandraType.equals("varchar"))
+            	{
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(colName));
+                    }
+            	}
             	// TODO There is a TypeConverter for this
             	return new java.sql.Timestamp(row.getDate(colName).getTime());
             }
             else if (Calendar.class.isAssignableFrom(mmd.getType()))
             {
+            	if (cassandraType.equals("varchar"))
+            	{
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(colName));
+                    }
+            	}
             	// TODO There is a TypeConverter for this
                 Calendar cal = Calendar.getInstance();
                 cal.setTime(row.getDate(colName));

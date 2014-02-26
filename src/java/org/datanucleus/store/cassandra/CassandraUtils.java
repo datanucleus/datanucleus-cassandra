@@ -393,12 +393,42 @@ public class CassandraUtils
         }
         else if (value instanceof Calendar)
         {
+        	if (datastoreType.equals("varchar"))
+        	{
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(Calendar.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+        	}
         	// TODO There is a TypeConverter for this
         	return ((Calendar)value).getTime();
         }
         else if (value instanceof Date)
         {
-        	// TODO There is a TypeConverter for this
+            if (datastoreType.equals("varchar"))
+            {
+            	// TODO When we have a lookup map per table of column and TypeConverter, remove this
+            	Class valueType = Date.class;
+            	if (value instanceof Time)
+            	{
+            		valueType = Time.class;
+            	}
+            	else if (value instanceof java.sql.Date)
+            	{
+            		valueType = java.sql.Date.class;
+            	}
+            	else if (value instanceof Timestamp)
+            	{
+            		valueType = Timestamp.class;
+            	}
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(valueType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            // TODO There is a TypeConverter for this
             return value;
         }
 
