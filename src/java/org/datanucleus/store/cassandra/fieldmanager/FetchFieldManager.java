@@ -23,6 +23,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
@@ -340,15 +341,25 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
             {
+            	// TODO There is a TypeConverter for this
             	return new java.sql.Date(row.getDate(colName).getTime());
             }
             else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
             {
+            	// TODO There is a TypeConverter for this
             	return new java.sql.Time(row.getDate(colName).getTime());
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
             {
+            	// TODO There is a TypeConverter for this
             	return new java.sql.Timestamp(row.getDate(colName).getTime());
+            }
+            else if (Calendar.class.isAssignableFrom(mmd.getType()))
+            {
+            	// TODO There is a TypeConverter for this
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(row.getDate(colName));
+            	return cal;
             }
             else if (Date.class.isAssignableFrom(mmd.getType()))
             {

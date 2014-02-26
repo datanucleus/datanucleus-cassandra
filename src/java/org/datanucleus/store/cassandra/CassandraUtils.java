@@ -367,8 +367,14 @@ public class CassandraUtils
             }
             return ((Enum)value).ordinal();
         }
+        else if (value instanceof Calendar)
+        {
+        	// TODO There is a TypeConverter for this
+        	return ((Calendar)value).getTime();
+        }
         else if (value instanceof Date)
         {
+        	// TODO There is a TypeConverter for this
             return value;
         }
 
