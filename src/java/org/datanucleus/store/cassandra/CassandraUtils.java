@@ -321,6 +321,7 @@ public class CassandraUtils
      */
     public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
     {
+    	// TODO Support TypeManager autoApply type converter
         if (value == null)
         {
             return value;
@@ -349,10 +350,12 @@ public class CassandraUtils
         }
         else if (value.getClass() == BigInteger.class)
         {
+        	// TODO There is a TypeConverter for this
         	return ((BigInteger)value).longValue();
         }
         else if (value.getClass() == BigDecimal.class)
         {
+        	// TODO There is a TypeConverter for this
         	return ((BigDecimal)value).doubleValue();
         }
         else if (value instanceof Enum)

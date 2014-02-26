@@ -285,10 +285,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (BigInteger.class.isAssignableFrom(mmd.getType()))
             {
+            	// TODO There is a TypeConverter for this
             	return BigInteger.valueOf(row.getLong(colName));
             }
             else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
             {
+            	// TODO There is a TypeConverter for this
             	return BigDecimal.valueOf(row.getDouble(colName));
             }
             else if (Byte.class.isAssignableFrom(mmd.getType()))
@@ -352,6 +354,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 return row.getDate(colName);
             }
+            // TODO Support java.time
             else
             {
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
