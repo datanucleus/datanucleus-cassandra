@@ -51,6 +51,7 @@ import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Row;
 
@@ -92,14 +93,44 @@ public class CassandraUtils
 
     /**
      * Method to return the Cassandra column type that the specified member will be stored as.
-     * TODO This makes the assumption that when we have a persistable type we persist a String form of the id (into a varchar).
      * @param mmd Metadata for the member
      * @param typeMgr Type manager
      * @return The cassandra column type
      */
     public static String getCassandraColumnTypeForMember(AbstractMemberMetaData mmd, TypeManager typeMgr, ClassLoaderResolver clr)
     {
-        // TODO Make use of jdbc-type in mmd.getColumnMetaData()
+    	ColumnMetaData[] colmds = mmd.getColumnMetaData();
+    	if (colmds != null && colmds.length == 1)
+    	{
+    		String jdbcType = colmds[0].getJdbcType();
+    		if (!StringUtils.isWhitespace(jdbcType))
+    		{
+    			// Use jdbc-type where it is specified
+    			if (jdbcType.equalsIgnoreCase("varchar") || jdbcType.equalsIgnoreCase("longvarchar"))
+    			{
+    				return "varchar";
+    			}
+    			else if (jdbcType.equalsIgnoreCase("bigint"))
+    			{
+    				return "bigint";
+    			}
+    			else if (jdbcType.equalsIgnoreCase("blob"))
+    			{
+    				return "blob";
+    			}
+    			else if (jdbcType.equalsIgnoreCase("decimal"))
+    			{
+    				return "double";
+    			}
+    			else if (jdbcType.equalsIgnoreCase("integer"))
+    			{
+    				return "int";
+    			}
+    			// TODO Support other jdbc-type values
+    		}
+    	}
+
+    	// Fallback to defaults based on the member type
         Class type = mmd.getType();
         String cTypeName = cassandraTypeByJavaType.get(type.getName());
         if (cTypeName != null)
@@ -112,14 +143,7 @@ public class CassandraUtils
         }
         else if (Enum.class.isAssignableFrom(type))
         {
-            ColumnMetaData[] colmds = mmd.getColumnMetaData();
-            if (colmds != null && colmds.length == 1)
-            {
-                if (colmds[0].getJdbcType().equalsIgnoreCase("varchar"))
-                {
-                    return "varchar";
-                }
-            }
+        	// Default to persisting the Enum.ordinal (can use Enum.toString if varchar specified above)
             return "int";
         }
 
