@@ -392,6 +392,14 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (Date.class.isAssignableFrom(mmd.getType()))
             {
+                if (cassandraType.equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(colName));
+                    }
+                }
                 return row.getDate(colName);
             }
             // TODO Support java.time
