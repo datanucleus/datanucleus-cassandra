@@ -73,21 +73,21 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
+        AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
+        EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
+        if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
+        {
+            // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+            return;
+        }
+
         if (relationType != RelationType.NONE)
         {
-            AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
-            EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
             if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, lastMmd))
             {
                 // Embedded field
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
-                    {
-                        // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-                        return;
-                    }
-
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     int[] embMmdPosns = embCmd.getAllMemberPositions();
                     List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);

@@ -258,6 +258,23 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             return;
         }
 
+        // TODO This is a future way of generating Table definitions so that we can hold a cached data structure for reference in StoreFieldManager/FetchFieldManager
+        /*CompleteClassTable theTable = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+        NucleusLogger.GENERAL.info(">> CompleteClassTable - " + theTable);
+        List<Column> theTableCols = theTable.getColumns();
+        for (Column col : theTableCols)
+        {
+            AbstractMemberMetaData mmd = col.getMemberMetaData();
+            if (mmd != null)
+            {
+                NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName() + " mmd=" + mmd.getFullFieldName());
+            }
+            else
+            {
+                NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName());
+            }
+        }*/
+
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
         if (isAutoCreateTables() && !tableExists)
@@ -508,26 +525,30 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         for (int i=0;i<memberPositions.length;i++)
         {
             AbstractMemberMetaData mmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
+            if (mmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
+            {
+                // Don't need column if not persistent
+                continue;
+            }
+            if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
+            {
+                // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+                continue;
+            }
+
             RelationType relationType = mmd.getRelationType(clr);
             if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, lastMmd))
             {
                 if (RelationType.isRelationSingleValued(relationType))
                 {
-                    if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
+                    // Nested embedded PC, so recurse
+                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                    embMmds.add(mmd);
+                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
+                    if (added)
                     {
-                        // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-                    }
-                    else
-                    {
-                        // Nested embedded PC, so recurse
-                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                        embMmds.add(mmd);
-                        boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
-                        if (added)
-                        {
-                            columnAdded = true;
-                            firstCol = false;
-                        }
+                        columnAdded = true;
+                        firstCol = false;
                     }
                 }
                 else
