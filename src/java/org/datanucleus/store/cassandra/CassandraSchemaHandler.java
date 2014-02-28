@@ -36,12 +36,14 @@ import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.CompleteClassTable;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
@@ -253,8 +255,17 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         NamingFactory namingFactory = storeMgr.getNamingFactory();
         String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // TODO Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
 
-        // TODO We need to cache this Table so that it can also be used by StoreFieldManager/FetchFieldManager
-        CompleteClassTable table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+        StoreData storeData = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+        Table table = null;
+        if (storeData != null)
+        {
+            table = (Table) storeData.getProperties().get("tableObject");
+        }
+        else
+        {
+            table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+        }
+
         if (checkTableExistence(session, schemaNameForClass, table.getIdentifier()))
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
