@@ -29,6 +29,7 @@ import org.datanucleus.metadata.EmbeddedMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
@@ -41,7 +42,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     protected List<AbstractMemberMetaData> mmds;
 
     /**
-     * Constructor called when it is needed to null out all columns of an embedded object (and nsted embedded columns).
+     * Constructor called when it is needed to null out all columns of an embedded object (and nested embedded columns).
      */
     public StoreEmbeddedFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, List<AbstractMemberMetaData> mmds)
     {
@@ -55,8 +56,16 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         this.mmds = mmds;
     }
 
+    protected Column getColumn(int fieldNumber)
+    {
+        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+        embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
+        return table.getColumnForEmbeddedMember(embMmds);
+    }
+
     protected String getColumnName(int fieldNumber)
     {
+//      return getColumn(fieldNumber).getIdentifier();
         // Find column name for embedded member
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));

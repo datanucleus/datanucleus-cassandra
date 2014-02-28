@@ -38,6 +38,8 @@ import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
@@ -49,20 +51,30 @@ import org.datanucleus.util.NucleusLogger;
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
+    Table table;
+
     Map<String, Object> columnValueByName = new HashMap<String, Object>();
 
     public StoreFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert)
     {
         super(ec, cmd, insert);
+        this.table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
     }
 
     public StoreFieldManager(ObjectProvider op, boolean insert)
     {
         super(op, insert);
+        this.table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+    }
+
+    protected Column getColumn(int fieldNumber)
+    {
+        return table.getColumnForMember(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
     }
 
     protected String getColumnName(int fieldNumber)
     {
+//        return getColumn(fieldNumber).getIdentifier();
         return ec.getStoreManager().getNamingFactory().getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
     }
 

@@ -90,12 +90,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         assertReadOnlyForUpdateOfObject(op);
 
         ExecutionContext ec = op.getExecutionContext();
+        AbstractClassMetaData cmd = op.getClassMetaData();
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
         {
             Session session = (Session)mconn.getConnection();
+            if (!storeMgr.managesClass(cmd.getFullClassName()))
+            {
+                // Make sure schema exists, using this connection
+                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+            }
 
-            AbstractClassMetaData cmd = op.getClassMetaData();
             if (!storeMgr.managesClass(cmd.getFullClassName()))
             {
                 // Make sure schema exists, using this connection
@@ -377,11 +382,18 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         assertReadOnlyForUpdateOfObject(op);
 
         ExecutionContext ec = op.getExecutionContext();
+        AbstractClassMetaData cmd = op.getClassMetaData();
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
         {
+            Session session = (Session)mconn.getConnection();
+            if (!storeMgr.managesClass(cmd.getFullClassName()))
+            {
+                // Make sure schema exists, using this connection
+                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+            }
+
             long startTime = System.currentTimeMillis();
-            AbstractClassMetaData cmd = op.getClassMetaData();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
                 StringBuilder fieldStr = new StringBuilder();
@@ -505,7 +517,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
-            Session session = (Session)mconn.getConnection();
             PreparedStatement stmt = session.prepare(stmtBuilder.toString());
             session.execute(stmt.bind(setVals.toArray()));
 
