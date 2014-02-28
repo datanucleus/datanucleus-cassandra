@@ -17,6 +17,8 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.util.List;
+
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -45,15 +47,13 @@ public class ColumnAttributerImpl implements ColumnAttributer
     }
 
     /* (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.ColumnAttributer#attributeColumn(org.datanucleus.store.schema.table.Column, org.datanucleus.metadata.AbstractMemberMetaData[])
+     * @see org.datanucleus.store.schema.table.ColumnAttributer#attributeColumn(org.datanucleus.store.schema.table.Column, org.datanucleus.metadata.AbstractMemberMetaData)
      */
     @Override
-    public void attributeColumn(Column col, AbstractMemberMetaData... mmds)
+    public void attributeColumn(Column col, AbstractMemberMetaData mmd)
     {
-        if (mmds != null && mmds.length > 0)
+        if (mmd != null)
         {
-            AbstractMemberMetaData mmd = mmds[mmds.length-1];
-            NucleusLogger.GENERAL.info(">> col=" + col + " mmd=" + mmd);
             String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
             if (cassandraType == null)
             {
@@ -88,6 +88,22 @@ public class ColumnAttributerImpl implements ColumnAttributer
                 col.setTypeName("varchar");
                 // TODO Assign TypeConverter
             }
+        }
+    }
+
+    @Override
+    public void attributeEmbeddedColumn(Column col, List<AbstractMemberMetaData> mmds)
+    {
+        AbstractMemberMetaData mmd = mmds.get(mmds.size()-1);
+        String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+        if (cassandraType == null)
+        {
+            NucleusLogger.DATASTORE_SCHEMA.warn("Embedded member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
+        }
+        else
+        {
+            col.setTypeName(cassandraType);
+            // TODO Assign TypeConverter
         }
     }
 }

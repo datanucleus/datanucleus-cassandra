@@ -47,6 +47,8 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
+import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
@@ -259,7 +261,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
 
         // TODO This is a future way of generating Table definitions so that we can hold a cached data structure for reference in StoreFieldManager/FetchFieldManager
-        /*CompleteClassTable theTable = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+        CompleteClassTable theTable = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
         NucleusLogger.GENERAL.info(">> CompleteClassTable - " + theTable);
         List<Column> theTableCols = theTable.getColumns();
         for (Column col : theTableCols)
@@ -273,7 +275,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName());
             }
-        }*/
+        }
 
         boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
 
