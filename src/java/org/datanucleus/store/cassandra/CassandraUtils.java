@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TimeZone;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -89,6 +90,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
+        cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
     }
 
     /**
@@ -430,6 +432,14 @@ public class CassandraUtils
             }
             // TODO There is a TypeConverter for this
             return value;
+        }
+        else if (value instanceof TimeZone)
+        {
+            TypeConverter stringConverter = typeMgr.getTypeConverterForType(TimeZone.class, String.class);
+            if (stringConverter != null)
+            {
+                return stringConverter.toDatastoreType(value);
+            }
         }
 
         TypeConverter stringConverter = typeMgr.getTypeConverterForType(value.getClass(), String.class);

@@ -35,14 +35,7 @@ import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.EmbeddedMetaData;
-import org.datanucleus.metadata.FieldPersistenceModifier;
-import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
-import org.datanucleus.metadata.MetaDataManager;
-import org.datanucleus.metadata.MetaDataUtils;
-import org.datanucleus.metadata.RelationType;
-import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
 import org.datanucleus.store.schema.naming.ColumnType;
@@ -261,9 +254,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
 
         // TODO This is a future way of generating Table definitions so that we can hold a cached data structure for reference in StoreFieldManager/FetchFieldManager
-        CompleteClassTable theTable = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
-        NucleusLogger.GENERAL.info(">> CompleteClassTable - " + theTable);
-        List<Column> theTableCols = theTable.getColumns();
+        CompleteClassTable table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));/*
+        NucleusLogger.GENERAL.info(">> CompleteClassTable - " + table);
+        List<Column> theTableCols = table.getColumns();
         for (Column col : theTableCols)
         {
             AbstractMemberMetaData mmd = col.getMemberMetaData();
@@ -275,9 +268,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName());
             }
-        }
+        }*/
 
-        boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+        boolean tableExists = checkTableExistence(session, schemaNameForClass, table.getIdentifier());
 
         if (isAutoCreateTables() && !tableExists)
         {
@@ -287,144 +280,49 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 stmtBuilder.append(schemaNameForClass).append('.');
             }
-            stmtBuilder.append(tableName);
+            stmtBuilder.append(table.getIdentifier());
             stmtBuilder.append(" (");
-            boolean firstCol = true;
 
-            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+            List<String> pkColNames = new ArrayList<String>();
+            for (Column column : table.getColumns())
             {
-                // Add column for versioning
-                if (!firstCol)
+                stmtBuilder.append(column.getIdentifier()).append(' ').append(column.getTypeName());
+                if (column.isPrimaryKey())
                 {
-                    stmtBuilder.append(',');
+                    pkColNames.add(column.getIdentifier());
                 }
-                String cassandraType = "int";
-                if (cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME)
+                if (column.getMemberMetaData() != null)
                 {
-                    cassandraType = "timestamp";
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append(" ").append(cassandraType);
-                firstCol = false;
-            }
-            if (cmd.hasDiscriminatorStrategy())
-            {
-                // Add discriminator column
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN)).append(" varchar");
-                firstCol = false;
-            }
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
-            {
-                // Add multitenancy discriminator column
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append(" varchar");
-                firstCol = false;
-            }
-
-            // Add columns for managed fields of this class and all superclasses
-            int[] memberPositions = cmd.getAllMemberPositions();
-            for (int i=0;i<memberPositions.length;i++)
-            {
-                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                RelationType relationType = mmd.getRelationType(clr);
-                if (mmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
-                {
-                    continue;
-                }
-
-                if (MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, mmd, relationType, null))
-                {
-                    if (RelationType.isRelationSingleValued(relationType))
+                    if (isAutoCreateConstraints())
                     {
-                        // Embedded PC field, so add columns for all fields of the embedded
-                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
-                        embMmds.add(mmd);
-                        boolean colAdded = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
-                        if (firstCol && colAdded)
+                        AbstractMemberMetaData mmd = column.getMemberMetaData();
+                        IndexMetaData idxmd = mmd.getIndexMetaData();
+                        if (idxmd != null)
                         {
-                            firstCol = false;
+                            // Index specified on this member, so add it TODO Check existence first
+                            String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                            String idxName = namingFactory.getIndexName(mmd, idxmd);
+                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
+                            constraintStmts.add(indexStmt);
                         }
                     }
-                    else if (RelationType.isRelationMultiValued(relationType))
-                    {
-                        // Don't support embedded collections
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " is an embedded collection. Not supported so ignoring");
-                    }
                 }
-                else
-                {
-                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
-                    if (cassandraType == null)
-                    {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
-                    }
-                    else
-                    {
-                        if (!firstCol)
-                        {
-                            stmtBuilder.append(',');
-                        }
-                        stmtBuilder.append(namingFactory.getColumnName(mmd, ColumnType.COLUMN)).append(' ').append(cassandraType);
-                    }
-                    if (i == 0)
-                    {
-                        firstCol = false;
-                    }
-                }
-
-                if (isAutoCreateConstraints())
-                {
-                    IndexMetaData idxmd = mmd.getIndexMetaData();
-                    if (idxmd != null)
-                    {
-                        // Index specified on this member, so add it TODO Check existence first
-                        String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                        String idxName = namingFactory.getIndexName(mmd, idxmd);
-                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
-                        constraintStmts.add(indexStmt);
-                    }
-                }
+                stmtBuilder.append(',');
             }
 
-            if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            stmtBuilder.append(" PRIMARY KEY (");
+            Iterator<String> pkColNameIter = pkColNames.iterator();
+            while (pkColNameIter.hasNext())
             {
-                if (!firstCol)
+                stmtBuilder.append(pkColNameIter.next());
+                if (pkColNameIter.hasNext())
                 {
                     stmtBuilder.append(',');
                 }
-                String colName = namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN);
-                String colType = "bigint"; // TODO Set the type based on jdbc-type of the datastore-id metadata : uuid?, varchar?
-                stmtBuilder.append(colName).append(" ").append(colType);
-
-                stmtBuilder.append(",PRIMARY KEY (").append(colName).append(")");
             }
-            else if (cmd.getIdentityType() == IdentityType.APPLICATION)
-            {
-                if (!firstCol)
-                {
-                    stmtBuilder.append(',');
-                }
-                stmtBuilder.append("PRIMARY KEY (");
-                int[] pkPositions = cmd.getPKMemberPositions();
-                for (int i=0;i<pkPositions.length;i++)
-                {
-                    if (i > 0)
-                    {
-                        stmtBuilder.append(',');
-                    }
-                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkPositions[i]);
-                    stmtBuilder.append(namingFactory.getColumnName(pkMmd, ColumnType.COLUMN));
-                }
-                stmtBuilder.append(")");
-            }
+            stmtBuilder.append(")");
 
-            stmtBuilder.append(')');
+            stmtBuilder.append(")");
             // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
             tableStmts.add(stmtBuilder.toString());
         }
@@ -447,23 +345,29 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             }
 
             // Go through all members for this class (inc superclasses)
-            int[] memberPositions = cmd.getAllMemberPositions();
-            for (int i=0;i<memberPositions.length;i++)
+            for (Column column : table.getColumns())
             {
-                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-                // TODO Check if column exists and ADD if not present  "ALTER TABLE schema.table ADD {colname} {typename}"
-
-                if (isAutoCreateConstraints())
+                if (column.getMemberMetaData() != null)
                 {
-                    IndexMetaData idxmd = mmd.getIndexMetaData();
-                    if (idxmd != null)
+                    AbstractMemberMetaData mmd = column.getMemberMetaData();
+                    // TODO Check if column exists and ADD if not present  "ALTER TABLE schema.table ADD {colname} {typename}"
+
+                    if (isAutoCreateConstraints())
                     {
-                        // Index specified on this member, so add it TODO Check existence first
-                        String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                        String idxName = namingFactory.getIndexName(mmd, idxmd);
-                        String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
-                        constraintStmts.add(indexStmt);
+                        IndexMetaData idxmd = mmd.getIndexMetaData();
+                        if (idxmd != null)
+                        {
+                            // Index specified on this member, so add it TODO Check existence first
+                            String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                            String idxName = namingFactory.getIndexName(mmd, idxmd);
+                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
+                            constraintStmts.add(indexStmt);
+                        }
                     }
+                }
+                else
+                {
+                    // TODO Check columns/indexes for datastore id, version, discrim etc
                 }
             }
         }
@@ -503,85 +407,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             }
             // TODO Index on version column? or discriminator?
         }
-    }
-
-    /**
-     * Method to create the schema (table/indexes) for an embedded member.
-     * @param mmds Metadata for the embedded member (last element), and any previous embedded members when this is nested embedded
-     * @param clr ClassLoader resolver
-     * @param stmtBuilder Builder for the statement to append columns to
-     * @param firstCol Whether this will be adding the first column for this table
-     * @param constraintStmts List to add any constraint statements to (e.g if this embedded class has indexes)
-     * @return whether a column was added
-     */
-    protected boolean createSchemaForEmbeddedMember(List<AbstractMemberMetaData> mmds, ClassLoaderResolver clr, StringBuilder stmtBuilder, boolean firstCol, List<String> constraintStmts)
-    {
-        boolean columnAdded = false;
-
-        AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
-        EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
-        MetaDataManager mmgr = storeMgr.getMetaDataManager();
-        NamingFactory namingFactory = storeMgr.getNamingFactory();
-        AbstractClassMetaData embCmd = mmgr.getMetaDataForClass(lastMmd.getType(), clr);
-        int[] memberPositions = embCmd.getAllMemberPositions();
-        for (int i=0;i<memberPositions.length;i++)
-        {
-            AbstractMemberMetaData mmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[i]);
-            if (mmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
-            {
-                // Don't need column if not persistent
-                continue;
-            }
-            if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
-            {
-                // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-                continue;
-            }
-
-            RelationType relationType = mmd.getRelationType(clr);
-            if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(mmgr, clr, mmd, relationType, lastMmd))
-            {
-                if (RelationType.isRelationSingleValued(relationType))
-                {
-                    // Nested embedded PC, so recurse
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                    embMmds.add(mmd);
-                    boolean added = createSchemaForEmbeddedMember(embMmds, clr, stmtBuilder, firstCol, constraintStmts);
-                    if (added)
-                    {
-                        columnAdded = true;
-                        firstCol = false;
-                    }
-                }
-                else
-                {
-                    // Don't support embedded collections/maps
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " is an embedded collection. Not supported so ignoring");
-                }
-            }
-            else
-            {
-                String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
-                if (cassandraType == null)
-                {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
-                }
-                else
-                {
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                    embMmds.add(mmd);
-                    String colName = namingFactory.getColumnName(embMmds, 0);
-                    if (!firstCol)
-                    {
-                        stmtBuilder.append(',');
-                    }
-                    stmtBuilder.append(colName).append(' ').append(cassandraType);
-                    columnAdded = true;
-                    firstCol = false;
-                }
-            }
-        }
-        return columnAdded;
     }
 
     /**
