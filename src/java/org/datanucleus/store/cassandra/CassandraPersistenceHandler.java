@@ -393,6 +393,20 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
 
+            boolean fieldsToUpdate = false;
+            for (int fieldNum : fieldNumbers)
+            {
+                AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNum);
+                if (mmd.getPersistenceModifier() == FieldPersistenceModifier.PERSISTENT)
+                {
+                    fieldsToUpdate = true;
+                }
+            }
+            if (!fieldsToUpdate)
+            {
+                return;
+            }
+
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
@@ -424,13 +438,12 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
-            NamingFactory namingFactory = storeMgr.getNamingFactory();
-
             StoreFieldManager storeFM = new StoreFieldManager(op, false);
             op.provideFields(fieldNumbers , storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
+            // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
+            NamingFactory namingFactory = storeMgr.getNamingFactory();
             StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
             String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
             if (schemaName != null)
