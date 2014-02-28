@@ -32,6 +32,7 @@ import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
+import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.NamingCase;
@@ -72,10 +73,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public Collection getSupportedOptions()
     {
         Set set = new HashSet();
-        set.add("ApplicationIdentity");
-        set.add("DatastoreIdentity");
-        set.add("ORM");
-        set.add("TransactionIsolationLevel.read-committed");
+        set.add(StoreManager.OPTION_APPLICATION_ID);
+        set.add(StoreManager.OPTION_DATASTORE_ID);
+        set.add(StoreManager.OPTION_ORM);
         return set;
     }
 
