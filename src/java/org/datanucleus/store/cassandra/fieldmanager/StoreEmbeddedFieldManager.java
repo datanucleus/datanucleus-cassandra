@@ -79,17 +79,25 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     public void storeObjectField(int fieldNumber, Object value)
     {
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        ClassLoaderResolver clr = ec.getClassLoaderResolver();
-        RelationType relationType = mmd.getRelationType(clr);
-
         AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
         EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
-            // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+            // Special case of this member being a link back to the owner. TODO Repeat this for nested and their owners
+            if (op != null)
+            {
+                ObjectProvider[] ownerOPs = op.getEmbeddedOwners();
+                if (ownerOPs != null && ownerOPs.length == 1 && value != ownerOPs[0].getObject())
+                {
+                    // Make sure the owner field is set
+                    op.replaceField(fieldNumber, ownerOPs[0].getObject());
+                }
+            }
             return;
         }
 
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
+        RelationType relationType = mmd.getRelationType(clr);
         if (relationType != RelationType.NONE)
         {
             if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, lastMmd))
