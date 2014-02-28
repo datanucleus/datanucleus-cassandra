@@ -244,89 +244,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      */
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, List<String> tableStmts, List<String> constraintStmts)
     {
-        NamingFactory namingFactory = storeMgr.getNamingFactory();
-        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
-        String tableName = namingFactory.getTableName(cmd);
         if (cmd.isEmbeddedOnly())
         {
             // No table required here
             return;
         }
 
-        // TODO This is a future way of generating Table definitions so that we can hold a cached data structure for reference in StoreFieldManager/FetchFieldManager
-        CompleteClassTable table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));/*
-        NucleusLogger.GENERAL.info(">> CompleteClassTable - " + table);
-        List<Column> theTableCols = table.getColumns();
-        for (Column col : theTableCols)
-        {
-            AbstractMemberMetaData mmd = col.getMemberMetaData();
-            if (mmd != null)
-            {
-                NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName() + " mmd=" + mmd.getFullFieldName());
-            }
-            else
-            {
-                NucleusLogger.GENERAL.info(">>   " + col.getIdentifier() + " type=" + col.getTypeName());
-            }
-        }*/
+        NamingFactory namingFactory = storeMgr.getNamingFactory();
+        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // TODO Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
 
-        boolean tableExists = checkTableExistence(session, schemaNameForClass, table.getIdentifier());
-
-        if (isAutoCreateTables() && !tableExists)
-        {
-            // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
-            StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
-            if (schemaNameForClass != null)
-            {
-                stmtBuilder.append(schemaNameForClass).append('.');
-            }
-            stmtBuilder.append(table.getIdentifier());
-            stmtBuilder.append(" (");
-
-            List<String> pkColNames = new ArrayList<String>();
-            for (Column column : table.getColumns())
-            {
-                stmtBuilder.append(column.getIdentifier()).append(' ').append(column.getTypeName());
-                if (column.isPrimaryKey())
-                {
-                    pkColNames.add(column.getIdentifier());
-                }
-                if (column.getMemberMetaData() != null)
-                {
-                    if (isAutoCreateConstraints())
-                    {
-                        AbstractMemberMetaData mmd = column.getMemberMetaData();
-                        IndexMetaData idxmd = mmd.getIndexMetaData();
-                        if (idxmd != null)
-                        {
-                            // Index specified on this member, so add it TODO Check existence first
-                            String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                            String idxName = namingFactory.getIndexName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
-                            constraintStmts.add(indexStmt);
-                        }
-                    }
-                }
-                stmtBuilder.append(',');
-            }
-
-            stmtBuilder.append(" PRIMARY KEY (");
-            Iterator<String> pkColNameIter = pkColNames.iterator();
-            while (pkColNameIter.hasNext())
-            {
-                stmtBuilder.append(pkColNameIter.next());
-                if (pkColNameIter.hasNext())
-                {
-                    stmtBuilder.append(',');
-                }
-            }
-            stmtBuilder.append(")");
-
-            stmtBuilder.append(")");
-            // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
-            tableStmts.add(stmtBuilder.toString());
-        }
-        else if (tableExists && isAutoCreateColumns())
+        // TODO We need to cache this Table so that it can also be used by StoreFieldManager/FetchFieldManager
+        CompleteClassTable table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+        if (checkTableExistence(session, schemaNameForClass, table.getIdentifier()))
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
             // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
@@ -344,68 +273,124 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 // TODO Check multitenancy discriminator column
             }
 
-            // Go through all members for this class (inc superclasses)
-            for (Column column : table.getColumns())
+            if (isAutoCreateConstraints())
             {
-                if (column.getMemberMetaData() != null)
+                // Class-level indexes
+                AbstractClassMetaData theCmd = cmd;
+                while (theCmd != null)
                 {
-                    AbstractMemberMetaData mmd = column.getMemberMetaData();
-                    // TODO Check if column exists and ADD if not present  "ALTER TABLE schema.table ADD {colname} {typename}"
-
-                    if (isAutoCreateConstraints())
+                    IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                    if (clsIdxMds != null)
                     {
-                        IndexMetaData idxmd = mmd.getIndexMetaData();
-                        if (idxmd != null)
+                        for (int i=0;i<clsIdxMds.length;i++)
                         {
-                            // Index specified on this member, so add it TODO Check existence first
-                            String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                            String idxName = namingFactory.getIndexName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colName);
-                            constraintStmts.add(indexStmt);
+                            // TODO Check index existence, and add as required
                         }
                     }
+                    theCmd = theCmd.getSuperAbstractClassMetaData();
                 }
-                else
+
+                // Column-level indexes
+                for (Column column : table.getColumns())
                 {
-                    // TODO Check columns/indexes for datastore id, version, discrim etc
+                    if (column.getMemberMetaData() != null)
+                    {
+                        // TODO Check index existence, and add as required
+                    }
                 }
             }
         }
-
-        if (isAutoCreateConstraints())
+        else
         {
-            // Add class-level indexes, including those defined for superclasses (since we hold the fields of those classes too)
-            AbstractClassMetaData theCmd = cmd;
-            while (theCmd != null)
+            if (isAutoCreateTables())
             {
-                IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
-                if (clsIdxMds != null)
+                // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
+                StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
+                if (schemaNameForClass != null)
                 {
-                    for (int i=0;i<clsIdxMds.length;i++)
+                    stmtBuilder.append(schemaNameForClass).append('.');
+                }
+                stmtBuilder.append(table.getIdentifier());
+                stmtBuilder.append(" (");
+
+                List<String> pkColNames = new ArrayList<String>();
+                for (Column column : table.getColumns())
+                {
+                    stmtBuilder.append(column.getIdentifier()).append(' ').append(column.getTypeName()).append(',');
+                    if (column.isPrimaryKey())
                     {
-                        // TODO Check existence before adding
-                        IndexMetaData idxmd = clsIdxMds[i];
-                        String[] colNames = idxmd.getColumnNames();
-                        if (colNames.length > 1)
+                        pkColNames.add(column.getIdentifier());
+                    }
+                }
+
+                stmtBuilder.append(" PRIMARY KEY (");
+                Iterator<String> pkColNameIter = pkColNames.iterator();
+                while (pkColNameIter.hasNext())
+                {
+                    stmtBuilder.append(pkColNameIter.next());
+                    if (pkColNameIter.hasNext())
+                    {
+                        stmtBuilder.append(',');
+                    }
+                }
+                stmtBuilder.append(")");
+
+                stmtBuilder.append(")");
+                // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
+                tableStmts.add(stmtBuilder.toString());
+            }
+
+            if (isAutoCreateConstraints())
+            {
+                // Add class-level indexes, including those defined for superclasses (since we hold the fields of those classes too)
+                AbstractClassMetaData theCmd = cmd;
+                while (theCmd != null)
+                {
+                    IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                    if (clsIdxMds != null)
+                    {
+                        for (int i=0;i<clsIdxMds.length;i++)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.warn("Class " + theCmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
+                            IndexMetaData idxmd = clsIdxMds[i];
+                            String[] colNames = idxmd.getColumnNames();
+                            if (colNames.length > 1)
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.warn("Class " + theCmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
+                            }
+                            else
+                            {
+                                String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
+                                String indexStmt = createIndexCQL(idxName, schemaNameForClass, table.getIdentifier(), colNames[0]);
+                                constraintStmts.add(indexStmt);
+                            }
                         }
-                        else
+                    }
+                    theCmd = theCmd.getSuperAbstractClassMetaData();
+                }
+
+                // Add column-level indexes
+                for (Column column : table.getColumns())
+                {
+                    if (column.getMemberMetaData() != null)
+                    {
+                        AbstractMemberMetaData mmd = column.getMemberMetaData();
+                        IndexMetaData idxmd = mmd.getIndexMetaData();
+                        if (idxmd != null)
                         {
-                            String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
-                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, tableName, colNames[0]);
+                            // Index specified on this member, so add it
+                            String idxName = namingFactory.getIndexName(mmd, idxmd);
+                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, table.getIdentifier(), column.getIdentifier());
                             constraintStmts.add(indexStmt);
                         }
                     }
                 }
-                theCmd = theCmd.getSuperAbstractClassMetaData();
-            }
 
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
-            {
-                // TODO Add index on multitenancy discriminator
+                if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+                {
+                    // TODO Add index on multitenancy discriminator
+                }
+                // TODO Index on version column? or discriminator?
             }
-            // TODO Index on version column? or discriminator?
         }
     }
 
