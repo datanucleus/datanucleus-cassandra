@@ -907,6 +907,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public static boolean checkTableExistence(Session session, String schemaName, String tableName)
     {
+        // TODO Cache this PreparedStatement?
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
         PreparedStatement stmt = session.prepare(stmtBuilder.toString());
@@ -921,6 +922,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public Map<String, ColumnDetails> getColumnDetailsForTable(Session session, String schemaName, String tableName)
     {
+        // TODO Cache this PreparedStatement?
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
         PreparedStatement stmt = session.prepare(stmtBuilder.toString());
