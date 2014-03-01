@@ -21,9 +21,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 
+import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.store.cassandra.CassandraSchemaHandler;
-import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.valuegenerator.AbstractDatastoreGenerator;
 import org.datanucleus.store.valuegenerator.ValueGenerationBlock;
@@ -163,7 +163,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
             schemaName = properties.getProperty("schema-name");
             if (schemaName == null)
             {
-                schemaName = ((CassandraStoreManager)storeMgr).getSchemaName();
+                schemaName = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
             }
             return schemaName;
         }

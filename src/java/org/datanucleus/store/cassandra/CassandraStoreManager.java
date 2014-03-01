@@ -57,10 +57,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     {
         super("cassandra", clr, nucleusCtx, props);
 
-        // Handler for schema
         schemaHandler = new CassandraSchemaHandler(this);
-
-        // Handler for persistence process
         persistenceHandler = new CassandraPersistenceHandler(this);
 
         // TODO Support quoted names
@@ -81,11 +78,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return set;
     }
 
-    public String getSchemaName()
-    {
-        return schemaName;
-    }
-
+    // TODO Drop this when we solely use "Table" under StoreDataManager
     public String getSchemaNameForClass(AbstractClassMetaData cmd)
     {
         if (cmd.getSchema() != null)

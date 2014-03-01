@@ -35,6 +35,7 @@ import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJDOQLQuery;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.ResultSet;
@@ -142,7 +143,9 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
             // Obtain candidate objects for this class
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
-            stmtBuilder.append(storeMgr.getSchemaNameForClass(cmd)).append('.').append(storeMgr.getNamingFactory().getTableName(cmd));
+
+            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
+            stmtBuilder.append(table.getSchemaName()).append('.').append(table.getIdentifier());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))

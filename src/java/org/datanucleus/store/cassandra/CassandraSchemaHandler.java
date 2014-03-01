@@ -252,9 +252,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             return;
         }
 
-        NamingFactory namingFactory = storeMgr.getNamingFactory();
-        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // TODO Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
-
         StoreData storeData = storeMgr.getStoreDataForClass(cmd.getFullClassName());
         Table table = null;
         if (storeData != null)
@@ -265,8 +262,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
         }
+        // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+        String schemaName = table.getSchemaName();
 
-        if (checkTableExistence(session, schemaNameForClass, table.getIdentifier()))
+        if (checkTableExistence(session, schemaName, table.getIdentifier()))
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
             // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
@@ -317,9 +316,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 // Create the table required for this class "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
                 StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
-                if (schemaNameForClass != null)
+                if (schemaName != null)
                 {
-                    stmtBuilder.append(schemaNameForClass).append('.');
+                    stmtBuilder.append(schemaName).append('.');
                 }
                 stmtBuilder.append(table.getIdentifier());
                 stmtBuilder.append(" (");
@@ -353,6 +352,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
             if (isAutoCreateConstraints())
             {
+                NamingFactory namingFactory = storeMgr.getNamingFactory();
+
                 // Add class-level indexes, including those defined for superclasses (since we hold the fields of those classes too)
                 AbstractClassMetaData theCmd = cmd;
                 while (theCmd != null)
@@ -371,7 +372,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else
                             {
                                 String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
-                                String indexStmt = createIndexCQL(idxName, schemaNameForClass, table.getIdentifier(), colNames[0]);
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0]);
                                 constraintStmts.add(indexStmt);
                             }
                         }
@@ -390,7 +391,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         {
                             // Index specified on this member, so add it
                             String idxName = namingFactory.getIndexName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaNameForClass, table.getIdentifier(), column.getIdentifier());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
                             constraintStmts.add(indexStmt);
                         }
                     }
@@ -482,9 +483,22 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null && !cmd.isEmbeddedOnly())
                     {
-                        String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd); // Check existence using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
-                        String tableName = namingFactory.getTableName(cmd);
-                        boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+                        StoreData storeData = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+                        Table table = null;
+                        if (storeData != null)
+                        {
+                            table = (Table) storeData.getProperties().get("tableObject");
+                        }
+                        else
+                        {
+                            table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+                        }
+
+                        // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+                        String schemaName = table.getSchemaName();
+                        String tableName = table.getIdentifier();
+
+                        boolean tableExists = checkTableExistence(session, schemaName, tableName);
                         if (tableExists)
                         {
                             // Drop any class indexes TODO What about superclass indexMetaData?
@@ -543,9 +557,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                             // Drop the table
                             StringBuilder stmtBuilder = new StringBuilder("DROP TABLE ");
-                            if (schemaNameForClass != null)
+                            if (schemaName != null)
                             {
-                                stmtBuilder.append(schemaNameForClass).append('.');
+                                stmtBuilder.append(schemaName).append('.');
                             }
                             stmtBuilder.append(tableName);
 
@@ -616,19 +630,32 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     continue;
                 }
 
-                String schemaNameForClass = casStoreMgr.getSchemaNameForClass(cmd);
-                String tableName = namingFactory.getTableName(cmd);
+                StoreData storeData = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+                Table table = null;
+                if (storeData != null)
+                {
+                    table = (Table) storeData.getProperties().get("tableObject");
+                }
+                else
+                {
+                    table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+                }
 
-                boolean tableExists = checkTableExistence(session, schemaNameForClass, tableName);
+                // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+                String schemaName = table.getSchemaName();
+                String tableName = table.getIdentifier();
+
+                boolean tableExists = checkTableExistence(session, schemaName, tableName);
                 if (!tableExists)
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.error("Table for class " + cmd.getFullClassName() + " doesn't exist : should have name " + tableName + " in schema " + schemaNameForClass);
+                    NucleusLogger.DATASTORE_SCHEMA.error("Table for class " + cmd.getFullClassName() + " doesn't exist : should have name " + tableName + " in schema " + schemaName);
                     success = false;
                 }
                 else
                 {
                     // Check structure of the table against the required members
-                    Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, schemaNameForClass, tableName);
+                    // TODO Change this to use the Column definition of "table"
+                    Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, schemaName, tableName);
                     Set<String> colsFound = new HashSet();
                     int[] memberPositions = cmd.getAllMemberPositions();
                     for (int i=0;i<memberPositions.length;i++)
@@ -728,12 +755,27 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public static boolean checkTableExistence(Session session, String schemaName, String tableName)
     {
-        // TODO Cache this PreparedStatement?
+        // TODO Cache this PreparedStatement? need to know which Session it is with to do that
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
         PreparedStatement stmt = session.prepare(stmtBuilder.toString());
         // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
+        if (!rs.isExhausted())
+        {
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean checkSchemaExistence(Session session, String schemaName)
+    {
+        // TODO Cache this PreparedStatement? need to know which Session it is with to do that
+        StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
+        NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of schema " + schemaName + " using : " + stmtBuilder.toString());
+        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        // TODO What if schema is null?
+        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
         if (!rs.isExhausted())
         {
             return true;
