@@ -265,7 +265,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String schemaName = table.getSchemaName();
 
-        if (checkTableExistence(session, schemaName, table.getIdentifier()))
+        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+        if (checkTableExistence(session, stmtProvider, schemaName, table.getIdentifier()))
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
             // TODO ALTER TABLE schema.table DROP {colName} - Note that this really ought to have a persistence property, and make sure there are no classes sharing the table that need it
@@ -498,7 +499,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         String schemaName = table.getSchemaName();
                         String tableName = table.getIdentifier();
 
-                        boolean tableExists = checkTableExistence(session, schemaName, tableName);
+                        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                        boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                         if (tableExists)
                         {
                             // Drop any class indexes TODO What about superclass indexMetaData?
@@ -645,7 +647,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 String schemaName = table.getSchemaName();
                 String tableName = table.getIdentifier();
 
-                boolean tableExists = checkTableExistence(session, schemaName, tableName);
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                 if (!tableExists)
                 {
                     NucleusLogger.DATASTORE_SCHEMA.error("Table for class " + cmd.getFullClassName() + " doesn't exist : should have name " + tableName + " in schema " + schemaName);
@@ -655,7 +658,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     // Check structure of the table against the required members
                     // TODO Change this to use the Column definition of "table"
-                    Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, schemaName, tableName);
+                    Map<String, ColumnDetails> colsByName = getColumnDetailsForTable(session, stmtProvider, schemaName, tableName);
                     Set<String> colsFound = new HashSet();
                     int[] memberPositions = cmd.getAllMemberPositions();
                     for (int i=0;i<memberPositions.length;i++)
@@ -753,12 +756,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return stmtBuilder.toString();
     }
 
-    public static boolean checkTableExistence(Session session, String schemaName, String tableName)
+    public static boolean checkTableExistence(Session session, SessionStatementProvider stmtProvider, String schemaName, String tableName)
     {
-        // TODO Cache this PreparedStatement? need to know which Session it is with to do that
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
         // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
@@ -768,12 +770,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return false;
     }
 
-    public static boolean checkSchemaExistence(Session session, String schemaName)
+    public static boolean checkSchemaExistence(Session session, SessionStatementProvider stmtProvider, String schemaName)
     {
-        // TODO Cache this PreparedStatement? need to know which Session it is with to do that
         StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of schema " + schemaName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
         // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
         if (!rs.isExhausted())
@@ -783,12 +784,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return false;
     }
 
-    public Map<String, ColumnDetails> getColumnDetailsForTable(Session session, String schemaName, String tableName)
+    public Map<String, ColumnDetails> getColumnDetailsForTable(Session session, SessionStatementProvider stmtProvider, String schemaName, String tableName)
     {
-        // TODO Cache this PreparedStatement?
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
         // TODO What if schema is null?
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();

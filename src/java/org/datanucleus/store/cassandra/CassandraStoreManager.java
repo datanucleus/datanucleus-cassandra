@@ -18,6 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
@@ -46,6 +47,8 @@ import com.datastax.driver.core.Session;
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
     String schemaName = null;
+
+    Map<Session, SessionStatementProvider> stmtProviderCache = new HashMap<Session, SessionStatementProvider>();
 
     /**
      * Constructor.
@@ -76,6 +79,22 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         set.add(StoreManager.OPTION_ORM);
         set.add(StoreManager.OPTION_ORM_EMBEDDED_PC);
         return set;
+    }
+
+    public void sessionClosing(Session session)
+    {
+        stmtProviderCache.remove(session);
+    }
+
+    public SessionStatementProvider getStatementProvider(Session session)
+    {
+        SessionStatementProvider provider = stmtProviderCache.get(session);
+        if (provider == null)
+        {
+            provider = new SessionStatementProvider(session);
+            stmtProviderCache.put(session, provider);
+        }
+        return provider;
     }
 
     // TODO Drop this when we solely use "Table" under StoreDataManager

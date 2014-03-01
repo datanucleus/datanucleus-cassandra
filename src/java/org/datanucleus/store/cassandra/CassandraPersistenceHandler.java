@@ -243,7 +243,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             CassandraUtils.logCqlStatement(insertStmt, stmtValues, NucleusLogger.DATASTORE_NATIVE);
-            PreparedStatement stmt = session.prepare(insertStmt);
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+            PreparedStatement stmt = stmtProvider.prepare(insertStmt);
             BoundStatement boundStmt = stmt.bind(stmtValues);
             session.execute(boundStmt); // TODO Make use of ResultSet?
 
@@ -530,7 +531,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
-            PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+            PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
             session.execute(stmt.bind(setVals.toArray()));
 
             if (ec.getStatistics() != null)
@@ -640,7 +642,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
             Session session = (Session)mconn.getConnection();
-            PreparedStatement stmt = session.prepare(deleteStmt);
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+            PreparedStatement stmt = stmtProvider.prepare(deleteStmt);
             session.execute(stmt.bind(pkVals));
 
             if (ec.getStatistics() != null)
@@ -813,7 +816,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session)mconn.getConnection();
-                PreparedStatement stmt = session.prepare(stmtBuilder.toString());
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
                 ResultSet rs = session.execute(stmt.bind(pkVals));
                 if (rs.isExhausted())
                 {
@@ -1001,7 +1005,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 CassandraUtils.logCqlStatement(locateStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session)mconn.getConnection();
-                PreparedStatement stmt = session.prepare(locateStmt);
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                PreparedStatement stmt = stmtProvider.prepare(locateStmt);
                 ResultSet rs = session.execute(stmt.bind(pkVals));
                 if (rs.isExhausted())
                 {

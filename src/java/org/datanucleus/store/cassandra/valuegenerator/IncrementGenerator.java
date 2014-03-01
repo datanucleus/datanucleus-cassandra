@@ -24,6 +24,8 @@ import java.util.Properties;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.store.cassandra.CassandraSchemaHandler;
+import org.datanucleus.store.cassandra.CassandraStoreManager;
+import org.datanucleus.store.cassandra.SessionStatementProvider;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.valuegenerator.AbstractDatastoreGenerator;
 import org.datanucleus.store.valuegenerator.ValueGenerationBlock;
@@ -180,8 +182,9 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
         try
         {
             Session session = (Session) mconn.getConnection();
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
 
-            if (CassandraSchemaHandler.checkTableExistence(session, getSchemaName(), tableName))
+            if (CassandraSchemaHandler.checkTableExistence(session, stmtProvider, getSchemaName(), tableName))
             {
                 // Already exists
                 repositoryExists = true;

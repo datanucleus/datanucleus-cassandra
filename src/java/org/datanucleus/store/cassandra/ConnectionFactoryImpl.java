@@ -264,6 +264,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPostClose();
             }
 
+            ((CassandraStoreManager)storeMgr).sessionClosing((Session)conn);
             ((Session)conn).shutdown();
             conn = null;
             xaRes = null;
