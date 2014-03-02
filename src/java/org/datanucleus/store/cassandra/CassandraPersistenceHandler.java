@@ -50,8 +50,8 @@ import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.fieldmanager.DeleteFieldManager;
-import org.datanucleus.store.schema.naming.ColumnType;
-import org.datanucleus.store.schema.naming.NamingFactory;
+import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
@@ -106,6 +106,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Make sure schema exists, using this connection
                 ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
+            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
             // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
 
             long startTime = System.currentTimeMillis();
@@ -124,14 +125,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             // Use StoreFieldManager to work out the column names and values
             // TODO If we ever support identity set in datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
-            StoreFieldManager storeFM = new StoreFieldManager(op, true);
+            StoreFieldManager storeFM = new StoreFieldManager(op, true, table);
             op.provideFields(cmd.getAllMemberPositions() , storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
             if (insertStmt == null)
             {
                 // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-                insertStmt = getInsertStatementForClass(cmd, columnValuesByName);
+                insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
 
                 // Cache the statement
                 if (insertStatementByClassName == null)
@@ -284,16 +285,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * @param cmd Metadata for the class
      * @return The INSERT statement
      */
-    protected String getInsertStatementForClass(AbstractClassMetaData cmd, Map<String, Object> colValuesByName)
+    protected String getInsertStatementForClass(AbstractClassMetaData cmd, Table table, Map<String, Object> colValuesByName)
     {
-        NamingFactory namingFactory = storeMgr.getNamingFactory();
         StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
-        String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+        String schemaName = table.getSchemaName();
         if (schemaName != null)
         {
             insertStmtBuilder.append(schemaName).append('.');
         }
-        insertStmtBuilder.append(namingFactory.getTableName(cmd)).append("(");
+        insertStmtBuilder.append(table.getIdentifier()).append("(");
 
         int numParams = 0;
         if (colValuesByName != null && !colValuesByName.isEmpty())
@@ -315,7 +315,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+            insertStmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
             numParams++;
         }
 
@@ -329,7 +329,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     insertStmtBuilder.append(',');
                 }
-                insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN));
+                insertStmtBuilder.append(table.getVersionColumn().getIdentifier());
                 numParams++;
             }
         }
@@ -341,7 +341,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN));
+            insertStmtBuilder.append(table.getDiscriminatorColumn().getIdentifier());
             numParams++;
         }
 
@@ -352,7 +352,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN));
+            insertStmtBuilder.append(table.getMultitenancyColumn().getIdentifier());
             numParams++;
         }
 
@@ -393,6 +393,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Make sure schema exists, using this connection
                 ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
+            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
 
             boolean fieldsToUpdate = false;
             for (int fieldNum : fieldNumbers)
@@ -439,19 +440,18 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            StoreFieldManager storeFM = new StoreFieldManager(op, false);
+            StoreFieldManager storeFM = new StoreFieldManager(op, false, table);
             op.provideFields(fieldNumbers , storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
             // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
-            NamingFactory namingFactory = storeMgr.getNamingFactory();
             StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
-            String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+            String schemaName = table.getSchemaName();
             if (schemaName != null)
             {
                 stmtBuilder.append(schemaName).append('.');
             }
-            stmtBuilder.append(namingFactory.getTableName(cmd));
+            stmtBuilder.append(table.getIdentifier());
             // TODO Support any USING clauses
 
             List setVals = new ArrayList();
@@ -488,14 +488,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     if (updatingVerField)
                     {
-                        stmtBuilder.append(',').append(namingFactory.getColumnName(verMmd, ColumnType.COLUMN)).append("=?");
+                        stmtBuilder.append(',').append(table.getColumnForMember(verMmd).getIdentifier()).append("=?");
                         setVals.add(op.getTransactionalVersion());
                     }
                 }
                 else
                 {
                     // Update the stored surrogate value
-                    stmtBuilder.append(",").append(namingFactory.getColumnName(cmd, ColumnType.VERSION_COLUMN)).append("=?");
+                    stmtBuilder.append(",").append(table.getVersionColumn().getIdentifier()).append("=?");
                     Object verVal = op.getTransactionalVersion();
                     if (verVal instanceof Long)
                     {
@@ -515,16 +515,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         stmtBuilder.append(" AND ");
                     }
-                    stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
-                    stmtBuilder.append("=?");
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(pkMmd, ec.getTypeManager(), ec.getClassLoaderResolver());
+                    Column pkCol = table.getColumnForMember(pkMmd);
+                    stmtBuilder.append(pkCol.getIdentifier());
+                    stmtBuilder.append("=?");
+                    String cassandraType = pkCol.getTypeName();
                     setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                 stmtBuilder.append("=?");
                 Object oidVal = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Don't hardcode "bigint" (see also CassandraSchemaHandler)
                 setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, "bigint", false, storeMgr.getNucleusContext().getTypeManager()));
@@ -577,6 +578,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             op.loadUnloadedFields();
             op.provideFields(cmd.getAllMemberPositions(), new DeleteFieldManager(op, true));
 
+            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
             String deleteStmt = null;
             if (deleteStatementByClassName != null)
             {
@@ -585,15 +587,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (deleteStmt == null)
             {
                 // Create the delete statement ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-                NamingFactory namingFactory = storeMgr.getNamingFactory();
                 StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
-                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                String schemaName = table.getSchemaName();
                 if (schemaName != null)
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
                 // TODO Support any USING clauses
-                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
@@ -604,13 +605,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         {
                             stmtBuilder.append(" AND ");
                         }
-                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                        stmtBuilder.append(table.getColumnForMember(pkMmd).getIdentifier());
                         stmtBuilder.append("=?");
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                     stmtBuilder.append("=?");
                 }
                 deleteStmt = stmtBuilder.toString();
@@ -631,7 +633,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(pkMmd, ec.getTypeManager(), ec.getClassLoaderResolver());
+                    String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
                     pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                 }
             }
@@ -709,8 +711,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
             Set<Integer> nonpersistableFields = null;
-            NamingFactory namingFactory = storeMgr.getNamingFactory();
             ClassLoaderResolver clr = ec.getClassLoaderResolver();
             boolean first = true;
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
@@ -739,7 +741,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         continue;
                     }
 
-                    String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
+                    String colName = table.getColumnForMember(mmd).getIdentifier();
                     if (!first)
                     {
                         stmtBuilder.append(',');
@@ -770,12 +772,12 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 // Some fields needed to be pulled back from the datastore
                 stmtBuilder.append(" FROM ");
-                String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                String schemaName = table.getSchemaName();
                 if (schemaName != null)
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
-                stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
@@ -786,13 +788,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         {
                             stmtBuilder.append(" AND ");
                         }
-                        stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                        stmtBuilder.append(table.getColumnForMember(pkMmd).getIdentifier());
                         stmtBuilder.append("=?");
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                    stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                     stmtBuilder.append("=?");
                 }
                 // TODO Support any USING clauses
@@ -805,7 +808,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(pkMmd, ec.getTypeManager(), ec.getClassLoaderResolver());
+                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
                         pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                     }
                 }
@@ -825,7 +828,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
 
                 Row row = rs.one();
-                FetchFieldManager fetchFM = new FetchFieldManager(op, row);
+                FetchFieldManager fetchFM = new FetchFieldManager(op, row, table);
                 if (nonpersistableFields != null)
                 {
                     // Strip out any nonpersistable fields
@@ -855,8 +858,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     else
                     {
                         // Surrogate version
-                        String versColName = storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN);
-                        Object datastoreVersion = row.getInt(versColName);
+                        Object datastoreVersion = row.getInt(table.getVersionColumn().getIdentifier());
                         op.setVersion(datastoreVersion);
                     }
                 }
@@ -928,10 +930,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     locateStmt = locateStatementByClassName.get(cmd.getFullClassName());
                 }
+                Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
                 if (locateStmt == null)
                 {
                     // Create the locate statement ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-                    NamingFactory namingFactory = storeMgr.getNamingFactory();
                     StringBuilder stmtBuilder = new StringBuilder("SELECT ");
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
@@ -942,20 +944,21 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                             {
                                 stmtBuilder.append(",");
                             }
-                            stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                            AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                            stmtBuilder.append(table.getColumnForMember(pkMmd).getIdentifier());
                         }
                     }
                     else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                     {
-                        stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                        stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                     }
                     stmtBuilder.append(" FROM ");
-                    String schemaName = ((CassandraStoreManager)storeMgr).getSchemaNameForClass(cmd);
+                    String schemaName = table.getSchemaName();
                     if (schemaName != null)
                     {
                         stmtBuilder.append(schemaName).append('.');
                     }
-                    stmtBuilder.append(namingFactory.getTableName(cmd)).append(" WHERE ");
+                    stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
 
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
@@ -966,13 +969,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                             {
                                 stmtBuilder.append(" AND ");
                             }
-                            stmtBuilder.append(namingFactory.getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]), ColumnType.COLUMN));
+                            AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                            stmtBuilder.append(table.getColumnForMember(pkMmd).getIdentifier());
                             stmtBuilder.append("=?");
                         }
                     }
                     else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                     {
-                        stmtBuilder.append(namingFactory.getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+                        stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                         stmtBuilder.append("=?");
                     }
                     // TODO Support any USING clauses
@@ -994,7 +998,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(pkMmd, ec.getTypeManager(), ec.getClassLoaderResolver());
+                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
                         pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
                     }
                 }

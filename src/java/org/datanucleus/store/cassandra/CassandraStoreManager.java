@@ -27,8 +27,6 @@ import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.PersistenceNucleusContext;
-import org.datanucleus.PropertyNames;
-import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
@@ -46,8 +44,6 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
-    String schemaName = null;
-
     Map<Session, SessionStatementProvider> stmtProviderCache = new HashMap<Session, SessionStatementProvider>();
 
     /**
@@ -65,8 +61,6 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         // TODO Support quoted names
         getNamingFactory().setNamingCase(NamingCase.LOWER_CASE);
-
-        schemaName = getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
 
         logConfiguration();
     }
@@ -95,20 +89,6 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             stmtProviderCache.put(session, provider);
         }
         return provider;
-    }
-
-    // TODO Drop this when we solely use "Table" under StoreDataManager
-    public String getSchemaNameForClass(AbstractClassMetaData cmd)
-    {
-        if (cmd.getSchema() != null)
-        {
-            return cmd.getSchema();
-        }
-        else if (schemaName != null)
-        {
-           return schemaName;
-        }
-        return null;
     }
 
     public void manageClasses(ClassLoaderResolver clr, String... classNames)

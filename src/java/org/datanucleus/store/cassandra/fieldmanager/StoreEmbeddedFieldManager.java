@@ -30,6 +30,7 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
@@ -44,15 +45,15 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     /**
      * Constructor called when it is needed to null out all columns of an embedded object (and nested embedded columns).
      */
-    public StoreEmbeddedFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, List<AbstractMemberMetaData> mmds)
+    public StoreEmbeddedFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(ec, cmd, insert);
+        super(ec, cmd, insert, table);
         this.mmds = mmds;
     }
 
-    public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds)
+    public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(op, insert);
+        super(op, insert, table);
         this.mmds = mmds;
     }
 
@@ -61,15 +62,6 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
         return table.getColumnForEmbeddedMember(embMmds);
-    }
-
-    protected String getColumnName(int fieldNumber)
-    {
-//      return getColumn(fieldNumber).getIdentifier();
-        // Find column name for embedded member
-        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-        embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
-        return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
     }
 
     /* (non-Javadoc)
@@ -111,7 +103,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     embMmds.add(mmd);
                     if (value == null)
                     {
-                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds);
+                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
                         for (int i=0;i<embMmdPosns.length;i++)
                         {
                             AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
@@ -134,7 +126,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     }
 
                     ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds);
+                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
                     embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
                     Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
                     columnValueByName.putAll(embColValuesByName);

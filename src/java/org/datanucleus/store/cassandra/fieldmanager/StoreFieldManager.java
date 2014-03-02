@@ -37,7 +37,6 @@ import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
-import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
@@ -51,20 +50,20 @@ import org.datanucleus.util.NucleusLogger;
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
-    Table table;
+    protected Table table;
 
-    Map<String, Object> columnValueByName = new HashMap<String, Object>();
+    protected Map<String, Object> columnValueByName = new HashMap<String, Object>();
 
-    public StoreFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert)
+    public StoreFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, Table table)
     {
         super(ec, cmd, insert);
-        this.table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        this.table = table;
     }
 
-    public StoreFieldManager(ObjectProvider op, boolean insert)
+    public StoreFieldManager(ObjectProvider op, boolean insert, Table table)
     {
         super(op, insert);
-        this.table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        this.table = table;
     }
 
     protected Column getColumn(int fieldNumber)
@@ -74,8 +73,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     protected String getColumnName(int fieldNumber)
     {
-//        return getColumn(fieldNumber).getIdentifier();
-        return ec.getStoreManager().getNamingFactory().getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
+        return getColumn(fieldNumber).getIdentifier();
     }
 
     public Map<String, Object> getColumnValueByName()
@@ -228,7 +226,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     embMmds.add(mmd);
                     if (value == null)
                     {
-                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds);
+                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
                         for (int i=0;i<embMmdPosns.length;i++)
                         {
                             AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
@@ -251,7 +249,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
 
                     ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds);
+                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
                     embOP.provideFields(embMmdPosns, storeEmbFM);
                     Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
                     columnValueByName.putAll(embColValuesByName);
@@ -460,7 +458,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // TODO Support arrays
             }
 
-            String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, ec.getTypeManager(), clr);
+            String cassandraType = getColumn(fieldNumber).getTypeName();
             Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
             if (datastoreValue != null)
             {

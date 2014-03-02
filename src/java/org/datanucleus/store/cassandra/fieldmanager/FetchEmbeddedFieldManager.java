@@ -29,6 +29,8 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.FieldManager;
+import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
@@ -41,28 +43,23 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
     protected List<AbstractMemberMetaData> mmds;
 
-    public FetchEmbeddedFieldManager(ObjectProvider op, Row row, List<AbstractMemberMetaData> mmds)
+    public FetchEmbeddedFieldManager(ObjectProvider op, Row row, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(op, row);
+        super(op, row, table);
         this.mmds = mmds;
     }
 
-    public FetchEmbeddedFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd, List<AbstractMemberMetaData> mmds)
+    public FetchEmbeddedFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(ec, row, cmd);
+        super(ec, row, cmd, table);
         this.mmds = mmds;
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager#getColumnName(int)
-     */
-    @Override
-    protected String getColumnName(int fieldNumber)
+    protected Column getColumn(int fieldNumber)
     {
-        // Find column name for embedded member
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
-        return ec.getStoreManager().getNamingFactory().getColumnName(embMmds, 0);
+        return table.getColumnForEmbeddedMember(embMmds);
     }
 
     /* (non-Javadoc)
@@ -94,7 +91,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
                     embMmds.add(mmd);
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
-                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds);
+                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
                     embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                     return embOP.getObject();
                 }

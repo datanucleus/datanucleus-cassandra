@@ -48,6 +48,7 @@ import org.datanucleus.store.FieldValues;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
@@ -494,7 +495,8 @@ public class CassandraUtils
     private static Object getObjectUsingApplicationIdForRow(final Row row, 
             final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
     {
-        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd);
+        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = IdentityUtils.getApplicationIdentityForResultSetRow(ec, cmd, null, false, fm);
 
         StoreManager storeMgr = ec.getStoreManager();
@@ -553,7 +555,8 @@ public class CassandraUtils
             idKey = row.getLong(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
         }
 
-        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd);
+        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         OID oid = OIDFactory.getInstance(ec.getNucleusContext(), cmd.getFullClassName(), idKey);
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(oid, 

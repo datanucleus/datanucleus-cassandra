@@ -42,10 +42,10 @@ import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
-import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
 import org.datanucleus.store.fieldmanager.FieldManager;
-import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
@@ -58,23 +58,32 @@ import com.datastax.driver.core.Row;
  */
 public class FetchFieldManager extends AbstractFetchFieldManager
 {
+    protected Table table;
+
     protected Row row;
 
-    public FetchFieldManager(ObjectProvider op, Row row)
+    public FetchFieldManager(ObjectProvider op, Row row, Table table)
     {
         super(op);
+        this.table = table;
         this.row = row;
     }
 
-    public FetchFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd)
+    public FetchFieldManager(ExecutionContext ec, Row row, AbstractClassMetaData cmd, Table table)
     {
         super(ec, cmd);
+        this.table = table;
         this.row = row;
+    }
+
+    protected Column getColumn(int fieldNumber)
+    {
+        return table.getColumnForMember(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
     }
 
     protected String getColumnName(int fieldNumber)
     {
-        return ec.getStoreManager().getNamingFactory().getColumnName(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber), ColumnType.COLUMN);
+        return getColumn(fieldNumber).getIdentifier();
     }
 
     /* (non-Javadoc)
@@ -180,7 +189,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     embMmds.add(mmd);
                     AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                     ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
-                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds);
+                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
                     embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                     return embOP.getObject();
                 }
@@ -248,7 +257,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
-            String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, ec.getTypeManager(), clr);
+            String cassandraType = getColumn(fieldNumber).getTypeName();
             // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
             if (mmd.hasCollection())
             {
