@@ -27,6 +27,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TimeZone;
@@ -94,6 +95,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
+        cassandraTypeByJavaType.put(Locale.class.getName(), "varchar");
 
         datastoreTypeByCassandraType.put("timestamp", Date.class);
         datastoreTypeByCassandraType.put("boolean", Boolean.class);
@@ -513,6 +515,14 @@ public class CassandraUtils
         else if (value instanceof TimeZone)
         {
             TypeConverter stringConverter = typeMgr.getTypeConverterForType(TimeZone.class, String.class);
+            if (stringConverter != null)
+            {
+                return stringConverter.toDatastoreType(value);
+            }
+        }
+        else if (value instanceof Locale)
+        {
+            TypeConverter stringConverter = typeMgr.getTypeConverterForType(Locale.class, String.class);
             if (stringConverter != null)
             {
                 return stringConverter.toDatastoreType(value);
