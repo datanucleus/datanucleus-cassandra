@@ -22,8 +22,10 @@ import java.util.List;
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.IdentityMetaData;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.CassandraUtils.CassandraTypeDetails;
 import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.ColumnAttributer;
@@ -54,7 +56,8 @@ public class ColumnAttributerImpl implements ColumnAttributer
     {
         if (mmd != null)
         {
-            String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+            CassandraTypeDetails typeDetails = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+            String cassandraType = typeDetails.typeName;
             if (cassandraType == null)
             {
                 NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
@@ -62,31 +65,37 @@ public class ColumnAttributerImpl implements ColumnAttributer
             else
             {
                 col.setTypeName(cassandraType);
-                // TODO Assign TypeConverter
+                if (typeDetails.typeConverter != null)
+                {
+                    col.setTypeConverter(typeDetails.typeConverter);
+                }
             }
         }
         else
         {
             if (col.getColumnType() == ColumnType.DATASTOREID_COLUMN)
             {
-                col.setTypeName("bigint"); // TODO Set the type based on jdbc-type of the datastore-id metadata : uuid?, varchar?
-                // TODO Assign TypeConverter
+                String type = "bigint"; // Default to bigint unless specified
+                IdentityMetaData idmd = cmd.getIdentityMetaData();
+                if (idmd != null && idmd.getColumnMetaData() != null && idmd.getColumnMetaData().getJdbcType() != null)
+                {
+                    type = idmd.getColumnMetaData().getJdbcType();
+                }
+                // TODO Set based on value generator
+                col.setTypeName(type);
             }
             else if (col.getColumnType() == ColumnType.VERSION_COLUMN)
             {
                 String cassandraType = cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME ? "timestamp" : "int";
                 col.setTypeName(cassandraType);
-                // TODO Assign TypeConverter
             }
             else if (col.getColumnType() == ColumnType.DISCRIMINATOR_COLUMN)
             {
                 col.setTypeName("varchar");
-                // TODO Assign TypeConverter
             }
             else if (col.getColumnType() == ColumnType.MULTITENANCY_COLUMN)
             {
                 col.setTypeName("varchar");
-                // TODO Assign TypeConverter
             }
         }
     }
@@ -95,7 +104,8 @@ public class ColumnAttributerImpl implements ColumnAttributer
     public void attributeEmbeddedColumn(Column col, List<AbstractMemberMetaData> mmds)
     {
         AbstractMemberMetaData mmd = mmds.get(mmds.size()-1);
-        String cassandraType = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+        CassandraTypeDetails typeDetails = CassandraUtils.getCassandraColumnTypeForMember(mmd, storeMgr.getNucleusContext().getTypeManager(), clr);
+        String cassandraType = typeDetails.typeName;
         if (cassandraType == null)
         {
             NucleusLogger.DATASTORE_SCHEMA.warn("Embedded member " + mmd.getFullFieldName() + " of type "+ mmd.getTypeName() + " has no supported cassandra type! Ignoring");
@@ -103,7 +113,10 @@ public class ColumnAttributerImpl implements ColumnAttributer
         else
         {
             col.setTypeName(cassandraType);
-            // TODO Assign TypeConverter
+            if (typeDetails.typeConverter != null)
+            {
+                col.setTypeConverter(typeDetails.typeConverter);
+            }
         }
     }
 }

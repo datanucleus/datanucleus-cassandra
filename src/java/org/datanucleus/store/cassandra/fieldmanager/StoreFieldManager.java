@@ -271,7 +271,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
     protected void storeNonEmbeddedObjectField(AbstractMemberMetaData mmd, RelationType relationType, ClassLoaderResolver clr, Object value)
     {
         int fieldNumber = mmd.getAbsoluteFieldNumber();
-        String colName = getColumnName(fieldNumber);
+        Column column = getColumn(fieldNumber);
+        String colName = column.getIdentifier();
 
         if (value == null)
         {
@@ -285,9 +286,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             if (mmd.isSerialized())
             {
-            	// TODO Support persistable object
-                throw new NucleusUserException("Don't currently support serialised PC fields at " + 
-                        mmd.getFullFieldName() + ". Dont serialise it");
+            	// TODO Support serialised persistable object
+                throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
             }
             columnValueByName.put(colName, IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valueID));
             return;
@@ -406,9 +406,18 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
         else
         {
+            if (column.getTypeConverter() != null)
+            {
+                // Use defined type converter
+                Object datastoreValue = column.getTypeConverter().toDatastoreType(value);
+                columnValueByName.put(colName, datastoreValue);
+                return;
+            }
+
             // Member with non-persistable object(s)
             if (mmd.hasCollection())
             {
+                // TODO Support embedded collection field
                 Collection cassColl = null;
                 if (value instanceof List)
                 {
@@ -432,6 +441,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
+                // TODO Support embedded map field
                 Map cassMap = new HashMap();
 
                 Map map = (Map)value;
@@ -455,7 +465,27 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasArray())
             {
-                // TODO Support arrays
+                // TODO Support embedded array field
+                Collection cassArr = new ArrayList();
+
+                Class elemCls = clr.classForName(mmd.getArray().getElementType());
+                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                for (int i=0;i<Array.getLength(value);i++)
+                {
+                    if (mmd.getArray().isSerializedElement())
+                    {
+                        // TODO Support Serialised elements
+                        throw new NucleusUserException("Don't currently support serialised array elements at " + 
+                            mmd.getFullFieldName() + ". Serialise the whole field");
+                    }
+                    Object element = Array.get(value, i);
+                    if (element != null)
+                    {
+                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
+                    }
+                }
+                columnValueByName.put(colName, cassArr);
+                return;
             }
 
             String cassandraType = getColumn(fieldNumber).getTypeName();

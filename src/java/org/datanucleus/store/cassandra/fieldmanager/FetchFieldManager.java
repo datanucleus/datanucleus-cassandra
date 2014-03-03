@@ -208,7 +208,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     protected Object fetchNonEmbeddedObjectField(AbstractMemberMetaData mmd, RelationType relationType, ClassLoaderResolver clr)
     {
         int fieldNumber = mmd.getAbsoluteFieldNumber();
-        String colName = getColumnName(fieldNumber);
+        Column column = getColumn(fieldNumber);
+        String colName = column.getIdentifier();
 
         if (row.isNull(colName))
         {
@@ -257,7 +258,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
-            String cassandraType = getColumn(fieldNumber).getTypeName();
+            String cassandraType = column.getTypeName();
             // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
             if (mmd.hasCollection())
             {
@@ -284,15 +285,15 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (mmd.hasArray())
             {
+                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore array; not supported yet");
                 // TODO Support this
             }
             else if (mmd.isSerialized())
             {
-                // Retrieve byte[] and convert back
+                // Convert back from ByteBuffer
                 ByteBuffer byteBuffer = row.getBytes(colName);
-                byte[] bytes = byteBuffer.array();
-                TypeConverter serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, byte[].class);
-                return serialConv.toMemberType(bytes);
+                TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                return serialConv.toMemberType(byteBuffer);
             }
             else if (BigInteger.class.isAssignableFrom(mmd.getType()))
             {
