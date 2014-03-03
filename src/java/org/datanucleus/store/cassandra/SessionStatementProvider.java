@@ -31,11 +31,8 @@ public class SessionStatementProvider
 {
     Map<String, PreparedStatement> preparedStatementCache = new SoftValueMap();
 
-    final Session session;
-
-    public SessionStatementProvider(Session session)
+    public SessionStatementProvider()
     {
-        this.session = session;
     }
 
     public void close()
@@ -43,12 +40,7 @@ public class SessionStatementProvider
         preparedStatementCache.clear();
     }
 
-    public Session getSession()
-    {
-        return session;
-    }
-
-    public PreparedStatement prepare(String stmt)
+    public PreparedStatement prepare(String stmt, Session session)
     {
         PreparedStatement ps = preparedStatementCache.get(stmt);
         if (ps == null)

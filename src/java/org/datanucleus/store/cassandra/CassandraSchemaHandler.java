@@ -274,7 +274,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String schemaName = table.getSchemaName();
 
-        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
         if (checkTableExistence(session, stmtProvider, schemaName, table.getIdentifier()))
         {
             // Add/delete any columns to match the current definition (aka "schema evolution")
@@ -575,7 +575,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         String tableName = table.getIdentifier();
 
                         NamingFactory namingFactory = storeMgr.getNamingFactory();
-                        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
                         boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                         if (tableExists)
                         {
@@ -731,7 +731,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 String schemaName = table.getSchemaName();
                 String tableName = table.getIdentifier();
 
-                SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider(session);
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
                 boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                 if (!tableExists)
                 {
@@ -856,7 +856,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
         {
@@ -873,7 +873,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of schema " + schemaName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
         if (!rs.isExhausted())
         {
@@ -899,7 +899,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString());
+        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
         Iterator<Row> iter = rs.iterator();

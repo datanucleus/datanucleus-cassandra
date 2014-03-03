@@ -31,6 +31,8 @@ Contributors:
 
     <!-- PERSISTENCE PROPERTIES -->
     <extension point="org.datanucleus.persistence_properties">
+        <persistence-property name="datanucleus.cassandra.sessionPerManager" datastore="true" value="false"
+            validator="org.datanucleus.properties.BooleanPropertyValidator"/>
         <persistence-property name="datanucleus.cassandra.compression" datastore="true"
             validator="org.datanucleus.store.cassandra.CassandraPropertyValidator"/>
         <persistence-property name="datanucleus.cassandra.metrics" datastore="true"

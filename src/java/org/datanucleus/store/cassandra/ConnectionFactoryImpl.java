@@ -46,10 +46,11 @@ import com.datastax.driver.core.SocketOptions;
  * Connection factory for Cassandra datastores.
  * Accepts a URL of the form <pre>cassandra:[host1:port[,host2[,host3]]]</pre>
  * Defaults to a server of "127.0.0.1" if no host/port specified
- * TODO Should we use one Session per EMF/PMF ? or one per EM/PM ? since Cassandra doesn't do real txns then not obvious. Are they thread-safe? Currently does one Session per PM/EM
+ * Defaults to a single Session per PMF/EMF, but can be overridden using "datanucleus.cassandra.sessionPerManager".
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
 {
+    public static final String CASSANDRA_CONNECTION_PER_MANAGER = "datanucleus.cassandra.sessionPerManager";
     public static final String CASSANDRA_COMPRESSION = "datanucleus.cassandra.compression";
     public static final String CASSANDRA_METRICS = "datanucleus.cassandra.metrics";
     public static final String CASSANDRA_SSL = "datanucleus.cassandra.ssl";
@@ -57,6 +58,10 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
 
     Cluster cluster;
+
+    boolean sessionPerManager = false;
+
+    Session session = null;
 
     /**
      * @param storeMgr
@@ -167,6 +172,12 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             builder.withoutMetrics();
         }
 
+        Boolean sessionPerManagerProperty = storeMgr.getBooleanObjectProperty(CASSANDRA_CONNECTION_PER_MANAGER);
+        if (sessionPerManagerProperty != null && sessionPerManagerProperty)
+        {
+            sessionPerManager = true;
+        }
+
         // Specify any socket options
         SocketOptions socketOpts = null;
         int readTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS);
@@ -195,6 +206,11 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
     public void close()
     {
+        if (session != null)
+        {
+            NucleusLogger.CONNECTION.debug("Shutting down Cassandra Session");
+            session.shutdown();
+        }
         NucleusLogger.CONNECTION.debug("Shutting down Cassandra Cluster");
         cluster.shutdown();
 
@@ -230,8 +246,20 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             if (conn == null)
             {
                 // Create new connection
-                conn = cluster.connect();
-                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - obtained connection");
+                if (sessionPerManager)
+                {
+                    conn = cluster.connect();
+                    NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - obtained Session");
+                }
+                else
+                {
+                    if (session == null)
+                    {
+                        session = cluster.connect();
+                    }
+                    NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - using connection");
+                    conn = session;
+                }
             }
         }
 
@@ -264,8 +292,11 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 ((ManagedConnectionResourceListener)listeners.get(i)).managedConnectionPostClose();
             }
 
-            ((CassandraStoreManager)storeMgr).sessionClosing((Session)conn);
-            ((Session)conn).shutdown();
+            if (sessionPerManager)
+            {
+                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - shutdown Session");
+                ((Session)conn).shutdown();
+            }
             conn = null;
             xaRes = null;
         }
