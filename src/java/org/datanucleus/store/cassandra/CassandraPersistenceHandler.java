@@ -124,7 +124,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             // Use StoreFieldManager to work out the column names and values
-            // TODO If we ever support identity set in datastore and we have relations then do in two steps, so we get the id, persist the other objects, then this side.
             StoreFieldManager storeFM = new StoreFieldManager(op, true, table);
             op.provideFields(cmd.getAllMemberPositions() , storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
@@ -257,8 +256,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime", 
-                    (System.currentTimeMillis() - startTime)));
+                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
             }
             if (ec.getStatistics() != null)
             {

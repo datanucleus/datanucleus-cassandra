@@ -397,7 +397,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        cassColl.add(null);
+                        // Store as "NULL" and extract in FetchFieldManager
+                        cassColl.add("NULL");
                     }
                 }
                 columnValueByName.put(colName, cassColl);

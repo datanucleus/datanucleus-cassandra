@@ -211,13 +211,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         Column column = getColumn(fieldNumber);
         String colName = column.getIdentifier();
 
-        if (row.isNull(colName))
-        {
-            return null;
-        }
-
         if (RelationType.isRelationSingleValued(relationType))
         {
+            if (row.isNull(colName))
+            {
+                return null;
+            }
+
             Object value = row.getString(colName);
             return getValueForSingleRelationField(mmd, value, clr);
         }
@@ -226,13 +226,14 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             Object value = null;
             if (mmd.hasCollection())
             {
+                Class elementCls = mmd.getCollection().isSerializedElement() ? ByteBuffer.class : String.class;
                 if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
-                    value = row.getList(colName, String.class);
+                    value = row.getList(colName, elementCls);
                 }
                 else
                 {
-                    value = row.getSet(colName, String.class);
+                    value = row.getSet(colName, elementCls);
                 }
             }
             else if (mmd.hasMap())
@@ -240,24 +241,28 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
                 if (mmd.getMap().keyIsPersistent())
                 {
-                    keyCls = String.class;
+                    keyCls = mmd.getMap().isSerializedKey() ? ByteBuffer.class : String.class;
                 }
                 Class valCls = clr.classForName(mmd.getMap().getValueType());
                 if (mmd.getMap().valueIsPersistent())
                 {
-                    valCls = String.class;
+                    valCls = mmd.getMap().isSerializedValue() ? ByteBuffer.class : String.class;
                 }
                 value = row.getMap(colName, keyCls, valCls);
             }
             else if (mmd.hasArray())
             {
                 value = row.getList(colName, String.class);
-                // TODO Support arrays (use List)
             }
             return getValueForContainerRelationField(mmd, value, clr);
         }
         else
         {
+            if (row.isNull(colName))
+            {
+                return null;
+            }
+
             String cassandraType = column.getTypeName();
             // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
             if (mmd.hasCollection())
@@ -485,6 +490,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         " which has a collection of interdeterminate element type (e.g interface or Object element types)");
                 }
             }
+
+            // TODO Support serialised element which will be of type ByteBuffer
             Collection<String> collIds = (Collection<String>)value;
             Iterator<String> idIter = collIds.iterator();
             boolean changeDetected = false;
@@ -585,6 +592,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Object val = null;
                 if (mmd.getMap().keyIsPersistent())
                 {
+                    // TODO Support serialised key which will be of type ByteBuffer
                     String keyPersistableId = (String) entry.getKey();
                     if (keyPersistableId == null) // TODO Can you store null keys in a Cassandra Map?
                     {
@@ -610,6 +618,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 if (mmd.getMap().valueIsPersistent())
                 {
+                    // TODO Support serialised value which will be of type ByteBuffer
                     String valPersistableId = (String) entry.getValue();
                     if (valPersistableId == null) // TODO Can you store null values in a Cassandra Map?
                     {
@@ -676,8 +685,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             while (idIter.hasNext())
             {
                 String persistableId = idIter.next();
-                if (persistableId == null) // TODO Can you store null elements in a Cassandra Set/List?
+                if (persistableId.equals("NULL"))
                 {
+                    // Null element
                     Array.set(array, pos++, null);
                 }
                 else
