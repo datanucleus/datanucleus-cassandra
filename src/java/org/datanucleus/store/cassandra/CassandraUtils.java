@@ -141,8 +141,8 @@ public class CassandraUtils
             else if (mmd.hasCollection())
             {
                 // Collection<NonPC>
-                String elementType = mmd.getCollection().getElementType();
-                String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : cassandraTypeByJavaType.get(elementType);
+                Class elementType = clr.classForName(mmd.getCollection().getElementType());
+                String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
                 if (cqlElementType != null)
                 {
                     if (List.class.isAssignableFrom(mmd.getType()))
@@ -167,16 +167,16 @@ public class CassandraUtils
                 }
                 else
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for collection element of type " + elementType + ". Please report this");
+                    NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for collection element of type " + elementType.getName() + ". Please report this");
                 }
             }
             else if (mmd.hasMap())
             {
                 // Map<NonPC, NonPC>
-                String keyType = mmd.getMap().getKeyType();
-                String valType = mmd.getMap().getValueType();
-                String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : cassandraTypeByJavaType.get(keyType);
-                String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : cassandraTypeByJavaType.get(valType);
+                Class keyType = clr.classForName(mmd.getMap().getKeyType());
+                Class valType = clr.classForName(mmd.getMap().getValueType());
+                String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
+                String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
                 if (cqlKeyType != null && cqlValType != null)
                 {
                     type = "map<" + cqlKeyType + "," + cqlValType + ">";
@@ -196,8 +196,8 @@ public class CassandraUtils
             else if (mmd.hasArray())
             {
                 // NonPC[]
-                String elementType = mmd.getArray().getElementType();
-                String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : cassandraTypeByJavaType.get(elementType);
+                Class elementType = clr.classForName(mmd.getArray().getElementType());
+                String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
                 if (cqlElementType != null)
                 {
                     type = "list<" + cqlElementType + ">";

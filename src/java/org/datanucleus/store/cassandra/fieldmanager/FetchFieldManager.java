@@ -269,6 +269,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 Collection cassColl = null;
                 Class elementCls = clr.classForName(mmd.getCollection().getElementType());
+                // TODO Cater for type conversion, and update elementCls to the Cassandra type
                 if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
                     cassColl = row.getList(colName, elementCls);
