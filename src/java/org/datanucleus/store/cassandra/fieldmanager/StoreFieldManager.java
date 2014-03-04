@@ -41,7 +41,6 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 /**
  * FieldManager for the storing of field values into Cassandra.
@@ -412,7 +411,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 // Use defined type converter
                 Object datastoreValue = column.getTypeConverter().toDatastoreType(value);
-                NucleusLogger.GENERAL.info(">> StoreFM col=" + colName + " converter=" + column.getTypeConverter() + " val=" + StringUtils.toJVMIDString(datastoreValue));
                 columnValueByName.put(colName, datastoreValue);
                 return;
             }
@@ -420,7 +418,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             // Member with non-persistable object(s)
             if (mmd.hasCollection())
             {
-                // TODO Support embedded collection field
+                Collection coll = (Collection)value;
+                if (coll.size() == 0)
+                {
+                    columnValueByName.put(colName, null);
+                    return;
+                }
+
                 Collection cassColl = null;
                 if (value instanceof List)
                 {
@@ -430,10 +434,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     cassColl = new HashSet();
                 }
-                Collection coll = (Collection)value;
-                Iterator collIter = coll.iterator();
                 Class elemCls = clr.classForName(mmd.getCollection().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
                     Object element = collIter.next();
@@ -444,10 +447,15 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
-                // TODO Support embedded map field
                 Map cassMap = new HashMap();
 
                 Map map = (Map)value;
+                if (map.size() == 0)
+                {
+                    columnValueByName.put(colName, null);
+                    return;
+                }
+
                 Iterator<Map.Entry> entryIter = map.entrySet().iterator();
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
                 String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
@@ -468,9 +476,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasArray())
             {
-                // TODO Support embedded array field
-                Collection cassArr = new ArrayList();
+                if (Array.getLength(value) == 0)
+                {
+                    columnValueByName.put(colName, null);
+                    return;
+                }
 
+                Collection cassArr = new ArrayList();
                 Class elemCls = clr.classForName(mmd.getArray().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
                 for (int i=0;i<Array.getLength(value);i++)
