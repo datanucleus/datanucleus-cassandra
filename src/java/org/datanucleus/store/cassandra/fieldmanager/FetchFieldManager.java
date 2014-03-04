@@ -29,6 +29,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -228,7 +229,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (mmd.hasCollection())
             {
                 Class elementCls = mmd.getCollection().isSerializedElement() ? ByteBuffer.class : String.class;
-                if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
+                if (Set.class.isAssignableFrom(mmd.getType()))
+                {
+                    value = row.getSet(colName, elementCls);
+                }
+                else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
                     value = row.getList(colName, elementCls);
                 }
@@ -279,7 +284,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
                 Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
                 // TODO Cater for type conversion, and update elementCls to the Cassandra type
-                if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
+                if (Set.class.isAssignableFrom(mmd.getType()))
+                {
+                    cassColl = row.getSet(colName, cassElemCls);
+                }
+                else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
                     cassColl = row.getList(colName, cassElemCls);
                 }
