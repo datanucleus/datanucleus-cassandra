@@ -45,6 +45,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 {
     SessionStatementProvider stmtProvider = new SessionStatementProvider();
 
+    protected final Set<String> reservedWords = new HashSet<String>();
+
     /**
      * Constructor.
      * @param clr ClassLoader resolver
@@ -54,6 +56,60 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public CassandraStoreManager(ClassLoaderResolver clr, PersistenceNucleusContext nucleusCtx, Map<String, Object> props)
     {
         super("cassandra", clr, nucleusCtx, props);
+
+        reservedWords.add("ADD");
+        reservedWords.add("ALLOW");
+        reservedWords.add("ALTER");
+        reservedWords.add("AND");
+        reservedWords.add("ANY");
+        reservedWords.add("APPLY");
+        reservedWords.add("ASC");
+        reservedWords.add("AUTHORIZE");
+        reservedWords.add("BATCH");
+        reservedWords.add("BEGIN");
+        reservedWords.add("BY");
+        reservedWords.add("COLUMNFAMILY");
+        reservedWords.add("CREATE");
+        reservedWords.add("DELETE");
+        reservedWords.add("DESC");
+        reservedWords.add("DROP");
+        reservedWords.add("FROM");
+        reservedWords.add("GRANT");
+        reservedWords.add("IN");
+        reservedWords.add("INDEX");
+        reservedWords.add("INET");
+        reservedWords.add("INSERT");
+        reservedWords.add("INTO");
+        reservedWords.add("KEYSPACE");
+        reservedWords.add("KEYSPACES");
+        reservedWords.add("LIMIT");
+        reservedWords.add("MODIFY");
+        reservedWords.add("NORECURSIVE");
+        reservedWords.add("OF");
+        reservedWords.add("ON");
+        reservedWords.add("ONE");
+        reservedWords.add("ORDER");
+        reservedWords.add("PASSWORD");
+        reservedWords.add("PRIMARY");
+        reservedWords.add("QUORUM");
+        reservedWords.add("RENAME");
+        reservedWords.add("REVOKE");
+        reservedWords.add("SCHEMA");
+        reservedWords.add("SELECT");
+        reservedWords.add("SET");
+        reservedWords.add("TABLE");
+        reservedWords.add("TO");
+        reservedWords.add("TOKEN");
+        reservedWords.add("THREE");
+        reservedWords.add("TRUNCATE");
+        reservedWords.add("TWO");
+        reservedWords.add("UNLOGGED");
+        reservedWords.add("UPDATE");
+        reservedWords.add("USE");
+        reservedWords.add("USING");
+        reservedWords.add("WHERE");
+        reservedWords.add("WITH");
+        getNamingFactory().setReservedKeywords(reservedWords);
 
         schemaHandler = new CassandraSchemaHandler(this);
         persistenceHandler = new CassandraPersistenceHandler(this);
