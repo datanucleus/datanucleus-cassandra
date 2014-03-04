@@ -50,6 +50,7 @@ import org.datanucleus.store.FieldValues;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
@@ -116,6 +117,166 @@ public class CassandraUtils
             this.typeName = typeName;
             this.typeConverter = conv;
         }
+    }
+
+    public static Class getJavaTypeForCassandraType(String cassandraType)
+    {
+        return datastoreTypeByCassandraType.get(cassandraType);
+    }
+
+    public static Object getMemberValueForColumnWithConverter(Row row, Column column)
+    {
+        if (column.getTypeName().equals("varchar"))
+        {
+            return column.getTypeConverter().toMemberType(row.getString(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("int"))
+        {
+            return column.getTypeConverter().toMemberType(row.getInt(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("boolean"))
+        {
+            return column.getTypeConverter().toMemberType(row.getBool(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("double"))
+        {
+            return column.getTypeConverter().toMemberType(row.getDouble(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("float"))
+        {
+            return column.getTypeConverter().toMemberType(row.getFloat(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("bigint"))
+        {
+            return column.getTypeConverter().toMemberType(row.getLong(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("timestamp"))
+        {
+            return column.getTypeConverter().toMemberType(row.getDate(column.getIdentifier()));
+        }
+        else if (column.getTypeName().equals("blob"))
+        {
+            return column.getTypeConverter().toMemberType(row.getBytes(column.getIdentifier()));
+        }
+        return null;
+    }
+
+    public static Object getJavaValueForDatastoreValue(Object datastoreValue, String cassandraType, Class javaType, ExecutionContext ec)
+    {
+        if (datastoreValue == null)
+        {
+            return null;
+        }
+
+        if (cassandraType.equals("blob") && datastoreValue instanceof ByteBuffer)
+        {
+            // Serialised field
+            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            return serialConv.toMemberType((ByteBuffer) datastoreValue);
+        }
+        else if (javaType.isEnum())
+        {
+            if (cassandraType.equals("int"))
+            {
+                return javaType.getEnumConstants()[(Integer) datastoreValue];
+            }
+            else
+            {
+                return Enum.valueOf(javaType, (String)datastoreValue);
+            }
+        }
+        else if (java.sql.Date.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType((String)datastoreValue);
+                }
+            }
+            // TODO There is a TypeConverter for this
+            return new java.sql.Date(((Date)datastoreValue).getTime());
+        }
+        else if (java.sql.Time.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType((String)datastoreValue);
+                }
+            }
+            // TODO There is a TypeConverter for this
+            return new java.sql.Time(((Date)datastoreValue).getTime());
+        }
+        else if (java.sql.Timestamp.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType((String)datastoreValue);
+                }
+            }
+            // TODO There is a TypeConverter for this
+            return new java.sql.Timestamp(((Date)datastoreValue).getTime());
+        }
+        else if (Calendar.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType((String)datastoreValue);
+                }
+            }
+            // TODO There is a TypeConverter for this
+            Calendar cal = Calendar.getInstance();
+            cal.setTime((Date)datastoreValue);
+            return cal;
+        }
+        else if (Date.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType((String)datastoreValue);
+                }
+            }
+            return (Date)datastoreValue;
+        }
+        else if (datastoreValue instanceof String)
+        {
+            TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+            if (converter != null)
+            {
+                return converter.toMemberType((String)datastoreValue);
+            }
+        }
+        else if (datastoreValue instanceof Long)
+        {
+            TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Long.class);
+            if (converter != null)
+            {
+                return converter.toMemberType((Long)datastoreValue);
+            }
+        }
+        else if (datastoreValue instanceof Integer)
+        {
+            TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Integer.class);
+            if (converter != null)
+            {
+                return converter.toMemberType((Integer)datastoreValue);
+            }
+        }
+
+        return datastoreValue;
     }
 
     /**

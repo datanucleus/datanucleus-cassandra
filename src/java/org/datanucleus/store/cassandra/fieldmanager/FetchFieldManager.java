@@ -42,6 +42,7 @@ import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
 import org.datanucleus.store.fieldmanager.FieldManager;
 import org.datanucleus.store.schema.table.Column;
@@ -264,43 +265,95 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
 
             String cassandraType = column.getTypeName();
-            // TODO Add method to CassandraUtils to convert from datastoreValue to required field value, pass in mmd etc
+            if (column.getTypeConverter() != null && !mmd.isSerialized())
+            {
+                // Convert any columns that have a converter defined back to the member type with the converter
+                return CassandraUtils.getMemberValueForColumnWithConverter(row, column);
+            }
+
             if (mmd.hasCollection())
             {
+                // TODO Cater for serialised Collection field
                 Collection cassColl = null;
-                Class elementCls = clr.classForName(mmd.getCollection().getElementType());
+                Class elemCls = clr.classForName(mmd.getCollection().getElementType());
+                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
                 // TODO Cater for type conversion, and update elementCls to the Cassandra type
                 if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
-                    cassColl = row.getList(colName, elementCls);
+                    cassColl = row.getList(colName, cassElemCls);
                 }
                 else
                 {
-                    cassColl = row.getSet(colName, elementCls);
+                    cassColl = row.getSet(colName, cassElemCls);
                 }
-                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore collection=" + StringUtils.collectionToString(cassColl) + " not supported yet");
-                // TODO Support this
+
+                Collection<Object> coll;
+                try
+                {
+                    Class instanceType = SCOUtils.getContainerInstanceType(mmd.getType(), mmd.getOrderMetaData() != null);
+                    coll = (Collection<Object>) instanceType.newInstance();
+                }
+                catch (Exception e)
+                {
+                    throw new NucleusDataStoreException(e.getMessage(), e);
+                }
+
+                if (cassColl != null)
+                {
+                    Iterator cassCollIter = cassColl.iterator();
+                    while (cassCollIter.hasNext())
+                    {
+                        Object cassElem = cassCollIter.next();
+                        Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem, elemCassType, elemCls, ec);
+                        coll.add(elem);
+                    }
+                }
+                if (op != null)
+                {
+                    // Wrap if SCO
+                    coll = (Collection) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), coll, false, false, true);
+                }
+                return coll;
             }
             else if (mmd.hasMap())
             {
+                // TODO Cater for serialised Map field
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                Class cassKeyCls = CassandraUtils.getJavaTypeForCassandraType(keyCassType);
                 Class valCls = clr.classForName(mmd.getMap().getValueType());
-                Map cassMap = row.getMap(colName, keyCls, valCls);
-                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore map=" + StringUtils.mapToString(cassMap) + " not supported yet");
-                // TODO Support this
+                String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
+                Map cassMap = row.getMap(colName, cassKeyCls, cassValCls);
+                NucleusLogger.DATASTORE_RETRIEVE.warn("Field=" + mmd.getFullFieldName() + " has datastore map=" + StringUtils.mapToString(cassMap) + " not supported yet");
+                // TODO Support this - need method on CassandraUtils that converts from cassandra value to all of basic nonPC java types
             }
             else if (mmd.hasArray())
             {
-                NucleusLogger.DATASTORE_RETRIEVE.debug("Field=" + mmd.getFullFieldName() + " has datastore array; not supported yet");
-                // TODO Support this
+                // TODO Cater for serialised Array field
+//                Class elemCls = clr.classForName(mmd.getArray().getElementType());
+//                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+//                Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
+                NucleusLogger.DATASTORE_RETRIEVE.warn("Field=" + mmd.getFullFieldName() + " has datastore array; not supported yet");
+                /*List cassColl = row.getList(colName, cassElemCls);
+
+                Object array = Array.newInstance(mmd.getType().getComponentType(), cassColl.size());
+                int i=0;
+                for (Object cassElem : cassColl)
+                {
+                    Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem, elemCassType, elemCls, ec);
+                    Array.set(array, i++, elem);
+                }
+                return array;*/
             }
             else if (mmd.isSerialized())
             {
                 // Convert back from ByteBuffer
-                ByteBuffer byteBuffer = row.getBytes(colName);
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                return serialConv.toMemberType(byteBuffer);
+                return serialConv.toMemberType(row.getBytes(colName));
             }
+            // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
             else if (BigInteger.class.isAssignableFrom(mmd.getType()))
             {
             	// TODO There is a TypeConverter for this

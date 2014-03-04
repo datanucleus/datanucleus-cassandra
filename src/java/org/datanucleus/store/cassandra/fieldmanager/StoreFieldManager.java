@@ -41,6 +41,7 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 /**
  * FieldManager for the storing of field values into Cassandra.
@@ -411,6 +412,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 // Use defined type converter
                 Object datastoreValue = column.getTypeConverter().toDatastoreType(value);
+                NucleusLogger.GENERAL.info(">> StoreFM col=" + colName + " converter=" + column.getTypeConverter() + " val=" + StringUtils.toJVMIDString(datastoreValue));
                 columnValueByName.put(colName, datastoreValue);
                 return;
             }
