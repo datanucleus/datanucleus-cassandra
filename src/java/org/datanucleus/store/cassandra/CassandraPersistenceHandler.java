@@ -506,6 +506,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             stmtBuilder.append(" WHERE ");
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
+                // TODO Detect any compound identity and add sub fields in
                 int[] pkFieldNums = cmd.getPKMemberPositions();
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
@@ -596,6 +597,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
+                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
@@ -626,11 +628,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             Object[] pkVals = null;
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
+                // TODO Detect any compound identity and add sub fields in
                 int[] pkFieldNums = cmd.getPKMemberPositions();
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
-                    // TODO Detect compound identity and put multiple columns in
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
                     String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
                     pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
@@ -780,6 +782,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
+                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
@@ -802,6 +805,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 Object[] pkVals = null;
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
+                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     pkVals = new Object[pkFieldNums.length];
                     for (int i=0;i<pkFieldNums.length;i++)
@@ -936,6 +940,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     StringBuilder stmtBuilder = new StringBuilder("SELECT ");
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
+                        // TODO Detect any compound identity and add sub fields in
                         int[] pkFieldNums = cmd.getPKMemberPositions();
                         for (int i=0;i<pkFieldNums.length;i++)
                         {
@@ -961,6 +966,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
+                        // TODO Detect any compound identity and add sub fields in
                         int[] pkFieldNums = cmd.getPKMemberPositions();
                         for (int i=0;i<pkFieldNums.length;i++)
                         {
