@@ -502,7 +502,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         String persistableId = (String)value;
         try
         {
-            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, cmd, ec);
+            AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
         }
         catch (NucleusObjectNotFoundException onfe)
         {

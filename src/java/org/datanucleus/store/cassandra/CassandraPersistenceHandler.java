@@ -630,6 +630,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
+                    // TODO Detect compound identity and put multiple columns in
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
                     String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
                     pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
