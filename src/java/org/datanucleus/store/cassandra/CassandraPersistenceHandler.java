@@ -31,6 +31,7 @@ import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
+import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.identity.OID;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -506,7 +507,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             stmtBuilder.append(" WHERE ");
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
-                // TODO Detect any compound identity and add sub fields in
                 int[] pkFieldNums = cmd.getPKMemberPositions();
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
@@ -518,8 +518,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     Column pkCol = table.getColumnForMember(pkMmd);
                     stmtBuilder.append(pkCol.getIdentifier());
                     stmtBuilder.append("=?");
-                    String cassandraType = pkCol.getTypeName();
-                    setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                    RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
+                    if (RelationType.isRelationSingleValued(relType))
+                    {
+                        Object pc = op.provideField(pkFieldNums[i]);
+                        setVals.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc)));
+                    }
+                    else
+                    {
+                        String cassandraType = pkCol.getTypeName();
+                        setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                    }
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -597,7 +606,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
-                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
@@ -628,14 +636,22 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             Object[] pkVals = null;
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
-                // TODO Detect any compound identity and add sub fields in
                 int[] pkFieldNums = cmd.getPKMemberPositions();
                 pkVals = new Object[pkFieldNums.length];
                 for (int i=0;i<pkFieldNums.length;i++)
                 {
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
+                    if (RelationType.isRelationSingleValued(relType))
+                    {
+                        Object pc = op.provideField(pkFieldNums[i]);
+                        pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
+                    }
+                    else
+                    {
+                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
+                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    }
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -782,7 +798,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
-                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
@@ -805,14 +820,22 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 Object[] pkVals = null;
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
-                    // TODO Detect any compound identity and add sub fields in
                     int[] pkFieldNums = cmd.getPKMemberPositions();
                     pkVals = new Object[pkFieldNums.length];
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                        RelationType relType = pkMmd.getRelationType(clr);
+                        if (RelationType.isRelationSingleValued(relType))
+                        {
+                            Object pc = op.provideField(pkFieldNums[i]);
+                            pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
+                        }
+                        else
+                        {
+                            String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
+                            pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                        }
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -940,7 +963,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     StringBuilder stmtBuilder = new StringBuilder("SELECT ");
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
-                        // TODO Detect any compound identity and add sub fields in
                         int[] pkFieldNums = cmd.getPKMemberPositions();
                         for (int i=0;i<pkFieldNums.length;i++)
                         {
@@ -966,7 +988,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
-                        // TODO Detect any compound identity and add sub fields in
                         int[] pkFieldNums = cmd.getPKMemberPositions();
                         for (int i=0;i<pkFieldNums.length;i++)
                         {
@@ -1003,8 +1024,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     for (int i=0;i<pkFieldNums.length;i++)
                     {
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                        RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
+                        if (RelationType.isRelationSingleValued(relType))
+                        {
+                            Object pc = op.provideField(pkFieldNums[i]);
+                            pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
+                        }
+                        else
+                        {
+                            String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
+                            pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                        }
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
