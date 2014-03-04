@@ -477,7 +477,11 @@ public class CassandraUtils
                 }
                 else
                 {
-                    if (mmd.getOrderMetaData() != null)
+                    if (relType == RelationType.MANY_TO_MANY_BI)
+                    {
+                        type = mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
+                    }
+                    else if (mmd.getOrderMetaData() != null)
                     {
                         type = mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
                     }
