@@ -124,6 +124,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     {
         Set set = new HashSet();
         set.add(StoreManager.OPTION_APPLICATION_ID);
+        set.add(StoreManager.OPTION_APPLICATION_COMPOSITE_ID);
         set.add(StoreManager.OPTION_DATASTORE_ID);
         set.add(StoreManager.OPTION_ORM);
         set.add(StoreManager.OPTION_ORM_EMBEDDED_PC);
