@@ -291,6 +291,27 @@ public class CassandraUtils
         TypeConverter typeConv = null;
 
         Class memberType = mmd.getType();
+        String typeConvName = mmd.getTypeConverterName();
+        if (typeConvName != null)
+        {
+            // User has specified the TypeConverter
+            typeConv = typeMgr.getTypeConverterForName(typeConvName);
+            Class datastoreType = TypeManager.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
+            type = cassandraTypeByJavaType.get(datastoreType.getName());
+            return new CassandraTypeDetails(type, typeConv);
+        }
+        else
+        {
+            typeConv = typeMgr.getAutoApplyTypeConverterForType(mmd.getType());
+            if (typeConv != null)
+            {
+                // No user-defined converter, but autoApply defined for this member type, so use that
+                Class datastoreType = TypeManager.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
+                type = cassandraTypeByJavaType.get(datastoreType.getName());
+                return new CassandraTypeDetails(type, typeConv);
+            }
+        }
+
         RelationType relType = mmd.getRelationType(clr);
         if (relType == RelationType.NONE)
         {
