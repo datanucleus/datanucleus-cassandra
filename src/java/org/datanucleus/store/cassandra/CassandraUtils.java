@@ -49,7 +49,6 @@ import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.FieldValues;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
-import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
@@ -771,7 +770,6 @@ public class CassandraUtils
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = IdentityUtils.getApplicationIdentityForResultSetRow(ec, cmd, null, false, fm);
 
-        StoreManager storeMgr = ec.getStoreManager();
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(id, 
             new FieldValues()
@@ -805,7 +803,7 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                version = row.getInt(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
+                version = row.getInt(table.getVersionColumn().getIdentifier());
             }
             op.setVersion(version);
         }
@@ -818,16 +816,16 @@ public class CassandraUtils
     {
         Object idKey = null;
         StoreManager storeMgr = ec.getStoreManager();
+        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
         if (storeMgr.isStrategyDatastoreAttributed(cmd, -1))
         {
             // TODO Support this?
         }
         else
         {
-            idKey = row.getLong(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.DATASTOREID_COLUMN));
+            idKey = row.getLong(table.getDatastoreIdColumn().getIdentifier());
         }
 
-        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         OID oid = OIDFactory.getInstance(ec.getNucleusContext(), cmd.getFullClassName(), idKey);
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
@@ -864,7 +862,7 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                version = row.getInt(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.VERSION_COLUMN));
+                version = row.getInt(table.getVersionColumn().getIdentifier());
             }
             op.setVersion(version);
         }

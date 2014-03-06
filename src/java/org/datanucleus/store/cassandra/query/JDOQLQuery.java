@@ -34,7 +34,6 @@ import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJDOQLQuery;
-import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
@@ -151,7 +150,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
-                stmtBuilder.append(" WHERE ").append(storeMgr.getNamingFactory().getColumnName(cmd, ColumnType.MULTITENANCY_COLUMN)).append("='").append(multitenancyValue).append("'");
+                stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getIdentifier()).append("='").append(multitenancyValue).append("'");
             }
 
             // Execute the SELECT

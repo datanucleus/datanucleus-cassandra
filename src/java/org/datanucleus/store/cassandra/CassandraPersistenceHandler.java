@@ -745,7 +745,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
                         embMmds.add(mmd);
                         List<String> embColNames = new ArrayList<String>();
-                        getColumnNamesForEmbeddedMember(embMmds, embColNames, ec);
+                        getColumnNamesForEmbeddedMember(table, embMmds, embColNames, ec);
                         for (String embColName : embColNames)
                         {
                             if (!first)
@@ -917,7 +917,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * @param colNames List that will have column names added to it
      * @param ec ExecutionContext
      */
-    protected void getColumnNamesForEmbeddedMember(List<AbstractMemberMetaData> mmds, List<String> colNames, ExecutionContext ec)
+    protected void getColumnNamesForEmbeddedMember(Table table, List<AbstractMemberMetaData> mmds, List<String> colNames, ExecutionContext ec)
     {
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmds.get(mmds.size()-1).getType(), clr);
@@ -931,13 +931,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Nested embedded
                 List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                 embMmds.add(embMmd);
-                getColumnNamesForEmbeddedMember(embMmds, colNames, ec);
+                getColumnNamesForEmbeddedMember(table, embMmds, colNames, ec);
                 continue;
             }
+
             List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
             colMmds.add(embMmd);
-            String colName = ec.getStoreManager().getNamingFactory().getColumnName(colMmds, 0);
-            colNames.add(colName);
+            Column column = table.getColumnForEmbeddedMember(colMmds);
+//            String colName = ec.getStoreManager().getNamingFactory().getColumnName(colMmds, 0);
+            colNames.add(column.getIdentifier());
         }
     }
 

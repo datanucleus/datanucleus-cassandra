@@ -112,8 +112,9 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                                 // Store a null for any primitive/wrapper/String fields
                                 List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                                 colEmbMmds.add(embMmd);
-                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
-                                columnValueByName.put(colName, null);
+                                Column column = table.getColumnForEmbeddedMember(colEmbMmds);
+//                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
+                                columnValueByName.put(column.getIdentifier(), null);
                             }
                             else if (Object.class.isAssignableFrom(embMmd.getType()))
                             {
