@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.PersistenceNucleusContext;
+import org.datanucleus.PropertyNames;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
@@ -60,13 +61,32 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     {
         super("cassandra", clr, nucleusCtx, props);
 
+        // Set up naming factory to match Cassandra capabilities
         getNamingFactory().setReservedKeywords(StringUtils.convertCommaSeparatedStringToSet(RESERVED_WORDS));
+        String namingCase = getStringProperty(PropertyNames.PROPERTY_IDENTIFIER_CASE);
+        if (!StringUtils.isWhitespace(namingCase))
+        {
+            if (namingCase.equalsIgnoreCase("UPPERCASE"))
+            {
+                getNamingFactory().setNamingCase(NamingCase.UPPER_CASE_QUOTED);
+            }
+            else if (namingCase.equalsIgnoreCase("lowercase"))
+            {
+                getNamingFactory().setNamingCase(NamingCase.LOWER_CASE);
+            }
+            else
+            {
+                getNamingFactory().setNamingCase(NamingCase.MIXED_CASE_QUOTED);
+            }
+        }
+        else
+        {
+            // Default to lowercase
+            getNamingFactory().setNamingCase(NamingCase.LOWER_CASE);
+        }
 
         schemaHandler = new CassandraSchemaHandler(this);
         persistenceHandler = new CassandraPersistenceHandler(this);
-
-        // TODO Support quoted names
-        getNamingFactory().setNamingCase(NamingCase.LOWER_CASE);
 
         logConfiguration();
     }
