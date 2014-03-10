@@ -776,6 +776,38 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
+            if (cmd.isVersioned() && op.getTransactionalVersion() == null)
+            {
+                // No version set, so retrieve it
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                if (vermd.getFieldName() != null)
+                {
+                    // Version stored in a field - check not in the requested fields
+                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                    boolean selected = false;
+                    for (int i=0;i<fieldNumbers.length;i++)
+                    {
+                        if (fieldNumbers[i] == verMmd.getAbsoluteFieldNumber())
+                        {
+                            selected = true;
+                            break;
+                        }
+                    }
+                    if (!selected)
+                    {
+                        Column col = table.getColumnForMember(verMmd);
+                        stmtBuilder.append(',').append(col.getIdentifier());
+                    }
+                }
+                else
+                {
+                    // Surrogate version
+                    stmtBuilder.append(",").append(table.getVersionColumn().getIdentifier());
+                }
+            }
+
+            // TODO Add version if this is versioned, just in case we need it
+
             if (nonpersistableFields != null)
             {
                 // Just go through motions for non-persistable fields

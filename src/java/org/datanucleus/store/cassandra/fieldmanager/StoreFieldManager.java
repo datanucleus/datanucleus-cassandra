@@ -470,7 +470,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                     key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
                     val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
-                    cassMap.put(key, value);
+                    cassMap.put(key, val);
                 }
                 columnValueByName.put(colName, cassMap);
                 return;
