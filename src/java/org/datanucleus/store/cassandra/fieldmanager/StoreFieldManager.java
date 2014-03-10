@@ -37,10 +37,12 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
+import org.datanucleus.store.exceptions.ReachableObjectNotCascadedException;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
+import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
 /**
@@ -51,6 +53,10 @@ import org.datanucleus.util.NucleusLogger;
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
+    /** Localiser for messages */
+    protected static final Localiser LOCALISER = Localiser.getInstance(
+        "org.datanucleus.Localisation", org.datanucleus.ClassConstants.NUCLEUS_CONTEXT_LOADER);
+
     protected Table table;
 
     protected Map<String, Object> columnValueByName = new HashMap<String, Object>();
@@ -284,6 +290,20 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
+            if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
+            {
+                if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
+                {
+                    // Related PC object not persistent, but cant do cascade-persist so throw exception
+                    if (NucleusLogger.PERSISTENCE.isDebugEnabled())
+                    {
+                        NucleusLogger.PERSISTENCE.debug(LOCALISER.msg("007006", 
+                            mmd.getFullFieldName()));
+                    }
+                    throw new ReachableObjectNotCascadedException(mmd.getFullFieldName(), value);
+                }
+            }
+
             Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             if (mmd.isSerialized())
@@ -298,9 +318,28 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mmd.hasCollection())
             {
+                Collection coll = (Collection)value;
+                if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
+                {
+                    // Field doesnt support cascade-persist so no reachability
+                    if (NucleusLogger.PERSISTENCE.isDebugEnabled())
+                    {
+                        NucleusLogger.PERSISTENCE.debug(LOCALISER.msg("007006", mmd.getFullFieldName()));
+                    }
+
+                    // Check for any persistable elements that aren't persistent
+                    for (Object element : coll)
+                    {
+                        if (!ec.getApiAdapter().isDetached(element) && !ec.getApiAdapter().isPersistent(element))
+                        {
+                            // Element is not persistent so throw exception
+                            throw new ReachableObjectNotCascadedException(mmd.getFullFieldName(), element);
+                        }
+                    }
+                }
+
                 Collection<String> idColl = (value instanceof List || value instanceof Queue ? new ArrayList<String>() : new HashSet<String>());
 
-                Collection coll = (Collection)value;
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
@@ -320,6 +359,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
+                // TODO Add check on reachability
                 Map idMap = new HashMap();
 
                 Map map = (Map)value;
