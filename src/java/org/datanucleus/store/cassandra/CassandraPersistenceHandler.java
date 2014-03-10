@@ -532,8 +532,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                 stmtBuilder.append("=?");
-                Object oidVal = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Don't hardcode "bigint" (see also CassandraSchemaHandler)
-                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, "bigint", false, storeMgr.getNucleusContext().getTypeManager()));
+                Object oidVal = ((OID)op.getInternalObjectId()).getKeyValue();
+                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, storeMgr.getNucleusContext().getTypeManager()));
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
