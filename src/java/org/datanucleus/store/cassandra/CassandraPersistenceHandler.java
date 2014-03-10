@@ -970,8 +970,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
             colMmds.add(embMmd);
             Column column = table.getColumnForEmbeddedMember(colMmds);
-//            String colName = ec.getStoreManager().getNamingFactory().getColumnName(colMmds, 0);
-            colNames.add(column.getIdentifier());
+            if (column != null)
+            {
+                colNames.add(column.getIdentifier());
+            }
         }
     }
 
