@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TimeZone;
 
@@ -326,7 +327,7 @@ public class CassandraUtils
                 String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
                 if (cqlElementType != null)
                 {
-                    if (List.class.isAssignableFrom(mmd.getType()))
+                    if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
                     {
                         type = "list<" + cqlElementType + ">";
                     }
@@ -482,7 +483,7 @@ public class CassandraUtils
             // 1-N/M-N relation stored as set/list<String> or set/list<blob> (or serialised whole field)
             if (mmd.hasCollection())
             {
-                if (List.class.isAssignableFrom(mmd.getType()))
+                if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
                 {
                     type = mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
                 }

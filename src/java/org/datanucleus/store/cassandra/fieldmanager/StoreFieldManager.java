@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -297,7 +298,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mmd.hasCollection())
             {
-                Collection<String> idColl = (value instanceof List ? new ArrayList<String>() : new HashSet<String>());
+                Collection<String> idColl = (value instanceof List || value instanceof Queue ? new ArrayList<String>() : new HashSet<String>());
 
                 Collection coll = (Collection)value;
                 Iterator collIter = coll.iterator();
@@ -427,7 +428,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 }
 
                 Collection cassColl = null;
-                if (value instanceof List)
+                if (value instanceof List || value instanceof Queue)
                 {
                     cassColl = new ArrayList();
                 }
