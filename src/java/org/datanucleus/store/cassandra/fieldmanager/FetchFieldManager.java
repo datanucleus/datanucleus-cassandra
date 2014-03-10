@@ -543,8 +543,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else
             {
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
-                    FieldRole.ROLE_FIELD, clr, ec.getMetaDataManager());
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_FIELD, clr, ec.getMetaDataManager());
                 if (implNames != null && implNames.length == 1)
                 {
                     // Only one possible implementation, so use that
@@ -560,6 +559,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         {
                             mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implName, clr);
                             return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+                        }
+                        catch (NucleusObjectNotFoundException nonfe)
+                        {
+                            // Object no longer present in the datastore, must have been deleted
+                            throw nonfe;
                         }
                         catch (Exception e)
                         {
