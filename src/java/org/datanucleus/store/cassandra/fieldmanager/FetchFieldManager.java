@@ -371,7 +371,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
             {
             	// TODO There is a TypeConverter for this
-            	return BigDecimal.valueOf(row.getDouble(colName));
+            	return row.getDecimal(colName);
             }
             else if (Byte.class.isAssignableFrom(mmd.getType()))
             {

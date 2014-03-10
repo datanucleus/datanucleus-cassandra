@@ -87,7 +87,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Long.class.getName(), "bigint");
         cassandraTypeByJavaType.put(Short.class.getName(), "int");
         cassandraTypeByJavaType.put(String.class.getName(), "varchar");
-        cassandraTypeByJavaType.put(BigDecimal.class.getName(), "double");
+        cassandraTypeByJavaType.put(BigDecimal.class.getName(), "decimal");
         cassandraTypeByJavaType.put(BigInteger.class.getName(), "bigint");
         cassandraTypeByJavaType.put(Date.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Time.class.getName(), "timestamp");
@@ -410,11 +410,6 @@ public class CassandraUtils
                         type = "blob";
                         typeConv = typeMgr.getTypeConverterForType(mmd.getType(), ByteBuffer.class);
                     }
-                    else if (jdbcType.equalsIgnoreCase("decimal"))
-                    {
-                        type = "double";
-                        typeConv = typeMgr.getTypeConverterForType(mmd.getType(), Double.class);
-                    }
                     else if (jdbcType.equalsIgnoreCase("integer"))
                     {
                         type = "int";
@@ -646,7 +641,7 @@ public class CassandraUtils
         else if (value.getClass() == BigDecimal.class)
         {
         	// TODO There is a TypeConverter for this
-        	return ((BigDecimal)value).doubleValue();
+        	return value;
         }
         else if (value instanceof Enum)
         {
