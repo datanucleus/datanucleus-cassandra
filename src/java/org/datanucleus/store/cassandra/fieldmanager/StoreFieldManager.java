@@ -444,6 +444,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
                 columnValueByName.put(colName, cassColl);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -473,6 +474,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(colName, cassMap);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
             else if (mmd.hasArray())
@@ -501,6 +503,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(colName, cassArr);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
 
@@ -509,6 +512,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (datastoreValue != null)
             {
                 columnValueByName.put(colName, datastoreValue);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
         }

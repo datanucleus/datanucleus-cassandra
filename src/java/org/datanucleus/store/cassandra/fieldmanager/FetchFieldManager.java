@@ -51,7 +51,6 @@ import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Row;
 
@@ -328,6 +327,17 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (mmd.hasMap())
             {
                 // TODO Cater for serialised Map field
+                Map map;
+                try
+                {
+                    Class instanceType = SCOUtils.getContainerInstanceType(mmd.getType(), null);
+                    map = (Map) instanceType.newInstance();
+                }
+                catch (Exception e)
+                {
+                    throw new NucleusDataStoreException(e.getMessage(), e);
+                }
+
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
                 String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
                 Class cassKeyCls = CassandraUtils.getJavaTypeForCassandraType(keyCassType);
@@ -335,8 +345,23 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
                 Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
                 Map cassMap = row.getMap(colName, cassKeyCls, cassValCls);
-                NucleusLogger.DATASTORE_RETRIEVE.warn("Field=" + mmd.getFullFieldName() + " has datastore map=" + StringUtils.mapToString(cassMap) + " not supported yet");
-                // TODO Support this - need method on CassandraUtils that converts from cassandra value to all of basic nonPC java types
+                if (cassMap != null)
+                {
+                    Iterator<Map.Entry> cassMapEntryIter = cassMap.entrySet().iterator();
+                    while (cassMapEntryIter.hasNext())
+                    {
+                        Map.Entry cassMapEntry = cassMapEntryIter.next();
+                        Object key = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getKey(), cassKeyCls.getName(), keyCls, ec);
+                        Object val = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getValue(), cassValCls.getName(), valCls, ec);
+                        map.put(key, val);
+                    }
+                }
+                if (op != null)
+                {
+                    // Wrap if SCO
+                    map = (Map) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), map, false, false, true);
+                }
+                return map;
             }
             else if (mmd.hasArray())
             {
@@ -512,6 +537,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         try
         {
             AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+            // TODO Cater for interface/Object fields where mmdCmd will be null
             return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
         }
         catch (NucleusObjectNotFoundException onfe)
