@@ -61,7 +61,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
         // TODO Use "datanucleus.identifier.case" and respect the case of table/column names
         if (properties.getProperty("sequence-table-name") != null)
         {
-            tableName = "IncrementTable";
+            tableName = properties.getProperty("sequence-table-name");
         }
         if (properties.getProperty("sequence-name-column-name") != null)
         {
