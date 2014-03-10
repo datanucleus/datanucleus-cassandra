@@ -117,40 +117,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            // Generate the INSERT statement, using cached form if available
-            String insertStmt = null;
-            if (insertStatementByClassName != null)
-            {
-                insertStmt = insertStatementByClassName.get(cmd.getFullClassName());
-            }
-
-            // Use StoreFieldManager to work out the column names and values
-            StoreFieldManager storeFM = new StoreFieldManager(op, true, table);
-            op.provideFields(cmd.getAllMemberPositions() , storeFM);
-            Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
-
-            if (insertStmt == null)
-            {
-                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-                insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
-
-                // Cache the statement
-                if (insertStatementByClassName == null)
-                {
-                    insertStatementByClassName = new HashMap<String, String>();
-                }
-                insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
-            }
-
             Object versionValue = null;
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
             if (cmd.isVersioned())
             {
                 // Process the version value, setting it on the object, and saving the value for the INSERT
-                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                 if (vermd.getVersionStrategy() == VersionStrategy.VERSION_NUMBER)
                 {
-                    int versionNumber = 1;
-                    op.setTransactionalVersion(Long.valueOf(versionNumber));
+                    long versionNumber = 1;
+                    op.setTransactionalVersion(versionNumber);
 
                     if (vermd.getFieldName() != null)
                     {
@@ -181,6 +156,31 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
+            // Generate the INSERT statement, using cached form if available
+            String insertStmt = null;
+            if (insertStatementByClassName != null)
+            {
+                insertStmt = insertStatementByClassName.get(cmd.getFullClassName());
+            }
+
+            // Use StoreFieldManager to work out the column names and values
+            StoreFieldManager storeFM = new StoreFieldManager(op, true, table);
+            op.provideFields(cmd.getAllMemberPositions() , storeFM);
+            Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
+
+            if (insertStmt == null)
+            {
+                // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
+                insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
+
+                // Cache the statement
+                if (insertStatementByClassName == null)
+                {
+                    insertStatementByClassName = new HashMap<String, String>();
+                }
+                insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
+            }
+
             Object discrimValue = null;
             if (cmd.hasDiscriminatorStrategy())
             {
@@ -208,7 +208,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 numValues++;
             }
-            if (versionValue != null)
+            if (versionValue != null && vermd.getFieldName() == null)
             {
                 numValues++;
             }
@@ -230,7 +230,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtValues[pos++] = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Cater for datastore attributed ID
             }
-            if (versionValue != null)
+            if (versionValue != null && vermd.getFieldName() == null)
             {
                 stmtValues[pos++] = versionValue;
             }
@@ -483,9 +483,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         if (fieldNumbers[i] == verMmd.getAbsoluteFieldNumber())
                         {
                             updatingVerField = true;
+                            break;
                         }
                     }
-                    if (updatingVerField)
+                    if (!updatingVerField)
                     {
                         stmtBuilder.append(',').append(table.getColumnForMember(verMmd).getIdentifier()).append("=?");
                         setVals.add(op.getTransactionalVersion());
@@ -496,10 +497,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     // Update the stored surrogate value
                     stmtBuilder.append(",").append(table.getVersionColumn().getIdentifier()).append("=?");
                     Object verVal = op.getTransactionalVersion();
-                    if (verVal instanceof Long)
-                    {
-                        verVal = Integer.valueOf(((Long)op.getTransactionalVersion()).intValue());
-                    }
                     setVals.add(verVal);
                 }
             }
@@ -796,13 +793,23 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     if (!selected)
                     {
                         Column col = table.getColumnForMember(verMmd);
-                        stmtBuilder.append(',').append(col.getIdentifier());
+                        if (!first)
+                        {
+                            stmtBuilder.append(',');
+                        }
+                        stmtBuilder.append(col.getIdentifier());
+                        first = false;
                     }
                 }
                 else
                 {
                     // Surrogate version
-                    stmtBuilder.append(",").append(table.getVersionColumn().getIdentifier());
+                    if (!first)
+                    {
+                        stmtBuilder.append(',');
+                    }
+                    stmtBuilder.append(table.getVersionColumn().getIdentifier());
+                    first = false;
                 }
             }
 
@@ -916,7 +923,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     else
                     {
                         // Surrogate version
-                        Object datastoreVersion = row.getInt(table.getVersionColumn().getIdentifier());
+                        Column verCol = table.getVersionColumn();
+                        Object datastoreVersion = verCol.getTypeName().equals("int") ? row.getInt(verCol.getIdentifier()) : row.getLong(verCol.getIdentifier());
                         op.setVersion(datastoreVersion);
                     }
                 }

@@ -86,7 +86,7 @@ public class ColumnAttributerImpl implements ColumnAttributer
             }
             else if (col.getColumnType() == ColumnType.VERSION_COLUMN)
             {
-                String cassandraType = cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME ? "timestamp" : "int";
+                String cassandraType = cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME ? "timestamp" : "bigint";
                 col.setTypeName(cassandraType);
             }
             else if (col.getColumnType() == ColumnType.DISCRIMINATOR_COLUMN)

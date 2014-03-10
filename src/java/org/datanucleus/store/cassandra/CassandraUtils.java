@@ -799,7 +799,14 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                version = row.getInt(table.getVersionColumn().getIdentifier());
+                if (table.getVersionColumn().getTypeName().equals("int"))
+                {
+                    version = row.getInt(table.getVersionColumn().getIdentifier());
+                }
+                else
+                {
+                    version = row.getLong(table.getVersionColumn().getIdentifier());
+                }
             }
             op.setVersion(version);
         }
@@ -858,7 +865,14 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                version = row.getInt(table.getVersionColumn().getIdentifier());
+                if (table.getVersionColumn().getTypeName().equals("int"))
+                {
+                    version = row.getInt(table.getVersionColumn().getIdentifier());
+                }
+                else
+                {
+                    version = row.getLong(table.getVersionColumn().getIdentifier());
+                }
             }
             op.setVersion(version);
         }
