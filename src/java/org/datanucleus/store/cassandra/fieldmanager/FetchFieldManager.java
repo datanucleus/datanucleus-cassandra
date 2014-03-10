@@ -537,8 +537,40 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         try
         {
             AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-            // TODO Cater for interface/Object fields where mmdCmd will be null
-            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+            if (mmdCmd != null)
+            {
+                return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+            }
+            else
+            {
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
+                    FieldRole.ROLE_FIELD, clr, ec.getMetaDataManager());
+                if (implNames != null && implNames.length == 1)
+                {
+                    // Only one possible implementation, so use that
+                    mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                    return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+                }
+                else if (implNames != null && implNames.length > 1)
+                {
+                    // Multiple implementations, so try each implementation in turn (note we only need this if some impls have different "identity" type from each other)
+                    for (String implName : implNames)
+                    {
+                        try
+                        {
+                            mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implName, clr);
+                            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+                        }
+                        catch (Exception e)
+                        {
+                            // Not possible with this implementation
+                        }
+                    }
+                }
+
+                throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
+                        " which has an interdeterminate type (e.g interface or Object element types)");
+            }
         }
         catch (NucleusObjectNotFoundException onfe)
         {
@@ -570,8 +602,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 // Try any listed implementations
                 String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
                     FieldRole.ROLE_COLLECTION_ELEMENT, clr, ec.getMetaDataManager());
-                if (implNames != null && implNames.length == 1)
+                if (implNames != null && implNames.length > 0)
                 {
+                    // Just use first implementation TODO What if the impls have different id type?
                     elemCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
                 }
                 if (elemCmd == null)
