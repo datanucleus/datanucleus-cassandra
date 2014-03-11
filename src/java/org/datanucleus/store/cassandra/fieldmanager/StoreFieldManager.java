@@ -338,23 +338,31 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
 
-                Collection<String> idColl = (value instanceof List || value instanceof Queue ? new ArrayList<String>() : new HashSet<String>());
+                Collection<String> cassColl = (value instanceof List || value instanceof Queue ? new ArrayList<String>() : new HashSet<String>());
 
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
                     Object element = collIter.next();
-                    Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
-                    Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
-                    if (mmd.getCollection().isSerializedElement())
+                    if (element != null)
                     {
-                    	// TODO Support persistable element
-                        throw new NucleusUserException("Don't currently support serialised collection elements at " + 
-                                mmd.getFullFieldName() + ". Serialise the whole field");
+                        Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
+                        Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
+                        if (mmd.getCollection().isSerializedElement())
+                        {
+                            // TODO Support persistable element
+                            throw new NucleusUserException("Don't currently support serialised collection elements at " + 
+                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                        }
+                        cassColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
                     }
-                    idColl.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), elementID));
+                    else
+                    {
+                        // Store as "NULL" and extract in FetchFieldManager
+                        cassColl.add("NULL");
+                    }
                 }
-                columnValueByName.put(colName, idColl);
+                columnValueByName.put(colName, cassColl);
                 return;
             }
             else if (mmd.hasMap())
@@ -381,6 +389,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Map.Entry entry = entryIter.next();
                     Object key = entry.getKey();
                     Object val = entry.getValue();
+
                     if (mmd.getMap().keyIsPersistent())
                     {
                         Object keyPC = ec.persistObjectInternal(key, op, fieldNumber, -1);
@@ -397,17 +406,25 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
                     }
+
                     if (mmd.getMap().valueIsPersistent())
                     {
-                        Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
-                        Object valID = ec.getApiAdapter().getIdForObject(valPC);
-                        if (mmd.getMap().isSerializedValue())
+                        if (val != null)
                         {
-                        	// TODO Support persistable value
-                            throw new NucleusUserException("Don't currently support serialised map values at " + 
-                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                            Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
+                            Object valID = ec.getApiAdapter().getIdForObject(valPC);
+                            if (mmd.getMap().isSerializedValue())
+                            {
+                                // TODO Support persistable value
+                                throw new NucleusUserException("Don't currently support serialised map values at " + 
+                                        mmd.getFullFieldName() + ". Serialise the whole field");
+                            }
+                            val = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valID);
                         }
-                        val = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), valID);
+                        else
+                        {
+                            val = "NULL";
+                        }
                     }
                     else
                     {

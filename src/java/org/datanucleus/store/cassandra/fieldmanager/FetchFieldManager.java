@@ -625,8 +625,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             while (idIter.hasNext())
             {
                 String persistableId = idIter.next();
-                if (persistableId == null) // TODO Can you store null elements in a Cassandra Set/List?
+                if (persistableId.equals("NULL"))
                 {
+                    // Null element
                     coll.add(null);
                 }
                 else
@@ -721,21 +722,14 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // TODO Support serialised key which will be of type ByteBuffer
                     String keyPersistableId = (String) entry.getKey();
-                    if (keyPersistableId == null) // TODO Can you store null keys in a Cassandra Map?
+                    try
                     {
-                        key = null;
+                        key = IdentityUtils.getObjectFromPersistableIdentity(keyPersistableId, keyCmd, ec);
                     }
-                    else
+                    catch (NucleusObjectNotFoundException onfe)
                     {
-                        try
-                        {
-                            key = IdentityUtils.getObjectFromPersistableIdentity(keyPersistableId, keyCmd, ec);
-                        }
-                        catch (NucleusObjectNotFoundException onfe)
-                        {
-                            // Object no longer exists. Deleted by user? so ignore
-                            changeDetected = true;
-                        }
+                        // Object no longer exists. Deleted by user? so ignore
+                        changeDetected = true;
                     }
                 }
                 else
@@ -747,7 +741,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // TODO Support serialised value which will be of type ByteBuffer
                     String valPersistableId = (String) entry.getValue();
-                    if (valPersistableId == null) // TODO Can you store null values in a Cassandra Map?
+                    if (valPersistableId.equals("NULL"))
                     {
                         val = null;
                     }
