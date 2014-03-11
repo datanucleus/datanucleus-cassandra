@@ -56,7 +56,7 @@
                     <instructions>
                         <Bundle-SymbolicName>org.datanucleus.store.cassandra;singleton:=true</Bundle-SymbolicName>
                         <Import-Package>
-                            com.datastax.cassandra*;version="${cassandra.version}",
+                            com.datastax.driver*;version="${cassandra.version}",
                             org.datanucleus*;version="${dn.core.version}",
                             *;resolution:=optional
                         </Import-Package>
