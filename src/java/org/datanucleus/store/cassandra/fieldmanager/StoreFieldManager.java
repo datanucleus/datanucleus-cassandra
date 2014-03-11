@@ -219,57 +219,54 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
-        if (relationType != RelationType.NONE)
+        if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
         {
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+            // Embedded field
+            if (RelationType.isRelationSingleValued(relationType))
             {
-                // Embedded field
-                if (RelationType.isRelationSingleValued(relationType))
+                // TODO Support discriminator on embedded object
+                AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                int[] embMmdPosns = embCmd.getAllMemberPositions();
+                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                embMmds.add(mmd);
+                if (value == null)
                 {
-                    // TODO Support discriminator on embedded object
-                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                    int[] embMmdPosns = embCmd.getAllMemberPositions();
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
-                    embMmds.add(mmd);
-                    if (value == null)
+                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
+                    for (int i=0;i<embMmdPosns.length;i++)
                     {
-                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
-                        for (int i=0;i<embMmdPosns.length;i++)
+                        AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
                         {
-                            AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                            if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
-                            {
-                                // Store a null for any primitive/wrapper/String fields
-                                List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
-                                colEmbMmds.add(embMmd);
-                                Column column = table.getColumnForEmbeddedMember(colEmbMmds);
-//                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
-                                columnValueByName.put(column.getIdentifier(), null);
-                            }
-                            else if (Object.class.isAssignableFrom(embMmd.getType()))
-                            {
-                                storeEmbFM.storeObjectField(embMmdPosns[i], null);
-                            }
+                            // Store a null for any primitive/wrapper/String fields
+                            List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
+                            colEmbMmds.add(embMmd);
+                            Column column = table.getColumnForEmbeddedMember(colEmbMmds);
+                            //                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
+                            columnValueByName.put(column.getIdentifier(), null);
                         }
-                        Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
-                        columnValueByName.putAll(embColValuesByName);
-                        return;
+                        else if (Object.class.isAssignableFrom(embMmd.getType()))
+                        {
+                            storeEmbFM.storeObjectField(embMmdPosns[i], null);
+                        }
                     }
-
-                    ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
-                    embOP.provideFields(embMmdPosns, storeEmbFM);
                     Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
                     columnValueByName.putAll(embColValuesByName);
                     return;
                 }
-                else if (RelationType.isRelationMultiValued(relationType))
-                {
-                    // TODO Embedded Collection
-                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                    columnValueByName.put(getColumnName(fieldNumber), null);
-                    return;
-                }
+
+                ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
+                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
+                embOP.provideFields(embMmdPosns, storeEmbFM);
+                Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
+                columnValueByName.putAll(embColValuesByName);
+                return;
+            }
+            else if (RelationType.isRelationMultiValued(relationType))
+            {
+                // TODO Embedded Collection
+                NucleusLogger.PERSISTENCE.warn("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                columnValueByName.put(getColumnName(fieldNumber), null);
+                return;
             }
         }
 
@@ -363,6 +360,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(colName, cassColl);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -434,6 +432,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     idMap.put(key, val);
                 }
                 columnValueByName.put(colName, idMap);
+                op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
             else if (mmd.hasArray())
