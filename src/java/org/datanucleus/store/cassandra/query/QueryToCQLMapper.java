@@ -18,13 +18,20 @@ Contributors:
 package org.datanucleus.store.cassandra.query;
 
 import java.util.Map;
+import java.util.Stack;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.query.compiler.CompilationComponent;
 import org.datanucleus.query.compiler.QueryCompilation;
 import org.datanucleus.query.evaluator.AbstractExpressionEvaluator;
+import org.datanucleus.query.expression.Expression;
+import org.datanucleus.query.expression.Literal;
+import org.datanucleus.query.expression.OrderExpression;
+import org.datanucleus.query.expression.ParameterExpression;
+import org.datanucleus.store.cassandra.query.expression.CassandraExpression;
 import org.datanucleus.store.query.Query;
+import org.datanucleus.util.NucleusLogger;
 
 /**
  * Mapper for converting a generic query into CQL.
@@ -55,6 +62,9 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
     boolean precompilable = true;
 
+    /** Stack of expressions, used during compilation process. */
+    Stack<CassandraExpression> stack = new Stack();
+
     public QueryToCQLMapper(QueryCompilation compilation, Map parameters, AbstractClassMetaData cmd,
             ExecutionContext ec, Query q)
     {
@@ -83,7 +93,6 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
     public void compile()
     {
-        compileFrom();
         compileFilter();
         compileResult();
         compileGrouping();
@@ -93,24 +102,30 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     }
 
     /**
-     * Method to compile the FROM clause of the query
-     */
-    protected void compileFrom()
-    {
-        if (compilation.getExprFrom() != null)
-        {
-            // TODO Implement this
-        }
-    }
-
-    /**
      * Method to compile the FILTER clause of the query
      */
     protected void compileFilter()
     {
         if (compilation.getExprFilter() != null)
         {
-            // TODO Implement this
+            compileComponent = CompilationComponent.FILTER;
+
+            try
+            {
+                compilation.getExprFilter().evaluate(this);
+                // TODO Implement this
+            }
+            catch (Exception e)
+            {
+                // Impossible to compile all to run in the datastore, so just exit
+                if (NucleusLogger.QUERY.isDebugEnabled())
+                {
+                    NucleusLogger.QUERY.debug("Compilation of filter to be evaluated completely in-datastore was impossible : " + e.getMessage());
+                }
+                filterComplete = false;
+            }
+
+            compileComponent = null;
         }
     }
     /**
@@ -150,9 +165,95 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     {
         if (compilation.getExprOrdering() != null)
         {
-            // TODO Implement this
+            compileComponent = CompilationComponent.ORDERING;
+            Expression[] orderingExpr = compilation.getExprOrdering();
+            for (int i = 0; i < orderingExpr.length; i++)
+            {
+                OrderExpression orderExpr = (OrderExpression) orderingExpr[i];
+                NucleusLogger.QUERY.debug(">> TODO Need to process " + orderExpr);
+                // TODO Implement this
+            }
+            compileComponent = null;
         }
     }
 
+    @Override
+    protected Object processAndExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processAndExpression(expr);
+    }
+
+    @Override
+    protected Object processOrExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processOrExpression(expr);
+    }
+
+    @Override
+    protected Object processEqExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processEqExpression(expr);
+    }
+
+    @Override
+    protected Object processNoteqExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processNoteqExpression(expr);
+    }
+
+    @Override
+    protected Object processGtExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processGtExpression(expr);
+    }
+
+    @Override
+    protected Object processGteqExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processGteqExpression(expr);
+    }
+
+    @Override
+    protected Object processLtExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processLtExpression(expr);
+    }
+
+    @Override
+    protected Object processLteqExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processLteqExpression(expr);
+    }
+
+    @Override
+    protected Object compilePrimaryExpression(Expression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.compilePrimaryExpression(expr);
+    }
+
+    @Override
+    protected Object processParameterExpression(ParameterExpression expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processParameterExpression(expr);
+    }
+
+    @Override
+    protected Object processLiteral(Literal expr)
+    {
+        // TODO Auto-generated method stub
+        return super.processLiteral(expr);
+    }
+
     // TODO Override the processAndExpression methods etc to implement what is supported by this mapper
+    
 }
