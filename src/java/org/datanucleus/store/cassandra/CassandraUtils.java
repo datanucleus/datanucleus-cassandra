@@ -535,6 +535,7 @@ public class CassandraUtils
             }
         }
 
+        // TODO Allow for fields declared as Object but with particular persistent implementations
     	if (type == null)
     	{
     	    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
