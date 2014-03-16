@@ -827,7 +827,15 @@ public class CassandraUtils
         }
         else
         {
-            idKey = row.getLong(table.getDatastoreIdColumn().getIdentifier());
+            Column col = table.getDatastoreIdColumn();
+            if (col.getTypeName().equals("varchar"))
+            {
+                idKey = row.getString(col.getIdentifier());
+            }
+            else
+            {
+                idKey = row.getLong(col.getIdentifier());
+            }
         }
 
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
