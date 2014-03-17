@@ -54,6 +54,7 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.store.types.converters.TypeConverterHelper;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
@@ -296,7 +297,7 @@ public class CassandraUtils
         {
             // User has specified the TypeConverter
             typeConv = typeMgr.getTypeConverterForName(typeConvName);
-            Class datastoreType = TypeManager.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
+            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
             type = cassandraTypeByJavaType.get(datastoreType.getName());
             return new CassandraTypeDetails(type, typeConv);
         }
@@ -306,7 +307,7 @@ public class CassandraUtils
             if (typeConv != null)
             {
                 // No user-defined converter, but autoApply defined for this member type, so use that
-                Class datastoreType = TypeManager.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
+                Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
                 type = cassandraTypeByJavaType.get(datastoreType.getName());
                 return new CassandraTypeDetails(type, typeConv);
             }
