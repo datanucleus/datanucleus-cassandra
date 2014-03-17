@@ -286,66 +286,135 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
                 if (colDetails == null)
                 {
-                    // TODO Column doesnt exist so create it
+                    // Add column since doesn't exist
+                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(table.getIdentifier());
+                    stmtBuilder.append(" ADD COLUMN ");
+                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                    tableStmts.add(stmtBuilder.toString());
                 }
                 else
                 {
-                    // TODO Check column type
+                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
+                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                    }
+                    // TODO Change the column type if requested. What about existing data
                 }
             }
             // TODO Cycle through the current columns and check if any are not needed by this class
 
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                String dsidColName = table.getDatastoreIdColumn().getIdentifier();
-                ColumnDetails dsidColDetails = tableStructure.get(dsidColName);
-                if (dsidColDetails == null)
+                Column column = table.getDatastoreIdColumn();
+                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                if (colDetails == null)
                 {
-                    // TODO Create the datastore id column
+                    // Add the datastore id column
+                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(table.getIdentifier());
+                    stmtBuilder.append(" ADD COLUMN ");
+                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                    tableStmts.add(stmtBuilder.toString());
                 }
                 else
                 {
-                    // TODO Check the datastore id column type
+                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
+                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                    }
+                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
             {
-                // TODO Check column for versioning
-                String versColName = table.getVersionColumn().getIdentifier();
-                ColumnDetails versColDetails = tableStructure.get(versColName);
-                if (versColDetails == null)
+                Column column = table.getVersionColumn();
+                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                if (colDetails == null)
                 {
-                    // TODO Create the version column
+                    // Add the version column
+                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(table.getIdentifier());
+                    stmtBuilder.append(" ADD COLUMN ");
+                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                    tableStmts.add(stmtBuilder.toString());
                 }
                 else
                 {
-                    // TODO Check the version column type
+                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
+                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                    }
+                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (cmd.hasDiscriminatorStrategy())
             {
-                String discrimColName = table.getDiscriminatorColumn().getIdentifier();
-                ColumnDetails discColDetails = tableStructure.get(discrimColName);
-                if (discColDetails == null)
+                Column column = table.getDiscriminatorColumn();
+                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                if (colDetails == null)
                 {
-                    // TODO Create the discriminator column
+                    // Add the discriminator column
+                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(table.getIdentifier());
+                    stmtBuilder.append(" ADD COLUMN ");
+                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                    tableStmts.add(stmtBuilder.toString());
                 }
                 else
                 {
-                    // TODO Check the discriminator column type
+                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
+                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                    }
+                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
-                String tenancyColName = table.getMultitenancyColumn().getIdentifier();
-                ColumnDetails tenancyColDetails = tableStructure.get(tenancyColName);
-                if (tenancyColDetails == null)
+                Column column = table.getMultitenancyColumn();
+                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                if (colDetails == null)
                 {
-                    // TODO Create the multitenancy column
+                    // Add the multitenancy column
+                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
+                    stmtBuilder.append(table.getIdentifier());
+                    stmtBuilder.append(" ADD COLUMN ");
+                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                    tableStmts.add(stmtBuilder.toString());
                 }
                 else
                 {
-                    // TODO Check the multitenancy column type
+                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    {
+                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
+                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                    }
+                    // TODO Change the column type if requested. What about existing data
                 }
             }
 
