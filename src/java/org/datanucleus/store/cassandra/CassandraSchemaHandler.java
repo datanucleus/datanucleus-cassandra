@@ -648,32 +648,38 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                         if (tableExists)
                         {
-                            // Drop any class indexes TODO What about superclass indexMetaData?
-                            IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
-                            if (clsIdxMds != null)
+                            // Drop any class indexes
+                            AbstractClassMetaData theCmd = cmd;
+                            while (theCmd != null)
                             {
-                                for (int i=0;i<clsIdxMds.length;i++)
+                                IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                                if (clsIdxMds != null)
                                 {
-                                    IndexMetaData idxmd = clsIdxMds[i];
-                                    StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                    String idxName = namingFactory.getIndexName(cmd, idxmd, i);
+                                    for (int i=0;i<clsIdxMds.length;i++)
+                                    {
+                                        IndexMetaData idxmd = clsIdxMds[i];
+                                        StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
+                                        String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
 
-                                    if (ddlFileWriter == null)
-                                    {
-                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
-                                        session.execute(stmtBuilder.toString());
-                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
-                                    }
-                                    else
-                                    {
-                                        try
+                                        if (ddlFileWriter == null)
                                         {
-                                            ddlFileWriter.write(stmtBuilder.toString() + ";\n");
+                                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                            session.execute(stmtBuilder.toString());
+                                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
                                         }
-                                        catch (IOException ioe) {}
+                                        else
+                                        {
+                                            try
+                                            {
+                                                ddlFileWriter.write(stmtBuilder.toString() + ";\n");
+                                            }
+                                            catch (IOException ioe) {}
+                                        }
                                     }
                                 }
+                                theCmd = theCmd.getSuperAbstractClassMetaData();
                             }
+
                             // Drop any member-level indexes
                             int[] memberPositions = cmd.getAllMemberPositions();
                             for (int i=0;i<memberPositions.length;i++)
@@ -851,23 +857,28 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         success = false;
                     }
 
-                    // Check class-level indexes TODO What about superclass indexMetaData?
-                    IndexMetaData[] clsIdxMds = cmd.getIndexMetaData();
-                    if (clsIdxMds != null)
+                    // Check class-level indexes
+                    AbstractClassMetaData theCmd = cmd;
+                    while (theCmd != null)
                     {
-                        for (int i=0;i<clsIdxMds.length;i++)
+                        IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                        if (clsIdxMds != null)
                         {
-                            IndexMetaData idxmd = clsIdxMds[i];
-                            String[] colNames = idxmd.getColumnNames();
-                            if (colNames.length == 1)
+                            for (int i=0;i<clsIdxMds.length;i++)
                             {
-                                ColumnDetails details = tableStructure.get(colNames[0].toLowerCase());
-                                if (details == null || details.indexName == null)
+                                IndexMetaData idxmd = clsIdxMds[i];
+                                String[] colNames = idxmd.getColumnNames();
+                                if (colNames.length == 1)
                                 {
-                                    NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colNames[0] + " should have an index but doesn't");
+                                    ColumnDetails details = tableStructure.get(colNames[0].toLowerCase());
+                                    if (details == null || details.indexName == null)
+                                    {
+                                        NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colNames[0] + " should have an index but doesn't");
+                                    }
                                 }
                             }
                         }
+                        theCmd = theCmd.getSuperAbstractClassMetaData();
                     }
 
                     // Add member-level indexes
@@ -981,13 +992,17 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 typeName = "bigint";
             }
-            else if (validator.indexOf("Int32Type") >= 0)
+            else if (validator.indexOf("IntegerType") >= 0 || validator.indexOf("Int32Type") >= 0)
             {
                 typeName = "int";
             }
             else if (validator.indexOf("DoubleType") >= 0)
             {
                 typeName = "double";
+            }
+            else if (validator.indexOf("DecimalType") >= 0)
+            {
+                typeName = "decimal";
             }
             else if (validator.indexOf("FloatType") >= 0)
             {
@@ -996,6 +1011,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             else if (validator.indexOf("BooleanType") >= 0)
             {
                 typeName = "boolean";
+            }
+            else if (validator.indexOf("DateType") >= 0)
+            {
+                typeName = "timestamp";
             }
             else if (validator.indexOf("UTF8") >= 0)
             {
