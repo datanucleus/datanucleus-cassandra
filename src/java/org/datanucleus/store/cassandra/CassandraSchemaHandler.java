@@ -46,6 +46,7 @@ import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.store.schema.table.Table;
+import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
@@ -59,6 +60,9 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 {
+    protected static final Localiser LOCALISER_CASSANDRA = Localiser.getInstance(
+        "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
+
     CassandraStoreManager casStoreMgr;
 
     public CassandraSchemaHandler(CassandraStoreManager storeMgr)
@@ -99,9 +103,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
             }
 
-            NucleusLogger.DATASTORE_SCHEMA.debug(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateSchema", stmtBuilder.toString()));
             session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug("Schema " + schemaName + " created successfully");
+            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateSchema.Success"));
         }
         finally
         {
@@ -178,9 +182,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         if (ddlFileWriter == null)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Creating table : " + stmt);
+                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateTable", stmt));
                             session.execute(stmt);
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Created table successfully");
+                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateTable.Success"));
                         }
                         else
                         {
@@ -200,9 +204,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         if (ddlFileWriter == null)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Creating constraint : " + stmt);
+                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateConstraint", stmt));
                             session.execute(stmt);
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Created contraint successfully");
+                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateConstraint.Success"));
                         }
                         else
                         {
@@ -301,10 +305,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
-                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                        // TODO Change the column type if requested. What about existing data
+                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                     }
-                    // TODO Change the column type if requested. What about existing data
                 }
             }
             // TODO Cycle through the current columns and check if any are not needed by this class
@@ -330,10 +334,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
-                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                        // TODO Change the column type if requested. What about existing data
+                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                     }
-                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
@@ -357,10 +361,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
-                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                        // TODO Change the column type if requested. What about existing data
+                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                     }
-                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (cmd.hasDiscriminatorStrategy())
@@ -384,10 +388,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
-                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                        // TODO Change the column type if requested. What about existing data
+                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                     }
-                    // TODO Change the column type if requested. What about existing data
                 }
             }
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
@@ -411,16 +415,17 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Table=" + table.getIdentifier() + " has column=" + column + 
-                            " yet type in datastore is " + colDetails.typeName + " instead of " + column.getTypeName());
+                        // TODO Change the column type if requested. What about existing data
+                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                     }
-                    // TODO Change the column type if requested. What about existing data
                 }
             }
 
             if (isAutoCreateConstraints())
             {
                 // Class-level indexes
+                NamingFactory namingFactory = storeMgr.getNamingFactory();
                 AbstractClassMetaData theCmd = cmd;
                 while (theCmd != null)
                 {
@@ -429,7 +434,27 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         for (int i=0;i<clsIdxMds.length;i++)
                         {
-                            // TODO Check index existence, and add as required
+                            IndexMetaData idxmd = clsIdxMds[i];
+                            String[] colNames = idxmd.getColumnNames();
+                            if (colNames.length > 1)
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
+                            }
+                            else
+                            {
+                                ColumnDetails colDetails = tableStructure.get(colNames[0]);
+                                if (colDetails == null)
+                                {
+                                    // Add index
+                                    String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0]);
+                                    constraintStmts.add(indexStmt);
+                                }
+                                else
+                                {
+                                    // TODO Check index
+                                }
+                            }
                         }
                     }
                     theCmd = theCmd.getSuperAbstractClassMetaData();
@@ -440,7 +465,30 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     if (column.getMemberMetaData() != null)
                     {
-                        // TODO Check index existence, and add as required
+                        IndexMetaData idxmd = column.getMemberMetaData().getIndexMetaData();
+                        if (idxmd != null)
+                        {
+                            String[] colNames = idxmd.getColumnNames();
+                            if (colNames.length > 1)
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", column.getMemberMetaData().getFullFieldName()));
+                            }
+                            else
+                            {
+                                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                                if (colDetails == null)
+                                {
+                                    // Add index
+                                    String idxName = namingFactory.getIndexName(column.getMemberMetaData(), idxmd);
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                                    constraintStmts.add(indexStmt);
+                                }
+                                else
+                                {
+                                    // TODO Check index
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -502,7 +550,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn("Class " + theCmd.getFullClassName() + " has an index defined with more than 1 column. Cassandra doesn't support composite indexes so ignoring");
+                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
                             }
                             else
                             {
@@ -524,7 +572,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         IndexMetaData idxmd = mmd.getIndexMetaData();
                         if (idxmd != null)
                         {
-                            // Index specified on this member, so add it
+                            // Index specified on this member, so add it TODO Add check if member has multiple columns
                             String idxName = namingFactory.getIndexName(mmd, idxmd);
                             String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
                             constraintStmts.add(indexStmt);
@@ -562,9 +610,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             StringBuilder stmtBuilder = new StringBuilder("DROP KEYSPACE IF EXISTS ");
             stmtBuilder.append(schemaName);
 
-            NucleusLogger.DATASTORE_SCHEMA.debug(stmtBuilder.toString());
+            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropSchema", stmtBuilder.toString()));
             session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug("Schema " + schemaName + " dropped successfully");
+            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropSchema", schemaName));
         }
         finally
         {
@@ -663,9 +711,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                                         if (ddlFileWriter == null)
                                         {
-                                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
                                             session.execute(stmtBuilder.toString());
-                                            NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint.Success", idxName));
                                         }
                                         else
                                         {
@@ -693,9 +741,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                                     if (ddlFileWriter == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropping index : " + stmtBuilder.toString());
+                                        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
                                         session.execute(stmtBuilder.toString());
-                                        NucleusLogger.DATASTORE_SCHEMA.debug("Dropped index " + idxName + " successfully");
+                                        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint.Success", idxName));
                                     }
                                     else
                                     {
@@ -718,9 +766,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                             if (ddlFileWriter == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropping table : " + stmtBuilder.toString());
+                                NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable", stmtBuilder.toString()));
                                 session.execute(stmtBuilder.toString());
-                                NucleusLogger.DATASTORE_SCHEMA.debug("Dropped table for class " + cmd.getFullClassName() + " successfully");
+                                NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable.Success", tableName));
                             }
                             else
                             {
@@ -733,7 +781,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                         else
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug("Class " + cmd.getFullClassName() + " table=" + tableName + " didnt exist so can't be dropped");
+                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable.DoesntExist", tableName));
                         }
                     }
                 }
@@ -810,7 +858,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                 if (!tableExists)
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.error("Table for class " + cmd.getFullClassName() + " doesn't exist : should have name " + tableName + " in schema " + schemaName);
+                    NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableDoesntExist", cmd.getFullClassName(), tableName, schemaName));
                     success = false;
                 }
                 else
@@ -822,17 +870,19 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     List<Column> columns = table.getColumns();
                     for (Column column : columns)
                     {
-                        ColumnDetails colDetails = tableStructure.get(column.getIdentifier().toLowerCase()); // TODO Drop the toLowerCase when we definitely have case correct
+                        ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
                         if (colDetails == null)
                         {
                             // Column not present, so log it and fail the validation
                             if (column.getMemberMetaData() != null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " doesn't have column " + column.getIdentifier() + " for member " + column.getMemberMetaData().getFullFieldName());
+                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getIdentifier(), 
+                                    column.getMemberMetaData().getFullFieldName()));
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " doesn't have column " + column.getIdentifier() + " of type " + column.getColumnType());
+                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnForTableInvalidType", tableName, column.getIdentifier(),
+                                    column.getColumnType()));
                             }
                             success = false;
                         }
@@ -845,15 +895,15 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column " + column.getIdentifier() + " has type=" + colDetails.typeName + 
-                                    " yet ought to be using type=" + column.getTypeName());
+                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnTypeIncorrect", tableName, column.getIdentifier(),
+                                    colDetails.typeName, column.getTypeName()));
                             }
                         }
                     }
 
                     if (success && tableStructure.size() != colsFound.size())
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " should have " + colsFound.size() + " columns but has " + tableStructure.size() + " columns!");
+                        NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnCountIncorrect", tableName, colsFound.size(), tableStructure.size()));
                         success = false;
                     }
 
@@ -893,7 +943,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             ColumnDetails details = tableStructure.get(colName.toLowerCase());
                             if (details == null || details.indexName == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colName + " should have an index but doesn't");
+                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colName));
                             }
                         }
                     }
