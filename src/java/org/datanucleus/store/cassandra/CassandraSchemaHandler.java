@@ -38,7 +38,6 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.DiscriminatorMetaData;
-import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.store.StoreData;
@@ -315,115 +314,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
             }
             // TODO Cycle through the current columns and check if any are not needed by this class
-
-            if (cmd.getIdentityType() == IdentityType.DATASTORE)
-            {
-                Column column = table.getDatastoreIdColumn();
-                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                if (colDetails == null)
-                {
-                    // Add the datastore id column
-                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
-                    if (schemaName != null)
-                    {
-                        stmtBuilder.append(schemaName).append('.');
-                    }
-                    stmtBuilder.append(table.getIdentifier());
-                    stmtBuilder.append(" ADD COLUMN ");
-                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
-                    tableStmts.add(stmtBuilder.toString());
-                }
-                else
-                {
-                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
-                    {
-                        // TODO Change the column type if requested. What about existing data
-                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
-                    }
-                }
-            }
-            if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
-            {
-                Column column = table.getVersionColumn();
-                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                if (colDetails == null)
-                {
-                    // Add the version column
-                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
-                    if (schemaName != null)
-                    {
-                        stmtBuilder.append(schemaName).append('.');
-                    }
-                    stmtBuilder.append(table.getIdentifier());
-                    stmtBuilder.append(" ADD COLUMN ");
-                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
-                    tableStmts.add(stmtBuilder.toString());
-                }
-                else
-                {
-                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
-                    {
-                        // TODO Change the column type if requested. What about existing data
-                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
-                    }
-                }
-            }
-            if (cmd.hasDiscriminatorStrategy())
-            {
-                Column column = table.getDiscriminatorColumn();
-                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                if (colDetails == null)
-                {
-                    // Add the discriminator column
-                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
-                    if (schemaName != null)
-                    {
-                        stmtBuilder.append(schemaName).append('.');
-                    }
-                    stmtBuilder.append(table.getIdentifier());
-                    stmtBuilder.append(" ADD COLUMN ");
-                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
-                    tableStmts.add(stmtBuilder.toString());
-                }
-                else
-                {
-                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
-                    {
-                        // TODO Change the column type if requested. What about existing data
-                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
-                    }
-                }
-            }
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
-            {
-                Column column = table.getMultitenancyColumn();
-                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                if (colDetails == null)
-                {
-                    // Add the multitenancy column
-                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
-                    if (schemaName != null)
-                    {
-                        stmtBuilder.append(schemaName).append('.');
-                    }
-                    stmtBuilder.append(table.getIdentifier());
-                    stmtBuilder.append(" ADD COLUMN ");
-                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
-                    tableStmts.add(stmtBuilder.toString());
-                }
-                else
-                {
-                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
-                    {
-                        // TODO Change the column type if requested. What about existing data
-                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
-                    }
-                }
-            }
 
             if (isAutoCreateConstraints())
             {
