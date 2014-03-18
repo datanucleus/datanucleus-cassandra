@@ -26,6 +26,8 @@ import java.util.Map;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.ClassMetaData;
+import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.query.evaluator.JDOQLEvaluator;
 import org.datanucleus.query.evaluator.JavaQueryEvaluator;
@@ -137,6 +139,15 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
         for (AbstractClassMetaData cmd : cmds)
         {
+            if (cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE || cmd.isEmbeddedOnly())
+            {
+                continue;
+            }
+            else if (cmd instanceof ClassMetaData && ((ClassMetaData)cmd).isAbstract())
+            {
+                continue;
+            }
+
             // TODO Remove this and when class is registered, use listener to manage it
             storeMgr.manageClasses(clr, cmd.getFullClassName());
 
