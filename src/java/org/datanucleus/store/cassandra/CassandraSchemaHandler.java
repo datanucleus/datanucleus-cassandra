@@ -36,8 +36,10 @@ import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.AbstractStoreSchemaHandler;
@@ -586,11 +588,32 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     }
                 }
 
+                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+                {
+                    VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                    if (vermd.getIndexMetaData() != null)
+                    {
+                        Column column = table.getVersionColumn();
+                        String idxName = namingFactory.getIndexName(theCmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                        constraintStmts.add(indexStmt);
+                    }
+                }
+                if (cmd.hasDiscriminatorStrategy())
+                {
+                    DiscriminatorMetaData dismd = cmd.getDiscriminatorMetaData();
+                    if (dismd.getIndexMetaData() != null)
+                    {
+                        Column column = table.getDiscriminatorColumn();
+                        String idxName = namingFactory.getIndexName(theCmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                        constraintStmts.add(indexStmt);
+                    }
+                }
                 if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
                 {
                     // TODO Add index on multitenancy discriminator
                 }
-                // TODO Index on version column? or discriminator?
             }
         }
     }
