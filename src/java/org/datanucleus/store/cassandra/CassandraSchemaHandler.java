@@ -1007,7 +1007,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its existence");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of table " + tableName + " using : " + stmtBuilder.toString());
+        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckTableExistence", tableName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
@@ -1024,7 +1024,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified in order to check its existence");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
-        NucleusLogger.DATASTORE_SCHEMA.debug("Checking existence of schema " + schemaName + " using : " + stmtBuilder.toString());
+        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
         if (!rs.isExhausted())
@@ -1050,7 +1050,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its structure");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug("Checking structure of table " + tableName + " using : " + stmtBuilder.toString());
+        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckTableStructure", tableName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
