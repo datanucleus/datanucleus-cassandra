@@ -36,6 +36,7 @@ import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.IndexMetaData;
@@ -261,7 +262,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      */
     protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, List<String> tableStmts, List<String> constraintStmts)
     {
-        if (cmd.isEmbeddedOnly())
+        if (cmd.isEmbeddedOnly() || cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE)
         {
             // No table required here
             return;
@@ -703,7 +704,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     String className = classIter.next();
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
-                    if (cmd != null && !cmd.isEmbeddedOnly())
+                    if (cmd != null && !cmd.isEmbeddedOnly() && cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE)
                     {
                         StoreData storeData = storeMgr.getStoreDataForClass(cmd.getFullClassName());
                         Table table = null;
@@ -863,7 +864,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             for (String className : classNames)
             {
                 AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
-                if (cmd.isEmbeddedOnly())
+                if (cmd.isEmbeddedOnly() || cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE)
                 {
                     continue;
                 }
