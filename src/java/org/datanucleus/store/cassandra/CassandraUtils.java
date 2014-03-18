@@ -326,31 +326,24 @@ public class CassandraUtils
                 // Collection<NonPC>
                 Class elementType = clr.classForName(mmd.getCollection().getElementType());
                 String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
-                if (cqlElementType != null)
+                if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
                 {
-                    if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
-                    {
-                        type = "list<" + cqlElementType + ">";
-                    }
-                    else if (Set.class.isAssignableFrom(mmd.getType()))
-                    {
-                        type = "set<" + cqlElementType + ">";
-                    }
-                    else
-                    {
-                        if (mmd.getOrderMetaData() != null)
-                        {
-                            type = "list<" + cqlElementType + ">";
-                        }
-                        else
-                        {
-                            type = "set<" + cqlElementType + ">";
-                        }
-                    }
+                    type = "list<" + cqlElementType + ">";
+                }
+                else if (Set.class.isAssignableFrom(mmd.getType()))
+                {
+                    type = "set<" + cqlElementType + ">";
                 }
                 else
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for collection element of type " + elementType.getName() + ". Please report this");
+                    if (mmd.getOrderMetaData() != null)
+                    {
+                        type = "list<" + cqlElementType + ">";
+                    }
+                    else
+                    {
+                        type = "set<" + cqlElementType + ">";
+                    }
                 }
             }
             else if (mmd.hasMap())
@@ -360,35 +353,14 @@ public class CassandraUtils
                 Class valType = clr.classForName(mmd.getMap().getValueType());
                 String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
                 String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
-                if (cqlKeyType != null && cqlValType != null)
-                {
-                    type = "map<" + cqlKeyType + "," + cqlValType + ">";
-                }
-                else
-                {
-                    if (cqlKeyType == null)
-                    {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for map key of type " + keyType + ". Please report this");
-                    }
-                    if (cqlValType == null)
-                    {
-                        NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for map value of type " + valType + ". Please report this");
-                    }
-                }
+                type = "map<" + cqlKeyType + "," + cqlValType + ">";
             }
             else if (mmd.hasArray())
             {
                 // NonPC[]
                 Class elementType = clr.classForName(mmd.getArray().getElementType());
                 String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
-                if (cqlElementType != null)
-                {
-                    type = "list<" + cqlElementType + ">";
-                }
-                else
-                {
-                    NucleusLogger.DATASTORE_SCHEMA.warn("Unable to generate schema for array element of type " + elementType + ". Please report this");
-                }
+                type = "list<" + cqlElementType + ">";
             }
             else
             {

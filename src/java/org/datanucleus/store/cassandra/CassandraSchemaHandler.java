@@ -290,7 +290,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             List<Column> columns = table.getColumns();
             for (Column column : columns)
             {
-                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                 if (colDetails == null)
                 {
                     // Add column since doesn't exist
@@ -319,7 +319,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
                 Column column = table.getDatastoreIdColumn();
-                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                 if (colDetails == null)
                 {
                     // Add the datastore id column
@@ -346,7 +346,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
             {
                 Column column = table.getVersionColumn();
-                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                 if (colDetails == null)
                 {
                     // Add the version column
@@ -373,7 +373,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (cmd.hasDiscriminatorStrategy())
             {
                 Column column = table.getDiscriminatorColumn();
-                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                 if (colDetails == null)
                 {
                     // Add the discriminator column
@@ -400,7 +400,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 Column column = table.getMultitenancyColumn();
-                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                 if (colDetails == null)
                 {
                     // Add the multitenancy column
@@ -481,7 +481,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                                 String idxName = namingFactory.getIndexName(column.getMemberMetaData(), idxmd);
                                 if (colDetails == null)
                                 {
@@ -595,7 +595,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     if (vermd.getIndexMetaData() != null)
                     {
                         Column column = table.getVersionColumn();
-                        String idxName = namingFactory.getIndexName(theCmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
+                        String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
                         String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
                         constraintStmts.add(indexStmt);
                     }
@@ -606,7 +606,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     if (dismd.getIndexMetaData() != null)
                     {
                         Column column = table.getDiscriminatorColumn();
-                        String idxName = namingFactory.getIndexName(theCmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
+                        String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
                         String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
                         constraintStmts.add(indexStmt);
                     }
@@ -900,7 +900,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     List<Column> columns = table.getColumns();
                     for (Column column : columns)
                     {
-                        ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                        ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                         if (colDetails == null)
                         {
                             // Column not present, so log it and fail the validation
@@ -1135,5 +1135,16 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             this.indexName = idxName;
             this.typeName = typeName;
         }
+    }
+
+    private ColumnDetails getColumnDetailsForColumn(Column col, Map<String, ColumnDetails> tableStructure)
+    {
+        String colName = col.getIdentifier();
+        if (colName.startsWith("\""))
+        {
+            // Remove any quotes if the identifier is quoted since table structure will not have quotes
+            colName = colName.substring(1, colName.length()-1);
+        }
+        return tableStructure.get(colName);
     }
 }
