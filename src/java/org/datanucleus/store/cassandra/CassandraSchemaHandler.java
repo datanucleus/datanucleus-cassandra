@@ -443,16 +443,19 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else
                             {
                                 ColumnDetails colDetails = tableStructure.get(colNames[0]);
+                                String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
                                     String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0]);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
                                 {
-                                    // TODO Check index
+                                    if (!idxName.equals(colDetails.indexName))
+                                    {
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                    }
                                 }
                             }
                         }
@@ -476,16 +479,19 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else
                             {
                                 ColumnDetails colDetails = tableStructure.get(column.getIdentifier());
+                                String idxName = namingFactory.getIndexName(column.getMemberMetaData(), idxmd);
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String idxName = namingFactory.getIndexName(column.getMemberMetaData(), idxmd);
                                     String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
                                 {
-                                    // TODO Check index
+                                    if (!idxName.equals(colDetails.indexName))
+                                    {
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                    }
                                 }
                             }
                         }
@@ -920,10 +926,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String[] colNames = idxmd.getColumnNames();
                                 if (colNames.length == 1)
                                 {
-                                    ColumnDetails details = tableStructure.get(colNames[0].toLowerCase());
-                                    if (details == null || details.indexName == null)
+                                    ColumnDetails colDetails = tableStructure.get(colNames[0].toLowerCase());
+                                    String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
+                                    if (colDetails == null || colDetails.indexName == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.error("Table " + tableName + " column=" + colNames[0] + " should have an index but doesn't");
+                                        NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colNames[0]));
+                                    }
+                                    else
+                                    {
+                                        if (!idxName.equals(colDetails.indexName))
+                                        {
+                                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                        }
                                     }
                                 }
                             }
@@ -940,10 +954,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (idxmd != null)
                         {
                             String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                            ColumnDetails details = tableStructure.get(colName.toLowerCase());
-                            if (details == null || details.indexName == null)
+                            ColumnDetails colDetails = tableStructure.get(colName.toLowerCase());
+                            String idxName = namingFactory.getIndexName(mmd, idxmd);
+                            if (colDetails == null || colDetails.indexName == null)
                             {
                                 NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colName));
+                            }
+                            else
+                            {
+                                if (!idxName.equals(colDetails.indexName))
+                                {
+                                    NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                }
                             }
                         }
                     }
