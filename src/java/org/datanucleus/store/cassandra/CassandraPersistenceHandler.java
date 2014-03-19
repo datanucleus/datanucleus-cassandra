@@ -99,13 +99,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (!storeMgr.managesClass(cmd.getFullClassName()))
             {
                 // Make sure schema exists, using this connection
-                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
 
             if (!storeMgr.managesClass(cmd.getFullClassName()))
             {
                 // Make sure schema exists, using this connection
-                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
             Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
             // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
@@ -366,7 +366,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (!storeMgr.managesClass(cmd.getFullClassName()))
             {
                 // Make sure schema exists, using this connection
-                ((CassandraStoreManager)storeMgr).addClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
             Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
 

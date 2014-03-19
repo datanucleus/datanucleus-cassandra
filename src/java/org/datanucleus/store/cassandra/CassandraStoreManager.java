@@ -118,7 +118,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         try
         {
             Session session = (Session)mconn.getConnection();
-            addClasses(classNames, clr, session);
+            manageClasses(classNames, clr, session);
         }
         finally
         {
@@ -126,7 +126,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
-    public void addClasses(String[] classNames, ClassLoaderResolver clr, Session session)
+    public void manageClasses(String[] classNames, ClassLoaderResolver clr, Session session)
     {
         if (classNames == null)
         {
