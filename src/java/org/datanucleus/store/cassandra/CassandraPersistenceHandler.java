@@ -17,9 +17,7 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra;
 
-import java.sql.Timestamp;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,6 +29,7 @@ import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
+import org.datanucleus.exceptions.NucleusOptimisticException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.identity.OID;
 import org.datanucleus.metadata.AbstractClassMetaData;
@@ -42,7 +41,6 @@ import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
-import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
@@ -76,6 +74,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
     protected Map<String, String> deleteStatementByClassName;
 
     protected Map<String, String> locateStatementByClassName;
+
+    protected Map<String, String> getVersionStatementByClassName;
 
     public CassandraPersistenceHandler(StoreManager storeMgr)
     {
@@ -119,41 +119,16 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             Object versionValue = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-            if (cmd.isVersioned())
+            if (vermd != null)
             {
                 // Process the version value, setting it on the object, and saving the value for the INSERT
-                if (vermd.getVersionStrategy() == VersionStrategy.VERSION_NUMBER)
+                versionValue = VersionHelper.getNextVersion(vermd.getVersionStrategy(), null);
+                if (vermd.getFieldName() != null)
                 {
-                    long versionNumber = 1;
-                    op.setTransactionalVersion(versionNumber);
-
-                    if (vermd.getFieldName() != null)
-                    {
-                        // Version stored in a member
-                        AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                        Object verFieldValue = Long.valueOf(versionNumber);
-                        if (verMmd.getType() == int.class || verMmd.getType() == Integer.class)
-                        {
-                            verFieldValue = Integer.valueOf((int)versionNumber);
-                        }
-                        op.replaceField(verMmd.getAbsoluteFieldNumber(), verFieldValue);
-                    }
-                    versionValue = versionNumber;
+                    // Version is stored in a member, so update the member too
+                    op.replaceField(cmd.getMetaDataForMember(vermd.getFieldName()).getAbsoluteFieldNumber(), versionValue);
                 }
-                else if (vermd.getVersionStrategy() == VersionStrategy.DATE_TIME)
-                {
-                    Date date = new Date();
-                    Timestamp ts = new Timestamp(date.getTime());
-                    op.setTransactionalVersion(ts);
-
-                    if (vermd.getFieldName() != null)
-                    {
-                        // Version stored in a member
-                        AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                        op.replaceField(verMmd.getAbsoluteFieldNumber(), ts);
-                    }
-                    versionValue = ts;
-                }
+                op.setTransactionalVersion(versionValue);
             }
 
             // Generate the INSERT statement, using cached form if available
@@ -318,9 +293,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             numParams++;
         }
 
-        if (cmd.isVersioned())
+        VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+        NucleusLogger.GENERAL.info(">> insert vermd=" + vermd + " for class=" + cmd.getFullClassName());
+        if (vermd != null)
         {
-            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
             if (vermd.getFieldName() == null)
             {
                 // Add surrogate version column
@@ -424,18 +400,22 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId(), fieldStr.toString()));
             }
 
-            if (cmd.isVersioned())
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd != null)
             {
-                // Version object so update the version in the object prior to storing
+                // Versioned object, so perform optimistic check as required and update version
                 Object currentVersion = op.getTransactionalVersion();
-                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                if (ec.getTransaction().getOptimistic() && cmd.isVersioned())
+                {
+                    performOptimisticCheck(op, session, table, vermd, currentVersion);
+                }
+
                 Object nextVersion = VersionHelper.getNextVersion(vermd.getVersionStrategy(), currentVersion);
                 op.setTransactionalVersion(nextVersion);
                 if (vermd.getFieldName() != null)
                 {
                     // Version also stored in a field, so update the field value
-                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                    op.replaceField(verMmd.getAbsoluteFieldNumber(), nextVersion);
+                    op.replaceField(cmd.getMetaDataForMember(vermd.getFieldName()).getAbsoluteFieldNumber(), nextVersion);
                 }
             }
 
@@ -470,9 +450,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            if (cmd.isVersioned())
+            if (vermd != null)
             {
-                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                 if (vermd.getFieldName() != null)
                 {
                     // Update the version field value
@@ -579,11 +558,20 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
+            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+            Session session = (Session)mconn.getConnection();
+            if (cmd.isVersioned() && ec.getTransaction().getOptimistic())
+            {
+                // Versioned object, so perform optimistic check as required and update version
+                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                Object currentVersion = op.getTransactionalVersion();
+                performOptimisticCheck(op, session, table, vermd, currentVersion);
+            }
+
             // Invoke any cascade deletion
             op.loadUnloadedFields();
             op.provideFields(cmd.getAllMemberPositions(), new DeleteFieldManager(op, true));
 
-            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
             String deleteStmt = null;
             if (deleteStatementByClassName != null)
             {
@@ -630,34 +618,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
             }
 
-            Object[] pkVals = null;
-            if (cmd.getIdentityType() == IdentityType.APPLICATION)
-            {
-                int[] pkFieldNums = cmd.getPKMemberPositions();
-                pkVals = new Object[pkFieldNums.length];
-                for (int i=0;i<pkFieldNums.length;i++)
-                {
-                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
-                    if (RelationType.isRelationSingleValued(relType))
-                    {
-                        Object pc = op.provideField(pkFieldNums[i]);
-                        pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
-                    }
-                    else
-                    {
-                        String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                        pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
-                    }
-                }
-            }
-            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-            {
-                pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
-            }
-
+            Object[] pkVals = getPkValuesForStatement(op, table);
             CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
-            Session session = (Session)mconn.getConnection();
             SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
             PreparedStatement stmt = stmtProvider.prepare(deleteStmt, session);
             session.execute(stmt.bind(pkVals));
@@ -773,10 +735,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
             }
 
-            if (cmd.isVersioned() && op.getTransactionalVersion() == null)
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd != null && op.getTransactionalVersion() == null)
             {
                 // No version set, so retrieve it
-                VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                 if (vermd.getFieldName() != null)
                 {
                     // Version stored in a field - check not in the requested fields
@@ -812,8 +774,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     first = false;
                 }
             }
-
-            // TODO Add version if this is versioned, just in case we need it
 
             if (nonpersistableFields != null)
             {
@@ -856,32 +816,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
                 // TODO Support any USING clauses
 
-                Object[] pkVals = null;
-                if (cmd.getIdentityType() == IdentityType.APPLICATION)
-                {
-                    int[] pkFieldNums = cmd.getPKMemberPositions();
-                    pkVals = new Object[pkFieldNums.length];
-                    for (int i=0;i<pkFieldNums.length;i++)
-                    {
-                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        RelationType relType = pkMmd.getRelationType(clr);
-                        if (RelationType.isRelationSingleValued(relType))
-                        {
-                            Object pc = op.provideField(pkFieldNums[i]);
-                            pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
-                        }
-                        else
-                        {
-                            String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                            pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
-                        }
-                    }
-                }
-                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-                {
-                    pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
-                }
-
+                Object[] pkVals = getPkValuesForStatement(op, table);
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session)mconn.getConnection();
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
@@ -910,10 +845,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
                 op.replaceFields(fieldNumbers, fetchFM);
 
-                if (cmd.isVersioned() && op.getTransactionalVersion() == null)
+                if (vermd != null && op.getTransactionalVersion() == null)
                 {
                     // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
-                    VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                     if (vermd.getFieldName() != null)
                     {
                         // Version stored in a field
@@ -1060,32 +994,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     locateStatementByClassName.put(cmd.getFullClassName(), locateStmt);
                 }
 
-                Object[] pkVals = null;
-                if (cmd.getIdentityType() == IdentityType.APPLICATION)
-                {
-                    int[] pkFieldNums = cmd.getPKMemberPositions();
-                    pkVals = new Object[pkFieldNums.length];
-                    for (int i=0;i<pkFieldNums.length;i++)
-                    {
-                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
-                        if (RelationType.isRelationSingleValued(relType))
-                        {
-                            Object pc = op.provideField(pkFieldNums[i]);
-                            pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
-                        }
-                        else
-                        {
-                            String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
-                            pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
-                        }
-                    }
-                }
-                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
-                {
-                    pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
-                }
-
+                Object[] pkVals = getPkValuesForStatement(op, table);
                 CassandraUtils.logCqlStatement(locateStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session)mconn.getConnection();
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
@@ -1118,5 +1027,155 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
     {
         // This datastore doesn't need to instantiate the objects, so just return null
         return null;
+    }
+
+    protected String getVersionStatement(AbstractClassMetaData cmd, Table table)
+    {
+        String verStmt = null;
+        if (getVersionStatementByClassName != null)
+        {
+            verStmt = getVersionStatementByClassName.get(cmd.getFullClassName());
+        }
+        if (verStmt == null)
+        {
+            // Create the version statement ("SELECT VERSION FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+            StringBuilder stmtBuilder = new StringBuilder("SELECT ");
+            Column col = null;
+            VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+            if (vermd.getFieldName() == null)
+            {
+                col = table.getVersionColumn();
+            }
+            else
+            {
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                col = table.getColumnForMember(verMmd);
+            }
+            stmtBuilder.append(col.getIdentifier());
+            stmtBuilder.append(" FROM ");
+            String schemaName = table.getSchemaName();
+            if (schemaName != null)
+            {
+                stmtBuilder.append(schemaName).append('.');
+            }
+            stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
+
+            if (cmd.getIdentityType() == IdentityType.APPLICATION)
+            {
+                int[] pkFieldNums = cmd.getPKMemberPositions();
+                for (int i=0;i<pkFieldNums.length;i++)
+                {
+                    if (i > 0)
+                    {
+                        stmtBuilder.append(" AND ");
+                    }
+                    AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                    stmtBuilder.append(table.getColumnForMember(pkMmd).getIdentifier());
+                    stmtBuilder.append("=?");
+                }
+            }
+            else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+            {
+                stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                stmtBuilder.append("=?");
+            }
+            // TODO Support any USING clauses
+            verStmt = stmtBuilder.toString();
+
+            // Cache the statement
+            if (getVersionStatementByClassName == null)
+            {
+                getVersionStatementByClassName = new HashMap<String, String>();
+            }
+            getVersionStatementByClassName.put(cmd.getFullClassName(), verStmt);
+        }
+        return verStmt;
+    }
+
+    /**
+     * Convenience method to extract the pk values to input into an LOCATE/UPDATE/DELETE/FETCH statement
+     * @param op ObjectProvider we are interested in
+     * @param table The table
+     * @return The pk values
+     */
+    protected Object[] getPkValuesForStatement(ObjectProvider op, Table table)
+    {
+        AbstractClassMetaData cmd = op.getClassMetaData();
+        ExecutionContext ec = op.getExecutionContext();
+        Object[] pkVals = null;
+        if (cmd.getIdentityType() == IdentityType.APPLICATION)
+        {
+            int[] pkFieldNums = cmd.getPKMemberPositions();
+            pkVals = new Object[pkFieldNums.length];
+            for (int i=0;i<pkFieldNums.length;i++)
+            {
+                AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
+                if (RelationType.isRelationSingleValued(relType))
+                {
+                    Object pc = op.provideField(pkFieldNums[i]);
+                    pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
+                }
+                else
+                {
+                    String cassandraType = table.getColumnForMember(pkMmd).getTypeName();
+                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                }
+            }
+        }
+        else if (cmd.getIdentityType() == IdentityType.DATASTORE)
+        {
+            pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+        }
+
+        return pkVals;
+    }
+
+    protected void performOptimisticCheck(ObjectProvider op, Session session, Table table, VersionMetaData vermd, Object currentVersion)
+    {
+        AbstractClassMetaData cmd = op.getClassMetaData();
+
+        Object[] pkVals = getPkValuesForStatement(op, table);
+        String getVersStmt = getVersionStatement(cmd, table);
+        CassandraUtils.logCqlStatement(getVersStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
+        SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
+        PreparedStatement stmt = stmtProvider.prepare(getVersStmt, session);
+        ResultSet rs = session.execute(stmt.bind(pkVals));
+        if (rs.isExhausted())
+        {
+            // Object doesn't exist
+            throw new NucleusDataStoreException("Could not find object with id " + op.getInternalObjectId() + " in the datastore, so cannot update it");
+        }
+        else
+        {
+            Row row = rs.one();
+            String verColName = null;
+            if (vermd.getFieldName() == null)
+            {
+                // Surrogate version
+                verColName = table.getVersionColumn().getIdentifier();
+            }
+            else
+            {
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                verColName = table.getColumnForMember(verMmd).getIdentifier();
+            }
+            if (currentVersion instanceof Long)
+            {
+                long datastoreVersion = row.getLong(verColName);
+                if ((Long)currentVersion != datastoreVersion)
+                {
+                    throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
+                }
+            }
+            else if (currentVersion instanceof Integer)
+            {
+                int datastoreVersion = row.getInt(verColName);
+                if ((Integer)currentVersion != datastoreVersion)
+                {
+                    throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
+                }
+            }
+        }
     }
 }

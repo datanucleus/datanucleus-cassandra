@@ -164,10 +164,14 @@ public class JPQLQuery extends AbstractJPQLQuery
             // TODO Remove this and when class is registered, use listener to manage it
             storeMgr.manageClasses(clr, cmd.getFullClassName());
 
+            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
+            if (table == null)
+            {
+                continue;
+            }
+
             // Obtain candidate objects for this class
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
-
-            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
             stmtBuilder.append(table.getSchemaName()).append('.').append(table.getIdentifier());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
