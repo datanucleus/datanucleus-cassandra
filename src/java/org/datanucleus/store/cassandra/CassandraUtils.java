@@ -412,33 +412,44 @@ public class CassandraUtils
                     }
                     else
                     {
-                        // No direct mapping, so find a converter
-                        TypeConverter stringConverter = typeMgr.getTypeConverterForType(memberType, String.class);
-                        if (stringConverter != null)
+                        // No direct mapping, so try the default TypeConverter (if any)
+                        typeConv = typeMgr.getDefaultTypeConverterForType(memberType);
+                        if (typeConv != null)
                         {
-                            type = "varchar";
-                            typeConv = stringConverter;
+                            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, memberType);
+                            type = cassandraTypeByJavaType.get(datastoreType.getName());
                         }
-                        else
+
+                        if (type == null)
                         {
-                            TypeConverter longConverter = typeMgr.getTypeConverterForType(memberType, Long.class);
-                            if (longConverter != null)
+                            // Try String/Long/Int converters (but then there would have been a default)
+                            TypeConverter stringConverter = typeMgr.getTypeConverterForType(memberType, String.class);
+                            if (stringConverter != null)
                             {
-                                type = "bigint";
-                                typeConv = longConverter;
+                                type = "varchar";
+                                typeConv = stringConverter;
                             }
                             else
                             {
-                                TypeConverter intConverter = typeMgr.getTypeConverterForType(memberType, Integer.class);
-                                if (intConverter != null)
+                                TypeConverter longConverter = typeMgr.getTypeConverterForType(memberType, Long.class);
+                                if (longConverter != null)
                                 {
-                                    type = "int";
-                                    typeConv = intConverter;
+                                    type = "bigint";
+                                    typeConv = longConverter;
                                 }
-                                else if (Serializable.class.isAssignableFrom(memberType))
+                                else
                                 {
-                                    type = "blob";
-                                    typeConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                                    TypeConverter intConverter = typeMgr.getTypeConverterForType(memberType, Integer.class);
+                                    if (intConverter != null)
+                                    {
+                                        type = "int";
+                                        typeConv = intConverter;
+                                    }
+                                    else if (Serializable.class.isAssignableFrom(memberType))
+                                    {
+                                        type = "blob";
+                                        typeConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                                    }
                                 }
                             }
                         }
