@@ -240,6 +240,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                             // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                             colEmbMmds.add(embMmd);
+                            // TODO Cater for member that maps to multiple columns (using TypeConverter)
                             Column column = table.getColumnForEmbeddedMember(colEmbMmds);
                             //                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
                             columnValueByName.put(column.getIdentifier(), null);
@@ -281,6 +282,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (value == null)
         {
+            // TODO Cater for member that maps to multiple columns (using TypeConverter)
             columnValueByName.put(colName, null);
             return;
         }
@@ -465,6 +467,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
         else
         {
+            // TODO Cater for member that maps to multiple columns (using TypeConverter)
             if (column.getTypeConverter() != null)
             {
                 // Use defined type converter

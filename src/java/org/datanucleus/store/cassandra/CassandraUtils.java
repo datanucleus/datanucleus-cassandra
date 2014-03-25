@@ -391,6 +391,11 @@ public class CassandraUtils
                     }
                     // TODO Support other jdbc-type values
                 }
+                else if (colmds != null && colmds.length > 1)
+                {
+                    // TODO Support multi column types
+                }
+                    
 
                 if (type == null)
                 {

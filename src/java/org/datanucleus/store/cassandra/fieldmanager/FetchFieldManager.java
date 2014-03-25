@@ -263,6 +263,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
+            // TODO Cater for member that maps to multiple columns (using TypeConverter)
             if (row.isNull(colName))
             {
                 return null;

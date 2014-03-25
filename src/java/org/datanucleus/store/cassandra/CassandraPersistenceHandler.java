@@ -133,10 +133,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             // Generate the INSERT statement, using cached form if available
             String insertStmt = null;
-            if (insertStatementByClassName != null)
+            // TODO Enable this
+            /*if (insertStatementByClassName != null)
             {
                 insertStmt = insertStatementByClassName.get(cmd.getFullClassName());
-            }
+            }*/
 
             // Use StoreFieldManager to work out the column names and values
             StoreFieldManager storeFM = new StoreFieldManager(op, true, table);
@@ -294,7 +295,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
 
         VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-        NucleusLogger.GENERAL.info(">> insert vermd=" + vermd + " for class=" + cmd.getFullClassName());
         if (vermd != null)
         {
             if (vermd.getFieldName() == null)
@@ -717,6 +717,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         continue;
                     }
 
+                    // TODO Cater for member that maps to multiple columns
                     String colName = table.getColumnForMember(mmd).getIdentifier();
                     if (!first)
                     {
@@ -911,6 +912,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
             colMmds.add(embMmd);
+            // TODO Cater for member that maps to multiple columns (using TypeConverter)
             Column column = table.getColumnForEmbeddedMember(colMmds);
             if (column != null)
             {
