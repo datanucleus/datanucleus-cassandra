@@ -153,7 +153,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     StoreData sd = storeDataMgr.get(cmd.getFullClassName());
                     if (sd == null)
                     {
-                        CompleteClassTable table = new CompleteClassTable(this, cmd, new ColumnAttributerImpl(this, cmd, clr));
+                        CompleteClassTable table = new CompleteClassTable(this, cmd, new SchemaVerifierImpl(this, cmd, clr));
                         sd = newStoreData(cmd, clr);
                         sd.addProperty("tableObject", table);
                         registerStoreData(sd);

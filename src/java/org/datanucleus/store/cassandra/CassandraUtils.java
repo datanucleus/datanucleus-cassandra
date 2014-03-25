@@ -26,14 +26,10 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
 import java.util.TimeZone;
 
-import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.FetchPlan;
 import org.datanucleus.exceptions.NucleusUserException;
@@ -42,9 +38,7 @@ import org.datanucleus.identity.OID;
 import org.datanucleus.identity.OIDFactory;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityType;
-import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.FieldValues;
@@ -54,10 +48,8 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
-import org.datanucleus.store.types.converters.TypeConverterHelper;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Row;
 
@@ -109,55 +101,49 @@ public class CassandraUtils
         datastoreTypeByCassandraType.put("blob", ByteBuffer.class);
     }
 
-    public static class CassandraTypeDetails
-    {
-        String typeName;
-        TypeConverter typeConverter;
-        public CassandraTypeDetails(String typeName, TypeConverter conv)
-        {
-            this.typeName = typeName;
-            this.typeConverter = conv;
-        }
-    }
-
     public static Class getJavaTypeForCassandraType(String cassandraType)
     {
         return datastoreTypeByCassandraType.get(cassandraType);
     }
 
-    public static Object getMemberValueForColumnWithConverter(Row row, Column column)
+    public static String getCassandraTypeForDatastoreType(String javaType)
+    {
+        return cassandraTypeByJavaType.get(javaType);
+    }
+
+    public static Object getMemberValueForColumnWithConverter(Row row, Column column, TypeConverter typeConv)
     {
         if (column.getTypeName().equals("varchar"))
         {
-            return column.getTypeConverter().toMemberType(row.getString(column.getIdentifier()));
+            return typeConv.toMemberType(row.getString(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("int"))
         {
-            return column.getTypeConverter().toMemberType(row.getInt(column.getIdentifier()));
+            return typeConv.toMemberType(row.getInt(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("boolean"))
         {
-            return column.getTypeConverter().toMemberType(row.getBool(column.getIdentifier()));
+            return typeConv.toMemberType(row.getBool(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("double"))
         {
-            return column.getTypeConverter().toMemberType(row.getDouble(column.getIdentifier()));
+            return typeConv.toMemberType(row.getDouble(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("float"))
         {
-            return column.getTypeConverter().toMemberType(row.getFloat(column.getIdentifier()));
+            return typeConv.toMemberType(row.getFloat(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("bigint"))
         {
-            return column.getTypeConverter().toMemberType(row.getLong(column.getIdentifier()));
+            return typeConv.toMemberType(row.getLong(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("timestamp"))
         {
-            return column.getTypeConverter().toMemberType(row.getDate(column.getIdentifier()));
+            return typeConv.toMemberType(row.getDate(column.getIdentifier()));
         }
         else if (column.getTypeName().equals("blob"))
         {
-            return column.getTypeConverter().toMemberType(row.getBytes(column.getIdentifier()));
+            return typeConv.toMemberType(row.getBytes(column.getIdentifier()));
         }
         return null;
     }
@@ -278,261 +264,6 @@ public class CassandraUtils
         }
 
         return datastoreValue;
-    }
-
-    /**
-     * Method to return the Cassandra column type that the specified member will be stored as.
-     * @param mmd Metadata for the member
-     * @param typeMgr Type manager
-     * @return The cassandra column type details
-     */
-    public static CassandraTypeDetails getCassandraColumnTypeForMember(AbstractMemberMetaData mmd, TypeManager typeMgr, ClassLoaderResolver clr)
-    {
-        String type = null;
-        TypeConverter typeConv = null;
-
-        Class memberType = mmd.getType();
-        String typeConvName = mmd.getTypeConverterName();
-        if (typeConvName != null)
-        {
-            // User has specified the TypeConverter
-            typeConv = typeMgr.getTypeConverterForName(typeConvName);
-            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
-            type = cassandraTypeByJavaType.get(datastoreType.getName());
-            return new CassandraTypeDetails(type, typeConv);
-        }
-        else
-        {
-            typeConv = typeMgr.getAutoApplyTypeConverterForType(mmd.getType());
-            if (typeConv != null)
-            {
-                // No user-defined converter, but autoApply defined for this member type, so use that
-                Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, mmd.getType());
-                type = cassandraTypeByJavaType.get(datastoreType.getName());
-                return new CassandraTypeDetails(type, typeConv);
-            }
-        }
-
-        RelationType relType = mmd.getRelationType(clr);
-        if (relType == RelationType.NONE)
-        {
-            if (mmd.isSerialized() && Serializable.class.isAssignableFrom(memberType))
-            {
-                type = "blob";
-                typeConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
-            }
-            else if (mmd.hasCollection())
-            {
-                // Collection<NonPC>
-                Class elementType = clr.classForName(mmd.getCollection().getElementType());
-                String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
-                if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
-                {
-                    type = "list<" + cqlElementType + ">";
-                }
-                else if (Set.class.isAssignableFrom(mmd.getType()))
-                {
-                    type = "set<" + cqlElementType + ">";
-                }
-                else
-                {
-                    if (mmd.getOrderMetaData() != null)
-                    {
-                        type = "list<" + cqlElementType + ">";
-                    }
-                    else
-                    {
-                        type = "set<" + cqlElementType + ">";
-                    }
-                }
-            }
-            else if (mmd.hasMap())
-            {
-                // Map<NonPC, NonPC>
-                Class keyType = clr.classForName(mmd.getMap().getKeyType());
-                Class valType = clr.classForName(mmd.getMap().getValueType());
-                String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
-                String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
-                type = "map<" + cqlKeyType + "," + cqlValType + ">";
-            }
-            else if (mmd.hasArray())
-            {
-                // NonPC[]
-                Class elementType = clr.classForName(mmd.getArray().getElementType());
-                String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
-                type = "list<" + cqlElementType + ">";
-            }
-            else
-            {
-                ColumnMetaData[] colmds = mmd.getColumnMetaData();
-                if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcType()))
-                {
-                    // Use jdbc-type where it is specified
-                    String jdbcType = colmds[0].getJdbcType();
-                    if (jdbcType.equalsIgnoreCase("varchar") || jdbcType.equalsIgnoreCase("longvarchar"))
-                    {
-                        type = "varchar";
-                        typeConv = typeMgr.getTypeConverterForType(mmd.getType(), String.class);
-                    }
-                    else if (jdbcType.equalsIgnoreCase("bigint"))
-                    {
-                        type = "bigint";
-                        typeConv = typeMgr.getTypeConverterForType(mmd.getType(), Long.class);
-                    }
-                    else if (jdbcType.equalsIgnoreCase("blob"))
-                    {
-                        type = "blob";
-                        typeConv = typeMgr.getTypeConverterForType(mmd.getType(), ByteBuffer.class);
-                    }
-                    else if (jdbcType.equalsIgnoreCase("integer"))
-                    {
-                        type = "int";
-                        typeConv = typeMgr.getTypeConverterForType(mmd.getType(), Integer.class);
-                    }
-                    // TODO Support other jdbc-type values
-                }
-                else if (colmds != null && colmds.length > 1)
-                {
-                    // TODO Support multi column types
-                }
-                    
-
-                if (type == null)
-                {
-                    // Fallback to defaults based on the member type
-                    String cTypeName = cassandraTypeByJavaType.get(memberType.getName());
-                    if (cTypeName != null)
-                    {
-                        type = cTypeName;
-                        Class datastoreType = datastoreTypeByCassandraType.get(type);
-                        if (datastoreType != null)
-                        {
-                            typeConv = typeMgr.getTypeConverterForType(mmd.getType(), datastoreType);
-                        }
-                    }
-                    else if (Enum.class.isAssignableFrom(memberType))
-                    {
-                        // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified above)
-                        type = "int";
-                    }
-                    else
-                    {
-                        // No direct mapping, so try the default TypeConverter (if any)
-                        typeConv = typeMgr.getDefaultTypeConverterForType(memberType);
-                        if (typeConv != null)
-                        {
-                            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(typeConv, memberType);
-                            type = cassandraTypeByJavaType.get(datastoreType.getName());
-                        }
-
-                        if (type == null)
-                        {
-                            // Try String/Long/Int converters (but then there would have been a default)
-                            TypeConverter stringConverter = typeMgr.getTypeConverterForType(memberType, String.class);
-                            if (stringConverter != null)
-                            {
-                                type = "varchar";
-                                typeConv = stringConverter;
-                            }
-                            else
-                            {
-                                TypeConverter longConverter = typeMgr.getTypeConverterForType(memberType, Long.class);
-                                if (longConverter != null)
-                                {
-                                    type = "bigint";
-                                    typeConv = longConverter;
-                                }
-                                else
-                                {
-                                    TypeConverter intConverter = typeMgr.getTypeConverterForType(memberType, Integer.class);
-                                    if (intConverter != null)
-                                    {
-                                        type = "int";
-                                        typeConv = intConverter;
-                                    }
-                                    else if (Serializable.class.isAssignableFrom(memberType))
-                                    {
-                                        type = "blob";
-                                        typeConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else if (RelationType.isRelationSingleValued(relType))
-        {
-            // 1-1/N-1 relation stored as String (or serialised)
-            type = mmd.isSerialized() ? "blob" : "varchar";
-        }
-        else if (RelationType.isRelationMultiValued(relType))
-        {
-            // 1-N/M-N relation stored as set/list<String> or set/list<blob> (or serialised whole field)
-            if (mmd.hasCollection())
-            {
-                if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
-                {
-                    type = mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
-                }
-                else if (Set.class.isAssignableFrom(mmd.getType()))
-                {
-                    type = mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
-                }
-                else
-                {
-                    if (relType == RelationType.MANY_TO_MANY_BI)
-                    {
-                        type = mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
-                    }
-                    else if (mmd.getOrderMetaData() != null)
-                    {
-                        type = mmd.getCollection().isSerializedElement() ? "list<blob>" : "list<varchar>";
-                    }
-                    else
-                    {
-                        type = mmd.getCollection().isSerializedElement() ? "set<blob>" : "set<varchar>";
-                    }
-                }
-            }
-            else if (mmd.hasMap())
-            {
-                String keyType = null;
-                String valType = null;
-                if (mmd.getMap().keyIsPersistent())
-                {
-                    keyType = mmd.getMap().isSerializedKey() ? "blob" : "varchar";
-                }
-                else
-                {
-                    keyType = cassandraTypeByJavaType.get(mmd.getMap().getKeyType());
-                }
-                if (mmd.getMap().valueIsPersistent())
-                {
-                    valType = mmd.getMap().isSerializedValue() ? "blob" : "varchar";
-                }
-                else
-                {
-                    valType = cassandraTypeByJavaType.get(mmd.getMap().getValueType());
-                }
-                type = "map<" + keyType + "," + valType + ">";
-            }
-            else if (mmd.hasArray())
-            {
-                type = mmd.getArray().isSerializedElement() ? "list<blob>" : "list<varchar>";
-            }
-        }
-
-        // TODO Allow for fields declared as Object but with particular persistent implementations
-    	if (type == null)
-    	{
-    	    NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
-            // Fallback to varchar - maybe BLOB would be better???
-    	    type = "varchar";
-    	}
-
-    	return new CassandraTypeDetails(type, typeConv);
     }
 
     /**

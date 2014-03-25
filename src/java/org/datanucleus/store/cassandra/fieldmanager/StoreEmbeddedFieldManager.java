@@ -29,7 +29,7 @@ import org.datanucleus.metadata.EmbeddedMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
-import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
@@ -57,11 +57,11 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         this.mmds = mmds;
     }
 
-    protected Column getColumn(int fieldNumber)
+    protected MemberColumnMapping getColumnMapping(int fieldNumber)
     {
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
-        return table.getColumnForEmbeddedMember(embMmds);
+        return table.getMemberColumnMappingForEmbeddedMember(embMmds);
     }
 
     /* (non-Javadoc)
@@ -112,9 +112,12 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                                 // Store a null for any primitive/wrapper/String fields
                                 List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                                 colEmbMmds.add(embMmd);
-                                Column column = table.getColumnForEmbeddedMember(colEmbMmds);
-//                                String colName = ec.getStoreManager().getNamingFactory().getColumnName(colEmbMmds, 0);
-                                columnValueByName.put(column.getIdentifier(), null);
+
+                                MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
+                                for (int j=0;j<mapping.getNumberOfColumns();j++)
+                                {
+                                    columnValueByName.put(mapping.getColumn(j).getIdentifier(), null);
+                                }
                             }
                             else if (Object.class.isAssignableFrom(embMmd.getType()))
                             {
@@ -137,7 +140,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                 {
                     // TODO Embedded Collection
                     NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                    columnValueByName.put(getColumnName(fieldNumber), null);
+                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
                     return;
                 }
             }
@@ -146,7 +149,11 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         if (op == null)
         {
             // Null the column
-            columnValueByName.put(getColumnName(fieldNumber), null);
+            MemberColumnMapping mapping = getColumnMapping(fieldNumber);
+            for (int i=0;i<mapping.getNumberOfColumns();i++)
+            {
+                columnValueByName.put(mapping.getColumn(i).getIdentifier(), null);
+            }
             return;
         }
         storeNonEmbeddedObjectField(mmd, relationType, clr, value);

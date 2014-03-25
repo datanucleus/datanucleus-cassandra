@@ -29,7 +29,7 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.fieldmanager.FieldManager;
-import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
@@ -55,11 +55,11 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         this.mmds = mmds;
     }
 
-    protected Column getColumn(int fieldNumber)
+    protected MemberColumnMapping getColumnMapping(int fieldNumber)
     {
         List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
         embMmds.add(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
-        return table.getColumnForEmbeddedMember(embMmds);
+        return table.getMemberColumnMappingForEmbeddedMember(embMmds);
     }
 
     /* (non-Javadoc)

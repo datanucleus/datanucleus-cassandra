@@ -281,7 +281,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         else
         {
-            table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+            table = new CompleteClassTable(storeMgr, cmd, new SchemaVerifierImpl(storeMgr, cmd, clr));
         }
         // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
         String schemaName = table.getSchemaName();
@@ -616,7 +616,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                         else
                         {
-                            table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+                            table = new CompleteClassTable(storeMgr, cmd, new SchemaVerifierImpl(storeMgr, cmd, clr));
                         }
 
                         // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
@@ -784,7 +784,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
                 else
                 {
-                    table = new CompleteClassTable(storeMgr, cmd, new ColumnAttributerImpl(storeMgr, cmd, clr));
+                    table = new CompleteClassTable(storeMgr, cmd, new SchemaVerifierImpl(storeMgr, cmd, clr));
                 }
 
                 // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
