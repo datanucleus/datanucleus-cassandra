@@ -143,7 +143,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             ClassMetaData cmd = (ClassMetaData)iter.next();
             if (cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE && !cmd.isEmbeddedOnly())
             {
-                if (cmd instanceof ClassMetaData && ((ClassMetaData)cmd).isAbstract())
+                if (cmd.isAbstract())
                 {
                     continue;
                 }
