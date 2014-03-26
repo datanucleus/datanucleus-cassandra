@@ -18,10 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.util.Date;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
@@ -46,6 +43,8 @@ import org.datanucleus.util.StringUtils;
 
 /**
  * Implementation of a schema verifier for Cassandra.
+ * This class provides a way for the Cassandra plugin to override any "default" handling that core provides to better fit in with the types
+ * that are persistable in Cassandra. It also allows us to specify the Cassandra "type name" on the Columns (for later use in schema generation).
  */
 public class SchemaVerifierImpl implements SchemaVerifier
 {
@@ -67,22 +66,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
     {
         NucleusLogger.GENERAL.info(">> verifyTypeConverter mmd=" + mmd.getFullFieldName() + " type=" + mmd.getTypeName() + " conv=" + conv);
-        if (Date.class.isAssignableFrom(mmd.getType()))
-        {
-            // Current default in core is to convert to string (TODO Change core default)
-            NucleusLogger.GENERAL.info(">> verifyTypeConverter removing TypeConverter for type=" + mmd.getTypeName());
-            return null;
-        }
-        else if (mmd.getType() == BigInteger.class)
-        {
-            NucleusLogger.GENERAL.info(">> verifyTypeConverter removing TypeConverter for type=" + mmd.getTypeName());
-            return null;
-        }
-        else if (mmd.getType() == BigDecimal.class)
-        {
-            NucleusLogger.GENERAL.info(">> verifyTypeConverter removing TypeConverter for type=" + mmd.getTypeName());
-            return null;
-        }
+        // TODO Override any type handling that Cassandra would do differently
         return conv;
     }
 
