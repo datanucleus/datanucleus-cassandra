@@ -90,45 +90,46 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
 
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
-        if (relationType != RelationType.NONE)
+        if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, lastMmd))
         {
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, lastMmd))
+            // Embedded field
+            if (RelationType.isRelationSingleValued(relationType))
             {
-                // Embedded field
-                if (RelationType.isRelationSingleValued(relationType))
-                {
-                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                    int[] embMmdPosns = embCmd.getAllMemberPositions();
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                    embMmds.add(mmd);
-                    if (value == null)
-                    {
-                        StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
-                        for (int i=0;i<embMmdPosns.length;i++)
-                        {
-                            AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                            if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
-                            {
-                                // Store a null for any primitive/wrapper/String fields
-                                List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
-                                colEmbMmds.add(embMmd);
+                AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                int[] embMmdPosns = embCmd.getAllMemberPositions();
+                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                embMmds.add(mmd);
 
-                                MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
-                                for (int j=0;j<mapping.getNumberOfColumns();j++)
-                                {
-                                    columnValueByName.put(mapping.getColumn(j).getIdentifier(), null);
-                                }
-                            }
-                            else if (Object.class.isAssignableFrom(embMmd.getType()))
+                if (value == null)
+                {
+                    // Store null in all columns of this and any nested embedded objects
+                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
+                    for (int i=0;i<embMmdPosns.length;i++)
+                    {
+                        AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
+                        {
+                            // Store a null for any primitive/wrapper/String fields
+                            List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
+                            colEmbMmds.add(embMmd);
+
+                            MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
+                            for (int j=0;j<mapping.getNumberOfColumns();j++)
                             {
-                                storeEmbFM.storeObjectField(embMmdPosns[i], null);
+                                columnValueByName.put(mapping.getColumn(j).getIdentifier(), null);
                             }
                         }
-                        Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
-                        columnValueByName.putAll(embColValuesByName);
-                        return;
+                        else if (Object.class.isAssignableFrom(embMmd.getType()))
+                        {
+                            storeEmbFM.storeObjectField(embMmdPosns[i], null);
+                        }
                     }
-
+                    Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
+                    columnValueByName.putAll(embColValuesByName);
+                    return;
+                }
+                else
+                {
                     ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
                     StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
                     embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
@@ -136,13 +137,13 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     columnValueByName.putAll(embColValuesByName);
                     return;
                 }
-                else
-                {
-                    // TODO Embedded Collection
-                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
-                    return;
-                }
+            }
+            else
+            {
+                // TODO Embedded Collection
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                return;
             }
         }
 
