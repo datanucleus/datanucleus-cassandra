@@ -71,37 +71,33 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         RelationType relationType = mmd.getRelationType(clr);
-
-        if (relationType != RelationType.NONE)
+        EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
+        if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
-            EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
-            if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
-            {
-                // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-                ObjectProvider[] ownerOps = op.getEmbeddedOwners();
-                return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
-            }
+            // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+            ObjectProvider[] ownerOps = op.getEmbeddedOwners();
+            return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
+        }
 
-            if (MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+        if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+        {
+            // Embedded field
+            if (RelationType.isRelationSingleValued(relationType))
             {
-                // Embedded field
-                if (RelationType.isRelationSingleValued(relationType))
-                {
-                    List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
-                    embMmds.add(mmd);
-                    AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                    ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
-                    FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
-                    embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
-                    return embOP.getObject();
-                }
-                else if (RelationType.isRelationMultiValued(relationType))
-                {
-                    // TODO Embedded Collection
-                    NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
-                }
-                return null; // Remove this when we support embedded
+                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                embMmds.add(mmd);
+                AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+                ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
+                FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
+                embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
+                return embOP.getObject();
             }
+            else if (RelationType.isRelationMultiValued(relationType))
+            {
+                // TODO Embedded Collection
+                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded)");
+            }
+            return null; // Remove this when we support embedded
         }
 
         return fetchNonEmbeddedObjectField(mmd, relationType, clr);
