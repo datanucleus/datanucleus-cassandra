@@ -26,12 +26,13 @@ import java.util.Set;
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityMetaData;
+import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.schema.naming.ColumnType;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.SchemaVerifier;
 import org.datanucleus.store.types.TypeManager;
@@ -82,7 +83,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             IdentityMetaData idmd = cmd.getIdentityMetaData();
             if (idmd != null && idmd.getColumnMetaData() != null && idmd.getColumnMetaData().getJdbcType() != null)
             {
-                type = idmd.getColumnMetaData().getJdbcType();
+                type = idmd.getColumnMetaData().getJdbcType().toString().toLowerCase();
             }
             // TODO Set based on value generator
             mapping.getColumn(0).setTypeName(type);
@@ -205,24 +206,23 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 }
                 else
                 {
-                    ColumnMetaData[] colmds = mmd.getColumnMetaData();
-                    if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcType()))
+                    Column col = mapping.getColumn(0);
+                    if (col.getJdbcType() != null)
                     {
                         // Use jdbc-type where it is specified
-                        String jdbcType = colmds[0].getJdbcType();
-                        if (jdbcType.equalsIgnoreCase("varchar") || jdbcType.equalsIgnoreCase("longvarchar"))
+                        if (col.getJdbcType() == JdbcType.VARCHAR || col.getJdbcType() == JdbcType.LONGVARCHAR)
                         {
                             type = "varchar";
                         }
-                        else if (jdbcType.equalsIgnoreCase("bigint"))
+                        else if (col.getJdbcType() == JdbcType.BIGINT)
                         {
                             type = "bigint";
                         }
-                        else if (jdbcType.equalsIgnoreCase("blob"))
+                        else if (col.getJdbcType() == JdbcType.BLOB)
                         {
                             type = "blob";
                         }
-                        else if (jdbcType.equalsIgnoreCase("integer"))
+                        else if (col.getJdbcType() == JdbcType.INTEGER)
                         {
                             type = "int";
                         }
