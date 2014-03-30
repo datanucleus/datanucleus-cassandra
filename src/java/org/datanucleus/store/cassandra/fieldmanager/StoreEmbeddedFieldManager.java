@@ -44,6 +44,11 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
 
     /**
      * Constructor called when it is needed to null out all columns of an embedded object (and nested embedded columns).
+     * @param ec ExecutionContext
+     * @param cmd Metadata for the class
+     * @param insert Whether we are inserting
+     * @param mmds Metadata for the member(s) leading to this embedded member
+     * @param table The table we persist into
      */
     public StoreEmbeddedFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, List<AbstractMemberMetaData> mmds, Table table)
     {

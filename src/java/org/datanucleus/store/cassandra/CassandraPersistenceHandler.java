@@ -256,7 +256,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * Method to create the INSERT statement for an object of the specified class.
      * Will add all columns for the class and all superclasses, plus any surrogate datastore-id, version, discriminator.
      * Will have the form
-     * <pre>INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)</pre>
+     * <pre>INSERT INTO {schema}.{table} (COL1,COL2,...) VALUES(?,?,...)</pre>
      * All columns are included and if the field is null then at insert CQL will delete the associated cell for the null column.
      * @param cmd Metadata for the class
      * @return The INSERT statement
@@ -892,6 +892,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
     /**
      * Convenience method to populate the "colNames" argument list with column names for the specified embedded field.
+     * @param table Table that we are using
      * @param mmds Metadata defining the embedded field (possibly nested, maybe multiple levels).
      * @param colNames List that will have column names added to it
      * @param ec ExecutionContext
