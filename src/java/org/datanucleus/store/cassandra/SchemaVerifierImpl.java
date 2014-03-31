@@ -158,8 +158,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
             RelationType relType = mmd.getRelationType(clr);
             if (relType == RelationType.NONE)
             {
-                if (mmd.isSerialized() && Serializable.class.isAssignableFrom(mmd.getType()))
+                if (mmd.isSerialized())
                 {
+                    // Could check if type is Serializable but user may have Object field that stores Serializable objects
                     type = "blob";
                 }
                 else if (mmd.hasCollection())
