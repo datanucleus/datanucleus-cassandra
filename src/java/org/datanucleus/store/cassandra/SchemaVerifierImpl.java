@@ -85,7 +85,6 @@ public class SchemaVerifierImpl implements SchemaVerifier
             {
                 type = idmd.getColumnMetaData().getJdbcType().toString().toLowerCase();
             }
-            // TODO Set based on value generator
             mapping.getColumn(0).setTypeName(type);
         }
         else if (mapping.getColumn(0).getColumnType() == ColumnType.VERSION_COLUMN)
@@ -221,7 +220,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         {
                             type = "blob";
                         }
-                        else if (col.getJdbcType() == JdbcType.INTEGER)
+                        else if (col.getJdbcType() == JdbcType.INTEGER || col.getJdbcType() == JdbcType.SMALLINT || col.getJdbcType() == JdbcType.TINYINT)
                         {
                             type = "int";
                         }
@@ -237,9 +236,12 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         {
                             type = "double";
                         }
-                        // TODO Support other jdbc-type values
+                        else if (col.getJdbcType() == JdbcType.DATE || col.getJdbcType() == JdbcType.TIME || col.getJdbcType() == JdbcType.TIMESTAMP)
+                        {
+                            type = "timestamp";
+                        }
                     }
-                    else
+                    if (type == null)
                     {
                         // Fallback to defaults based on the member type
                         type = CassandraUtils.getCassandraTypeForDatastoreType(mmd.getTypeName());
