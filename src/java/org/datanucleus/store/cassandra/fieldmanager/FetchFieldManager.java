@@ -40,6 +40,7 @@ import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.FieldRole;
+import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
@@ -144,7 +145,16 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public float fetchFloatField(int fieldNumber)
     {
-        return row.getFloat(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        Column col = getColumnMapping(fieldNumber).getColumn(0);
+        if (col.getJdbcType() == JdbcType.DECIMAL)
+        {
+            return row.getDecimal(col.getIdentifier()).floatValue();
+        }
+        else if (col.getJdbcType() == JdbcType.DOUBLE)
+        {
+            return (float)row.getDouble(col.getIdentifier());
+        }
+        return row.getFloat(col.getIdentifier());
     }
 
     /* (non-Javadoc)
@@ -153,6 +163,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public double fetchDoubleField(int fieldNumber)
     {
+        Column col = getColumnMapping(fieldNumber).getColumn(0);
+        if (col.getJdbcType() == JdbcType.DECIMAL)
+        {
+            return row.getDecimal(col.getIdentifier()).doubleValue();
+        }
         return row.getDouble(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
     }
 

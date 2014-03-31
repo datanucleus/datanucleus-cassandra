@@ -28,6 +28,7 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.IdentityMetaData;
 import org.datanucleus.metadata.JdbcType;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
 import org.datanucleus.store.StoreManager;
@@ -66,7 +67,6 @@ public class SchemaVerifierImpl implements SchemaVerifier
     @Override
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
     {
-        NucleusLogger.GENERAL.info(">> verifyTypeConverter mmd=" + mmd.getFullFieldName() + " type=" + mmd.getTypeName() + " conv=" + conv);
         // TODO Override any type handling that Cassandra would do differently
         return conv;
     }
@@ -142,7 +142,6 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 for (int i=0;i<datastoreJavaTypes.length;i++)
                 {
                     type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaTypes[i].getName());
-                    NucleusLogger.GENERAL.info(">> Verifier mmd=" + mmd.getFullFieldName() + " CONVERTER(" + i + ") type=" + mmd.getTypeName() + " cassType=" + type);
                     mapping.getColumn(i).setTypeName(type);
                 }
             }
@@ -150,7 +149,6 @@ public class SchemaVerifierImpl implements SchemaVerifier
             {
                 Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(mapping.getTypeConverter(), mmd.getType());
                 type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
-                NucleusLogger.GENERAL.info(">> Verifier mmd=" + mmd.getFullFieldName() + " CONVERTER type=" + mmd.getTypeName() + " cassType=" + type);
                 mapping.getColumn(0).setTypeName(type);
             }
         }
@@ -210,7 +208,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     if (col.getJdbcType() != null)
                     {
                         // Use jdbc-type where it is specified
-                        if (col.getJdbcType() == JdbcType.VARCHAR || col.getJdbcType() == JdbcType.LONGVARCHAR)
+                        if (MetaDataUtils.isJdbcTypeString(col.getJdbcType()))
                         {
                             type = "varchar";
                         }
@@ -225,6 +223,18 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         else if (col.getJdbcType() == JdbcType.INTEGER)
                         {
                             type = "int";
+                        }
+                        else if (col.getJdbcType() == JdbcType.DECIMAL)
+                        {
+                            type = "decimal";
+                        }
+                        else if (col.getJdbcType() == JdbcType.FLOAT)
+                        {
+                            type = "float";
+                        }
+                        else if (col.getJdbcType() == JdbcType.DOUBLE)
+                        {
+                            type = "double";
                         }
                         // TODO Support other jdbc-type values
                     }
@@ -339,7 +349,6 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 }
             }
 
-            NucleusLogger.GENERAL.info(">> Verifier mmd=" + mmd.getFullFieldName() + " NON-CONVERTER type=" + mmd.getTypeName() + " cassType=" + type);
             if (!StringUtils.isWhitespace(type))
             {
                 mapping.getColumn(0).setTypeName(type);

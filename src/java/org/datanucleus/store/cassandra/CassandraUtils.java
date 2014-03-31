@@ -351,6 +351,26 @@ public class CassandraUtils
         {
         	return ((Short)value).intValue();
         }
+        else if (value.getClass() == Float.class)
+        {
+            if (datastoreType.equals("decimal"))
+            {
+                return BigDecimal.valueOf((Float)value);
+            }
+            if (datastoreType.equals("double"))
+            {
+                return Double.valueOf((Float)value);
+            }
+            return value;
+        }
+        else if (value.getClass() == Double.class)
+        {
+            if (datastoreType.equals("decimal"))
+            {
+                return BigDecimal.valueOf((Double)value);
+            }
+            return value;
+        }
         else if (ClassUtils.isPrimitiveWrapperType(value.getClass().getName()))
         {
             return value;

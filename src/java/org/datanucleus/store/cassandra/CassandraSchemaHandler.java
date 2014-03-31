@@ -48,6 +48,7 @@ import org.datanucleus.store.schema.naming.ColumnType;
 import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.CompleteClassTable;
+import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
@@ -363,22 +364,24 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
 
                 // Column-level indexes
-                for (Column column : table.getColumns())
+                Set<MemberColumnMapping> mappings = table.getMemberColumnMappings();
+                for (MemberColumnMapping mapping : mappings)
                 {
-                    if (column.getMemberMetaData() != null)
+                    IndexMetaData idxmd = mapping.getMemberMetaData().getIndexMetaData();
+                    if (idxmd != null)
                     {
-                        IndexMetaData idxmd = column.getMemberMetaData().getIndexMetaData();
-                        if (idxmd != null)
+                        String[] colNames = idxmd.getColumnNames();
+                        if (colNames.length > 1)
                         {
-                            String[] colNames = idxmd.getColumnNames();
-                            if (colNames.length > 1)
+                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", mapping.getMemberMetaData().getFullFieldName()));
+                        }
+                        else
+                        {
+                            if (mapping.getNumberOfColumns() == 1)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", column.getMemberMetaData().getFullFieldName()));
-                            }
-                            else
-                            {
+                                Column column = mapping.getColumn(0);
                                 ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                                String idxName = namingFactory.getIndexName(column.getMemberMetaData(), idxmd);
+                                String idxName = namingFactory.getIndexName(mapping.getMemberMetaData(), idxmd);
                                 if (colDetails == null)
                                 {
                                     // Add index
@@ -395,6 +398,57 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                         }
                     }
+                }
+
+                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+                {
+                    VersionMetaData vermd = cmd.getVersionMetaDataForClass();
+                    if (vermd.getIndexMetaData() != null)
+                    {
+                        Column column = table.getVersionColumn();
+                        ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
+                        if (colDetails == null)
+                        {
+                            String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                            constraintStmts.add(indexStmt);
+                        }
+                        else
+                        {
+                            String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
+                            if (!idxName.equals(colDetails.indexName))
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                            }
+                        }
+                    }
+                }
+                if (cmd.hasDiscriminatorStrategy())
+                {
+                    DiscriminatorMetaData dismd = cmd.getDiscriminatorMetaData();
+                    if (dismd.getIndexMetaData() != null)
+                    {
+                        Column column = table.getDiscriminatorColumn();
+                        ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
+                        if (colDetails == null)
+                        {
+                            String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                            constraintStmts.add(indexStmt);
+                        }
+                        else
+                        {
+                            String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
+                            if (!idxName.equals(colDetails.indexName))
+                            {
+                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                            }
+                        }
+                    }
+                }
+                if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+                {
+                    // TODO Add index on multitenancy discriminator
                 }
             }
         }
@@ -469,17 +523,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
 
                 // Add column-level indexes
-                for (Column column : table.getColumns())
+                Set<MemberColumnMapping> mappings = table.getMemberColumnMappings();
+                for (MemberColumnMapping mapping : mappings)
                 {
-                    if (column.getMemberMetaData() != null)
+                    AbstractMemberMetaData mmd = mapping.getMemberMetaData();
+                    IndexMetaData idxmd = mmd.getIndexMetaData();
+                    if (idxmd != null)
                     {
-                        AbstractMemberMetaData mmd = column.getMemberMetaData();
-                        IndexMetaData idxmd = mmd.getIndexMetaData();
-                        if (idxmd != null)
+                        if (mapping.getNumberOfColumns() == 1)
                         {
                             // Index specified on this member, so add it TODO Add check if member has multiple columns
                             String idxName = namingFactory.getIndexName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), mapping.getColumn(0).getIdentifier());
                             constraintStmts.add(indexStmt);
                         }
                     }
@@ -811,10 +866,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails == null)
                         {
                             // Column not present, so log it and fail the validation
-                            if (column.getMemberMetaData() != null)
+                            if (column.getMemberColumnMapping() != null)
                             {
                                 NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getIdentifier(), 
-                                    column.getMemberMetaData().getFullFieldName()));
+                                    column.getMemberColumnMapping().getMemberMetaData().getFullFieldName()));
                             }
                             else
                             {

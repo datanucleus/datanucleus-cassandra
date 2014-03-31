@@ -18,6 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.lang.reflect.Array;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -33,12 +34,14 @@ import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.exceptions.ReachableObjectNotCascadedException;
 import org.datanucleus.store.fieldmanager.AbstractStoreFieldManager;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.ClassUtils;
@@ -171,7 +174,19 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        Column column = getColumnMapping(fieldNumber).getColumn(0);
+        if (column.getJdbcType() == JdbcType.DECIMAL)
+        {
+            columnValueByName.put(column.getIdentifier(), BigDecimal.valueOf(value));
+        }
+        else if (column.getJdbcType() == JdbcType.DOUBLE)
+        {
+            columnValueByName.put(column.getIdentifier(), Double.valueOf(value));
+        }
+        else
+        {
+            columnValueByName.put(column.getIdentifier(), value);
+        }
     }
 
     /* (non-Javadoc)
@@ -184,7 +199,15 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        Column column = getColumnMapping(fieldNumber).getColumn(0);
+        if (column.getJdbcType() == JdbcType.DECIMAL)
+        {
+            columnValueByName.put(column.getIdentifier(), BigDecimal.valueOf(value));
+        }
+        else
+        {
+            columnValueByName.put(column.getIdentifier(), value);
+        }
     }
 
     /* (non-Javadoc)

@@ -912,6 +912,22 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
             colMmds.add(embMmd);
             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colMmds);
+            if (mapping == null)
+            {
+                StringBuilder strBuilder = new StringBuilder();
+                for (AbstractMemberMetaData mmd : mmds)
+                {
+                    if (strBuilder.length() > 0)
+                    {
+                        strBuilder.append('.');
+                    }
+                    strBuilder.append(mmd.getName());
+                }
+                strBuilder.append('.').append(embMmd.getName());
+                NucleusLogger.DATASTORE_SCHEMA.warn("Attempt to find column schema in table=" + table.getIdentifier() + " for embedded member at " + strBuilder.toString() + " but not found!" +
+                    " Schema generation must be incomplete for this table");
+                return;
+            }
             for (int j=0;j<mapping.getNumberOfColumns();j++)
             {
                 Column column = mapping.getColumn(j);
