@@ -126,7 +126,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
      * @param mmd Metadata for the member
      * @param mapping Member-column mapping
      * @param typeMgr Type manager
-     * @param cld ClassLoader resolver
+     * @param clr ClassLoader resolver
      */
     public static void verifyMemberColumnMapping(AbstractMemberMetaData mmd, MemberColumnMapping mapping, TypeManager typeMgr, ClassLoaderResolver clr)
     {

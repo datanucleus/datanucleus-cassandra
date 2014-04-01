@@ -253,6 +253,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * <pre>INSERT INTO {schema}.{table} (COL1,COL2,...) VALUES(?,?,...)</pre>
      * All columns are included and if the field is null then at insert CQL will delete the associated cell for the null column.
      * @param cmd Metadata for the class
+     * @param table Table used for persistence
+     * @param colValuesByName Map of column values keyed by the column name
      * @return The INSERT statement
      */
     protected String getInsertStatementForClass(AbstractClassMetaData cmd, Table table, Map<String, Object> colValuesByName)

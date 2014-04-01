@@ -64,8 +64,9 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     Session session = null;
 
     /**
-     * @param storeMgr
-     * @param resourceType
+     * Constructor for a factory.
+     * @param storeMgr StoreManager
+     * @param resourceType Resource type (not of relevance since we use a single factory)
      */
     public ConnectionFactoryImpl(StoreManager storeMgr, String resourceType)
     {

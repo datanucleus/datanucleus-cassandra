@@ -324,6 +324,8 @@ public class CassandraUtils
      * Convenience method to convert from a non-persistable value to the value to be stored in Cassandra.
      * @param value Value for the member
      * @param datastoreType Cassandra column type
+     * @param serialised Whether the value is to be stored serialised
+     * @param typeMgr Type Manager
      * @return The value to be stored
      */
     public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
