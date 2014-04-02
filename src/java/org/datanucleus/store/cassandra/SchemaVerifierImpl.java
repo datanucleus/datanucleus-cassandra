@@ -83,7 +83,15 @@ public class SchemaVerifierImpl implements SchemaVerifier
             IdentityMetaData idmd = cmd.getIdentityMetaData();
             if (idmd != null && idmd.getColumnMetaData() != null && idmd.getColumnMetaData().getJdbcType() != null)
             {
-                type = idmd.getColumnMetaData().getJdbcType().toString().toLowerCase();
+                JdbcType jdbcType = idmd.getColumnMetaData().getJdbcType();
+                if (MetaDataUtils.isJdbcTypeString(jdbcType))
+                {
+                    type = "varchar";
+                }
+                else if (jdbcType == JdbcType.INTEGER)
+                {
+                    type = "int";
+                }
             }
             mapping.getColumn(0).setTypeName(type);
         }
@@ -215,6 +223,11 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         else if (col.getJdbcType() == JdbcType.BIGINT)
                         {
                             type = "bigint";
+                        }
+                        else if (col.getJdbcType() == JdbcType.CHAR)
+                        {
+                            col.setJdbcType(JdbcType.VARCHAR); // Not available with Cassandra
+                            type = "varchar";
                         }
                         else if (col.getJdbcType() == JdbcType.BLOB)
                         {

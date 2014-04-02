@@ -47,18 +47,29 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
 
     private String schemaName = null;
     private String tableName = "incrementtable";
-
     private String keyColName = "key";
-
     private String valColName = "value";
 
     public IncrementGenerator(String name, Properties props)
     {
         super(name, props);
 
-        this.key = properties.getProperty("field-name", name);
+        if (properties.getProperty("sequence-name") != null)
+        {
+            // Specified sequence-name so use that
+            key = properties.getProperty("sequence-name");
+        }
+        else if (properties.containsKey("field-name"))
+        {
+            // Use field name
+            key = properties.getProperty("field-name");
+        }
+        else
+        {
+            // Use root class name (for this inheritance tree) in the sequence table as the sequence name
+            key = properties.getProperty("root-class-name");
+        }
 
-        // TODO Use "datanucleus.identifier.case" and respect the case of table/column names
         if (properties.getProperty("sequence-table-name") != null)
         {
             tableName = properties.getProperty("sequence-table-name");
