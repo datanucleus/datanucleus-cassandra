@@ -17,11 +17,19 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Stack;
 
+import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
+import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.MetaDataManager;
+import org.datanucleus.metadata.MetaDataUtils;
+import org.datanucleus.metadata.RelationType;
 import org.datanucleus.query.compiler.CompilationComponent;
 import org.datanucleus.query.compiler.QueryCompilation;
 import org.datanucleus.query.evaluator.AbstractExpressionEvaluator;
@@ -29,9 +37,16 @@ import org.datanucleus.query.expression.Expression;
 import org.datanucleus.query.expression.Literal;
 import org.datanucleus.query.expression.OrderExpression;
 import org.datanucleus.query.expression.ParameterExpression;
+import org.datanucleus.query.expression.PrimaryExpression;
+import org.datanucleus.store.cassandra.query.expression.CassandraBooleanExpression;
 import org.datanucleus.store.cassandra.query.expression.CassandraExpression;
+import org.datanucleus.store.cassandra.query.expression.CassandraFieldExpression;
+import org.datanucleus.store.cassandra.query.expression.CassandraLiteral;
 import org.datanucleus.store.query.Query;
+import org.datanucleus.store.schema.table.MemberColumnMapping;
+import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 /**
  * Mapper for converting a generic query into CQL.
@@ -44,12 +59,17 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
     final AbstractClassMetaData candidateCmd;
 
+    final Table table;
+
     final Query query;
 
     final QueryCompilation compilation;
 
     /** Input parameter values, keyed by the parameter name. Will be null if compiled pre-execution. */
     final Map parameters;
+
+    /** Positional parameter that we are up to (-1 implies not being used). */
+    int positionalParamNumber = -1;
 
     /** State variable for the component being compiled. */
     CompilationComponent compileComponent;
@@ -60,13 +80,17 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     /** Whether the result clause is completely evaluatable in the datastore. */
     boolean resultComplete = true;
 
+    /** Whether the order clause is completely evaluatable in the datastore. */
+    boolean orderComplete = true;
+
     boolean precompilable = true;
 
     /** Stack of expressions, used during compilation process. */
     Stack<CassandraExpression> stack = new Stack();
 
-    public QueryToCQLMapper(QueryCompilation compilation, Map parameters, AbstractClassMetaData cmd,
-            ExecutionContext ec, Query q)
+    String cql = null;
+
+    public QueryToCQLMapper(QueryCompilation compilation, Map parameters, AbstractClassMetaData cmd, ExecutionContext ec, Query q, Table table)
     {
         this.ec = ec;
         this.query = q;
@@ -74,6 +98,12 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         this.parameters = parameters;
         this.candidateCmd = cmd;
         this.candidateAlias = compilation.getCandidateAlias();
+        this.table = table;
+    }
+
+    public String getCQL()
+    {
+        return cql;
     }
 
     public boolean isFilterComplete()
@@ -86,6 +116,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         return resultComplete;
     }
 
+    public boolean isOrderComplete()
+    {
+        return orderComplete;
+    }
+
     public boolean isPrecompilable()
     {
         return precompilable;
@@ -93,18 +128,53 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
     public void compile()
     {
-        compileFilter();
-        compileResult();
+        String filterCql = compileFilter();
+        String resultCQL = compileResult();
         compileGrouping();
         compileHaving();
-        compileOrdering();
+        String orderCQL = compileOrdering();
         // TODO Compile range also since CQL has "LIMIT n" (but no offset)
+
+        // Build CQL for this query
+        StringBuilder str = new StringBuilder();
+        str.append("SELECT ");
+        if (resultCQL != null)
+        {
+            str.append(resultCQL);
+        }
+        else
+        {
+            str.append("*");
+        }
+
+        if (table.getSchemaName() != null)
+        {
+            str.append(" FROM ").append(table.getSchemaName()).append('.').append(table.getIdentifier());
+        }
+        else
+        {
+            str.append(" FROM ").append(table.getIdentifier());
+        }
+
+        if (filterCql != null)
+        {
+            str.append(" WHERE ").append(filterCql);
+        }
+
+        if (orderCQL != null)
+        {
+            str.append(" ORDER BY ").append(orderCQL);
+        }
+
+        // TODO Support grouping, having
+        cql = str.toString();
     }
 
     /**
      * Method to compile the FILTER clause of the query
+     * @return The CQL for the filter
      */
-    protected void compileFilter()
+    protected String compileFilter()
     {
         if (compilation.getExprFilter() != null)
         {
@@ -113,10 +183,12 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             try
             {
                 compilation.getExprFilter().evaluate(this);
-                // TODO Implement this
+                CassandraExpression filterExpr = stack.pop();
+                return ((CassandraBooleanExpression)filterExpr).getCQL();
             }
             catch (Exception e)
             {
+                NucleusLogger.GENERAL.info(">> Error in compile", e);
                 // Impossible to compile all to run in the datastore, so just exit
                 if (NucleusLogger.QUERY.isDebugEnabled())
                 {
@@ -127,16 +199,20 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
             compileComponent = null;
         }
+        return null;
     }
+
     /**
      * Method to compile the RESULT clause of the query
+     * @return The CQL for the result
      */
-    protected void compileResult()
+    protected String compileResult()
     {
         if (compilation.getExprResult() != null)
         {
             // TODO Implement this
         }
+        return null;
     }
     /**
      * Method to compile the GROUPING clause of the query
@@ -160,8 +236,9 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     }
     /**
      * Method to compile the ORDERING clause of the query
+     * @return The CQL for the result
      */
-    protected void compileOrdering()
+    protected String compileOrdering()
     {
         if (compilation.getExprOrdering() != null)
         {
@@ -175,74 +252,234 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             }
             compileComponent = null;
         }
+        return null;
     }
 
     @Override
     protected Object processAndExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processAndExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processOrExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processOrExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processEqExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processEqExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processNoteqExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processNoteqExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processGtExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processGtExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processGteqExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processGteqExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processLtExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processLtExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
     @Override
     protected Object processLteqExpression(Expression expr)
     {
-        // TODO Auto-generated method stub
-        return super.processLteqExpression(expr);
+        CassandraExpression right = stack.pop();
+        CassandraExpression left = stack.pop();
+        CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
+        stack.push(boolExpr);
+        return boolExpr;
     }
 
+    /* (non-Javadoc)
+     * @see org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processPrimaryExpression(org.datanucleus.query.expression.PrimaryExpression)
+     */
     @Override
-    protected Object compilePrimaryExpression(Expression expr)
+    protected Object processPrimaryExpression(PrimaryExpression expr)
     {
+        Expression left = expr.getLeft();
+        if (left == null)
+        {
+            CassandraExpression memberExpr = getExpressionForPrimary(expr);
+            if (memberExpr == null)
+            {
+                if (compileComponent == CompilationComponent.FILTER)
+                {
+                    filterComplete = false;
+                }
+                else if (compileComponent == CompilationComponent.RESULT)
+                {
+                    resultComplete = false;
+                }
+                NucleusLogger.QUERY.debug(">> Primary " + expr + " is not stored in this table, so unexecutable in datastore");
+            }
+            else
+            {
+                stack.push(memberExpr);
+                return memberExpr;
+            }
+        }
+
         // TODO Auto-generated method stub
-        return super.compilePrimaryExpression(expr);
+        return super.processPrimaryExpression(expr);
     }
 
+    protected CassandraExpression getExpressionForPrimary(PrimaryExpression primExpr)
+    {
+        List<String> tuples = primExpr.getTuples();
+        if (tuples == null || tuples.isEmpty())
+        {
+            return null;
+        }
+
+        ClassLoaderResolver clr = ec.getClassLoaderResolver();
+        MetaDataManager mmgr = ec.getMetaDataManager();
+        AbstractClassMetaData cmd = candidateCmd;
+        boolean firstTuple = true;
+        Iterator<String> iter = tuples.iterator();
+        while (iter.hasNext())
+        {
+            String name = iter.next();
+            if (firstTuple && name.equals(candidateAlias))
+            {
+                cmd = candidateCmd;
+            } 
+            else
+            {
+                AbstractMemberMetaData mmd = cmd.getMetaDataForMember(name);
+                if (mmd != null)
+                {
+                    RelationType relationType = mmd.getRelationType(ec.getClassLoaderResolver());
+                    if (relationType == RelationType.NONE)
+                    {
+                        if (iter.hasNext())
+                        {
+                            throw new NucleusUserException("Query has reference to " + StringUtils.collectionToString(tuples) + " yet " + name + " is a non-relation field!");
+                        }
+                    }
+
+                    if (relationType != RelationType.NONE && MetaDataUtils.isMemberEmbedded(mmd, relationType, clr, mmgr))
+                    {
+                        if (RelationType.isRelationSingleValued(relationType))
+                        {
+                            // Embedded 1-1 TODO Support this
+                        }
+                        else if (RelationType.isRelationMultiValued(relationType))
+                        {
+                            // Embedded 1-N TODO Support this
+                        }
+                    }
+                    else
+                    {
+                        if (relationType == RelationType.NONE)
+                        {
+                            // TODO Support multi-column mappings
+                            MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
+                            return new CassandraFieldExpression(mapping.getColumn(0).getIdentifier(), mmd);
+                        }
+                        else
+                        {
+                            // TODO Cater for relations?
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processParameterExpression(org.datanucleus.query.expression.ParameterExpression)
+     */
     @Override
     protected Object processParameterExpression(ParameterExpression expr)
     {
+        // Extract the parameter value (if set)
+        Object paramValue = null;
+        boolean paramValueSet = false;
+        if (parameters != null && !parameters.isEmpty())
+        {
+            // Check if the parameter has a value
+            if (parameters.containsKey(expr.getId()))
+            {
+                // Named parameter
+                paramValue = parameters.get(expr.getId());
+                paramValueSet = true;
+            }
+            else if (parameters.containsKey(expr.getId()))
+            {
+                // Positional parameter, but already encountered
+                paramValue = parameters.get(expr.getId());
+                paramValueSet = true;
+            }
+            else
+            {
+                // Positional parameter, not yet encountered
+                int position = positionalParamNumber;
+                if (positionalParamNumber < 0)
+                {
+                    position = 0;
+                }
+                if (parameters.containsKey(Integer.valueOf(position)))
+                {
+                    paramValue = parameters.get(Integer.valueOf(position));
+                    paramValueSet = true;
+                    positionalParamNumber = position+1;
+                }
+            }
+        }
+        if (paramValueSet)
+        {
+            CassandraLiteral lit = new CassandraLiteral(paramValue);
+            stack.push(lit);
+            precompilable = false;
+            return lit;
+        }
+
         // TODO Auto-generated method stub
         return super.processParameterExpression(expr);
     }
@@ -250,10 +487,9 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     @Override
     protected Object processLiteral(Literal expr)
     {
-        // TODO Auto-generated method stub
-        return super.processLiteral(expr);
+        Object litValue = expr.getLiteral();
+        CassandraLiteral lit = new CassandraLiteral(litValue);
+        stack.push(lit);
+        return lit;
     }
-
-    // TODO Override the processAndExpression methods etc to implement what is supported by this mapper
-    
 }

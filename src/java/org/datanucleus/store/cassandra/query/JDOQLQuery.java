@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
+import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
@@ -36,6 +37,7 @@ import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJDOQLQuery;
+import org.datanucleus.store.query.QueryManager;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
@@ -48,6 +50,9 @@ import com.datastax.driver.core.Session;
  */
 public class JDOQLQuery extends AbstractJDOQLQuery
 {
+    /** The compilation of the query for this datastore. Not applicable if totally in-memory. */
+    protected transient CassandraQueryCompilation datastoreCompilation;
+
     /**
      * Constructs a new query instance that uses the given execution context.
      * @param storeMgr StoreManager for this query
@@ -78,6 +83,131 @@ public class JDOQLQuery extends AbstractJDOQLQuery
     public JDOQLQuery(StoreManager storeMgr, ExecutionContext ec, String query)
     {
         super(storeMgr, ec, query);
+    }
+
+    /**
+     * Method to return if the query is compiled.
+     * @return Whether it is compiled
+     */
+    protected boolean isCompiled()
+    {
+        if (evaluateInMemory())
+        {
+            // Don't need datastore compilation here since evaluating in-memory
+            return compilation != null;
+        }
+        else
+        {
+            // Need both to be present to say "compiled"
+            if (compilation == null || datastoreCompilation == null)
+            {
+                return false;
+            }
+            if (!datastoreCompilation.isPrecompilable())
+            {
+                NucleusLogger.GENERAL.info("Query compiled but not precompilable so ditching datastore compilation");
+                datastoreCompilation = null;
+                return false;
+            }
+            return true;
+        }
+    }
+
+    /**
+     * Convenience method to return whether the query should be evaluated in-memory.
+     * @return Use in-memory evaluation?
+     */
+    protected boolean evaluateInMemory()
+    {
+        if (candidateCollection != null)
+        {
+            if (compilation != null && compilation.getSubqueryAliases() != null)
+            {
+                // TODO In-memory evaluation of subqueries isn't fully implemented yet, so remove this when it is
+                NucleusLogger.QUERY.warn("In-memory evaluator doesn't currently handle subqueries completely so evaluating in datastore");
+                return false;
+            }
+
+            Object val = getExtension(EXTENSION_EVALUATE_IN_MEMORY);
+            if (val == null)
+            {
+                return true;
+            }
+            return Boolean.valueOf((String)val);
+        }
+        return super.evaluateInMemory();
+    }
+
+    /**
+     * Method to compile the JDOQL query.
+     * Uses the superclass to compile the generic query populating the "compilation", and then generates
+     * the datastore-specific "datastoreCompilation".
+     * @param parameterValues Map of param values keyed by param name (if available at compile time)
+     */
+    protected synchronized void compileInternal(Map parameterValues)
+    {
+        if (isCompiled())
+        {
+            return;
+        }
+
+        // Compile the generic query expressions
+        super.compileInternal(parameterValues);
+
+        boolean inMemory = evaluateInMemory();
+        if (candidateCollection != null && inMemory)
+        {
+            // Querying a candidate collection in-memory, so just return now (don't need datastore compilation)
+            // TODO Maybe apply the result class checks ?
+            return;
+        }
+
+        if (candidateClass == null)
+        {
+            throw new NucleusUserException(LOCALISER.msg("021009", candidateClassName));
+        }
+
+        // Make sure any persistence info is loaded
+        ec.hasPersistenceInformationForClass(candidateClass);
+
+        QueryManager qm = getQueryManager();
+        String datastoreKey = getStoreManager().getQueryCacheKey();
+        String cacheKey = getQueryCacheKey();
+        if (useCaching())
+        {
+            // Allowing caching so try to find compiled (datastore) query
+            datastoreCompilation = (CassandraQueryCompilation)qm.getDatastoreQueryCompilation(datastoreKey,
+                getLanguage(), cacheKey);
+            if (datastoreCompilation != null)
+            {
+                // Cached compilation exists for this datastore so reuse it
+                setResultDistinct(compilation.getResultDistinct());
+                return;
+            }
+        }
+
+        datastoreCompilation = new CassandraQueryCompilation();
+        AbstractClassMetaData cmd = getCandidateClassMetaData();
+        synchronized (datastoreCompilation)
+        {
+            if (inMemory)
+            {
+                // Generate statement to just retrieve all candidate objects for later processing
+            }
+            else
+            {
+                // Try to generate statement to perform the full query in the datastore
+                compileQueryFull(parameterValues, cmd);
+            }
+        }
+
+        if (cacheKey != null)
+        {
+            if (datastoreCompilation.isPrecompilable())
+            {
+                qm.addDatastoreQueryCompilation(datastoreKey, getLanguage(), cacheKey, datastoreCompilation);
+            }
+        }
     }
 
     protected Object performExecute(Map parameters)
@@ -182,5 +312,49 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         }
 
         return candidateObjs;
+    }
+
+    /**
+     * Method to compile the query for the datastore attempting to evaluate the whole query in the datastore
+     * if possible. Sets the components of the "datastoreCompilation".
+     * @param parameters Input parameters (if known)
+     * @param candidateCmd Metadata for the candidate class
+     */
+    private void compileQueryFull(Map parameters, AbstractClassMetaData candidateCmd)
+    {
+        long startTime = 0;
+        if (NucleusLogger.QUERY.isDebugEnabled())
+        {
+            startTime = System.currentTimeMillis();
+            NucleusLogger.QUERY.debug(LOCALISER.msg("021083", getLanguage(), toString()));
+        }
+
+        // Generate CQL as appropriate TODO Generate for each of the possible subclasses applicable
+        Table table = (Table) storeMgr.getStoreDataForClass(candidateCmd.getFullClassName()).getProperties().get("tableObject");
+        QueryToCQLMapper mapper = new QueryToCQLMapper(compilation, parameters, candidateCmd, ec, this, table);
+        mapper.compile();
+        datastoreCompilation.setFilterComplete(mapper.isFilterComplete());
+        datastoreCompilation.setCQL(mapper.getCQL());
+        datastoreCompilation.setResultComplete(mapper.isResultComplete());
+        datastoreCompilation.setPrecompilable(mapper.isPrecompilable());
+        NucleusLogger.QUERY.debug(">> Query compile resulted in CQL : " + datastoreCompilation.getCQL());
+
+        if (candidateCollection != null)
+        {
+            // Restrict to the supplied candidate ids
+        }
+
+        // Apply any range
+        if (range != null)
+        {
+        }
+
+        // Set any extensions (TODO Support locking if possible with MongoDB)
+
+
+        if (NucleusLogger.QUERY.isDebugEnabled())
+        {
+            NucleusLogger.QUERY.debug(LOCALISER.msg("021084", getLanguage(), System.currentTimeMillis()-startTime));
+        }
     }
 }
