@@ -246,22 +246,37 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             StringBuilder orderStr = new StringBuilder();
             compileComponent = CompilationComponent.ORDERING;
             Expression[] orderingExpr = compilation.getExprOrdering();
-            for (int i = 0; i < orderingExpr.length; i++)
+            try
             {
-                OrderExpression orderExpr = (OrderExpression) orderingExpr[i];
-                CassandraFieldExpression orderMongoExpr = (CassandraFieldExpression) orderExpr.getLeft().evaluate(this);
-                String orderDir = orderExpr.getSortOrder();
-                int direction = ((orderDir == null || orderDir.equals("ascending")) ? 1 : -1);
-                NucleusLogger.QUERY.debug(">> TODO Need to process " + orderExpr);
-                if (orderStr.length() > 0)
+                for (int i = 0; i < orderingExpr.length; i++)
                 {
-                    orderStr.append(',');
+                    OrderExpression orderExpr = (OrderExpression) orderingExpr[i];
+                    CassandraFieldExpression orderMongoExpr = (CassandraFieldExpression) orderExpr.getLeft().evaluate(this);
+                    String orderDir = orderExpr.getSortOrder();
+                    int direction = ((orderDir == null || orderDir.equals("ascending")) ? 1 : -1);
+                    NucleusLogger.QUERY.debug(">> TODO Need to process " + orderExpr);
+                    if (orderStr.length() > 0)
+                    {
+                        orderStr.append(',');
+                    }
+                    orderStr.append(orderMongoExpr.getColumnName()).append(" ");
+                    orderStr.append(direction == 1 ? "ASC" : "DESC");
                 }
-                orderStr.append(orderMongoExpr.getColumnName()).append(" ");
-                orderStr.append(direction == 1 ? "ASC" : "DESC");
+            }
+            catch (Exception e)
+            {
+                // Impossible to compile all to run in the datastore, so just exit
+                if (NucleusLogger.QUERY.isDebugEnabled())
+                {
+                    NucleusLogger.QUERY.debug("Compilation of order to be evaluated completely in-datastore was impossible : " + e.getMessage());
+                }
+                orderComplete = false;
             }
             compileComponent = null;
-            return orderStr.toString();
+            if (orderComplete && orderStr.length() > 0)
+            {
+                return orderStr.toString();
+            }
         }
         return null;
     }
