@@ -67,7 +67,16 @@ public class SchemaVerifierImpl implements SchemaVerifier
     @Override
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
     {
-        // TODO Override any type handling that Cassandra would do differently
+        if (conv != null && !(conv instanceof MultiColumnConverter))
+        {
+            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(conv, mmd.getType());
+            if (datastoreType != null && java.util.Date.class.isAssignableFrom(datastoreType) && datastoreType != java.util.Date.class)
+            {
+                // Swap for a converter that has java.util.Date in the datastore (since that's what Cassandra returns)
+                TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
+                return newConv;
+            }
+        }
         return conv;
     }
 
