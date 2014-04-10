@@ -180,15 +180,15 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         {
             compileComponent = CompilationComponent.FILTER;
 
+            String cql = null;
             try
             {
                 compilation.getExprFilter().evaluate(this);
                 CassandraExpression filterExpr = stack.pop();
-                return ((CassandraBooleanExpression)filterExpr).getCQL();
+                cql = ((CassandraBooleanExpression)filterExpr).getCQL();
             }
             catch (Exception e)
             {
-                NucleusLogger.GENERAL.info(">> Error in compile", e);
                 // Impossible to compile all to run in the datastore, so just exit
                 if (NucleusLogger.QUERY.isDebugEnabled())
                 {
@@ -198,6 +198,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             }
 
             compileComponent = null;
+            return cql;
         }
         return null;
     }
@@ -242,15 +243,25 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     {
         if (compilation.getExprOrdering() != null)
         {
+            StringBuilder orderStr = new StringBuilder();
             compileComponent = CompilationComponent.ORDERING;
             Expression[] orderingExpr = compilation.getExprOrdering();
             for (int i = 0; i < orderingExpr.length; i++)
             {
                 OrderExpression orderExpr = (OrderExpression) orderingExpr[i];
+                CassandraFieldExpression orderMongoExpr = (CassandraFieldExpression) orderExpr.getLeft().evaluate(this);
+                String orderDir = orderExpr.getSortOrder();
+                int direction = ((orderDir == null || orderDir.equals("ascending")) ? 1 : -1);
                 NucleusLogger.QUERY.debug(">> TODO Need to process " + orderExpr);
-                // TODO Implement this
+                if (orderStr.length() > 0)
+                {
+                    orderStr.append(',');
+                }
+                orderStr.append(orderMongoExpr.getColumnName()).append(" ");
+                orderStr.append(direction == 1 ? "ASC" : "DESC");
             }
             compileComponent = null;
+            return orderStr.toString();
         }
         return null;
     }
