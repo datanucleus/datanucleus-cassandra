@@ -17,31 +17,25 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
 /**
  * Datastore-specific (Cassandra) compilation information for a java query.
  */
 public class CassandraQueryCompilation
 {
-    boolean filterComplete = true;
-
-    String cql = null;
-
     boolean resultComplete = true;
+    boolean filterComplete = true;
+    boolean orderComplete = true;
+
+    Map<String, String> cqlByClass = new HashMap<String, String>();
 
     boolean precompilable = true;
 
     public CassandraQueryCompilation()
     {
-    }
-
-    public boolean isFilterComplete()
-    {
-        return filterComplete;
-    }
-
-    public void setFilterComplete(boolean complete)
-    {
-        this.filterComplete = complete;
     }
 
     public boolean isPrecompilable()
@@ -54,6 +48,16 @@ public class CassandraQueryCompilation
         this.precompilable = flag;
     }
 
+    public boolean isFilterComplete()
+    {
+        return filterComplete;
+    }
+
+    public void setFilterComplete(boolean complete)
+    {
+        this.filterComplete = complete;
+    }
+
     public boolean isResultComplete()
     {
         return resultComplete;
@@ -64,13 +68,28 @@ public class CassandraQueryCompilation
         this.resultComplete = complete;
     }
 
-    public void setCQL(String cql)
+    public boolean isOrderComplete()
     {
-        this.cql = cql;
+        return orderComplete;
     }
 
-    public String getCQL()
+    public void setOrderComplete(boolean complete)
     {
-        return cql;
+        this.orderComplete = complete;
+    }
+
+    public void setCQLForClass(String className, String cql)
+    {
+        this.cqlByClass.put(className, cql);
+    }
+
+    public String getCQLForClass(String className)
+    {
+        return cqlByClass.get(className);
+    }
+    
+    public Set<String> getClassNames()
+    {
+        return cqlByClass.keySet();
     }
 }

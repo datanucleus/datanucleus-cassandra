@@ -187,7 +187,6 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         }
 
         datastoreCompilation = new CassandraQueryCompilation();
-        AbstractClassMetaData cmd = getCandidateClassMetaData();
         synchronized (datastoreCompilation)
         {
             if (inMemory)
@@ -197,7 +196,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             else
             {
                 // Try to generate statement to perform the full query in the datastore
-                compileQueryFull(parameterValues, cmd);
+                compileQueryFull(parameterValues);
             }
         }
 
@@ -320,7 +319,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
      * @param parameters Input parameters (if known)
      * @param candidateCmd Metadata for the candidate class
      */
-    private void compileQueryFull(Map parameters, AbstractClassMetaData candidateCmd)
+    private void compileQueryFull(Map parameters)
     {
         long startTime = 0;
         if (NucleusLogger.QUERY.isDebugEnabled())
@@ -329,28 +328,37 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             NucleusLogger.QUERY.debug(LOCALISER.msg("021083", getLanguage(), toString()));
         }
 
-        // Generate CQL as appropriate TODO Generate for each of the possible subclasses applicable
-        Table table = (Table) storeMgr.getStoreDataForClass(candidateCmd.getFullClassName()).getProperties().get("tableObject");
-        QueryToCQLMapper mapper = new QueryToCQLMapper(compilation, parameters, candidateCmd, ec, this, table);
-        mapper.compile();
-        datastoreCompilation.setFilterComplete(mapper.isFilterComplete());
-        datastoreCompilation.setCQL(mapper.getCQL());
-        datastoreCompilation.setResultComplete(mapper.isResultComplete());
-        datastoreCompilation.setPrecompilable(mapper.isPrecompilable());
-        NucleusLogger.QUERY.debug(">> Query compile resulted in CQL : " + datastoreCompilation.getCQL());
-
-        if (candidateCollection != null)
+        List<AbstractClassMetaData> cmds =
+            MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
+        for (AbstractClassMetaData cmd : cmds)
         {
-            // Restrict to the supplied candidate ids
+            if (cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE || cmd.isEmbeddedOnly())
+            {
+                continue;
+            }
+            else if (cmd instanceof ClassMetaData && ((ClassMetaData)cmd).isAbstract())
+            {
+                continue;
+            }
+
+            // TODO Remove this and when class is registered, use listener to manage it
+            storeMgr.manageClasses(clr, cmd.getFullClassName());
+
+            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
+            if (table == null)
+            {
+                continue;
+            }
+
+            QueryToCQLMapper mapper = new QueryToCQLMapper(compilation, parameters, cmd, ec, this, table);
+            mapper.compile();
+            datastoreCompilation.setFilterComplete(mapper.isFilterComplete());
+            datastoreCompilation.setResultComplete(mapper.isResultComplete());
+            datastoreCompilation.setOrderComplete(mapper.isOrderComplete());
+            datastoreCompilation.setCQLForClass(cmd.getFullClassName(), mapper.getCQL());
+            datastoreCompilation.setPrecompilable(mapper.isPrecompilable());
+            NucleusLogger.QUERY.debug(">> Query compile resulted in CQL : " + datastoreCompilation.getCQLForClass(cmd.getFullClassName()));
         }
-
-        // Apply any range
-        if (range != null)
-        {
-        }
-
-        // Set any extensions (TODO Support locking if possible with MongoDB)
-
 
         if (NucleusLogger.QUERY.isDebugEnabled())
         {
