@@ -445,6 +445,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                         {
                             // TODO Support multi-column mappings
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
+                            // TODO Check if this field is indexed, otherwise not executable
                             return new CassandraFieldExpression(mapping.getColumn(0).getIdentifier(), mmd);
                         }
                         else

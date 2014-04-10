@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
@@ -36,8 +37,11 @@ import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
+import org.datanucleus.store.connection.ManagedConnectionResourceListener;
 import org.datanucleus.store.query.AbstractJDOQLQuery;
+import org.datanucleus.store.query.AbstractQueryResult;
 import org.datanucleus.store.query.QueryManager;
+import org.datanucleus.store.query.QueryResult;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 
@@ -176,8 +180,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         if (useCaching())
         {
             // Allowing caching so try to find compiled (datastore) query
-            datastoreCompilation = (CassandraQueryCompilation)qm.getDatastoreQueryCompilation(datastoreKey,
-                getLanguage(), cacheKey);
+            datastoreCompilation = (CassandraQueryCompilation)qm.getDatastoreQueryCompilation(datastoreKey, getLanguage(), cacheKey);
             if (datastoreCompilation != null)
             {
                 // Cached compilation exists for this datastore so reuse it
@@ -222,26 +225,103 @@ public class JDOQLQuery extends AbstractJDOQLQuery
                 NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JDOQL", getSingleStringQuery(), null));
             }
 
+            boolean filterInMemory = (filter != null);
+            Boolean orderInMemory = (ordering != null);
+            Boolean rangeInMemory = (range != null);
             List candidates = null;
-            if (candidateCollection == null)
+            if (candidateCollection != null)
+            {
+                candidates = new ArrayList(candidateCollection);
+            }
+            else if (evaluateInMemory())
             {
                 candidates = getCandidatesForQuery(session);
             }
             else
             {
-                candidates = new ArrayList(candidateCollection);
-            }
-            // TODO Evaluate as much as possible in the datastore using QueryToCQLMapper
+                if (filter != null && datastoreCompilation.isFilterComplete())
+                {
+                    candidates = new ArrayList();
+                    Set<String> classNamesQueryable = datastoreCompilation.getClassNames();
+                    for (String className : classNamesQueryable)
+                    {
+                        String cql = datastoreCompilation.getCQLForClass(className);
+//                        AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(className, clr);
 
-            // Evaluate result/filter/grouping/having/ordering in-memory
-            JavaQueryEvaluator resultMapper = new JDOQLEvaluator(this, candidates, compilation,
-                parameters, ec.getClassLoaderResolver());
-            Collection results = resultMapper.execute(true, true, true, true, true);
+                        // TODO Check if any filter clause field is indexed
+                        // Execute the SELECT
+                        CassandraUtils.logCqlStatement(">> TODO : " + cql, null, NucleusLogger.DATASTORE_NATIVE);
+//                        ResultSet rs = session.execute(cql);
+
+                        // Extract the candidates from the ResultSet
+//                        Iterator<Row> iter = rs.iterator();
+//                        while (iter.hasNext())
+//                        {
+//                            Row row = iter.next();
+//                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+//                        }
+                    }
+                    filterInMemory = false;
+
+                    // TODO Remove this when we have candidates via the above CQL
+                    candidates = getCandidatesForQuery(session);
+                }
+                else
+                {
+                    // Filter not evaluatable in datastore so get candidates
+                    candidates = getCandidatesForQuery(session);
+                }
+            }
+
+            Collection results = candidates;
+            if (filterInMemory || result != null || resultClass != null || rangeInMemory || orderInMemory)
+            {
+                if (candidates instanceof QueryResult)
+                {
+                    // Make sure the cursor(s) are all loaded
+                    ((QueryResult)candidates).disconnect();
+                }
+
+                JavaQueryEvaluator resultMapper = new JDOQLEvaluator(this, candidates, compilation, parameters, ec.getClassLoaderResolver());
+                results = resultMapper.execute(filterInMemory, orderInMemory, result != null, resultClass != null, rangeInMemory);
+            }
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", 
-                    "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+            }
+
+            if (results instanceof QueryResult)
+            {
+                final QueryResult qr1 = (QueryResult)results;
+                final ManagedConnection mconn1 = mconn;
+                ManagedConnectionResourceListener listener = new ManagedConnectionResourceListener()
+                {
+                    public void transactionFlushed(){}
+                    public void transactionPreClose()
+                    {
+                        // Tx : disconnect query from ManagedConnection (read in unread rows etc)
+                        qr1.disconnect();
+                    }
+                    public void managedConnectionPreClose()
+                    {
+                        if (!ec.getTransaction().isActive())
+                        {
+                            // Non-Tx : disconnect query from ManagedConnection (read in unread rows etc)
+                            qr1.disconnect();
+                        }
+                    }
+                    public void managedConnectionPostClose(){}
+                    public void resourcePostClose()
+                    {
+                        mconn1.removeListener(this);
+                    }
+                };
+                mconn.addListener(listener);
+                if (qr1 instanceof AbstractQueryResult)
+                {
+                    ((AbstractQueryResult)qr1).addConnectionListener(listener);
+                }
             }
 
             return results;
@@ -264,8 +344,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         List candidateObjs = new ArrayList();
 
         CassandraStoreManager storeMgr = (CassandraStoreManager)this.storeMgr;
-        List<AbstractClassMetaData> cmds =
-            MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
+        List<AbstractClassMetaData> cmds = MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
         for (AbstractClassMetaData cmd : cmds)
         {
             if (cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE || cmd.isEmbeddedOnly())
@@ -328,8 +407,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             NucleusLogger.QUERY.debug(LOCALISER.msg("021083", getLanguage(), toString()));
         }
 
-        List<AbstractClassMetaData> cmds =
-            MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
+        List<AbstractClassMetaData> cmds = MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
         for (AbstractClassMetaData cmd : cmds)
         {
             if (cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE || cmd.isEmbeddedOnly())
@@ -357,7 +435,6 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             datastoreCompilation.setOrderComplete(mapper.isOrderComplete());
             datastoreCompilation.setCQLForClass(cmd.getFullClassName(), mapper.getCQL());
             datastoreCompilation.setPrecompilable(mapper.isPrecompilable());
-            NucleusLogger.QUERY.debug(">> Query compile resulted in CQL : " + datastoreCompilation.getCQLForClass(cmd.getFullClassName()));
         }
 
         if (NucleusLogger.QUERY.isDebugEnabled())
