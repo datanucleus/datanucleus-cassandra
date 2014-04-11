@@ -17,15 +17,21 @@ Contributors :
 ***********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJavaQuery;
 import org.datanucleus.util.NucleusLogger;
 
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
@@ -91,6 +97,7 @@ public class CQLQuery extends AbstractJavaQuery
     protected Object performExecute(Map parameters)
     {
         ManagedConnection mconn = getStoreManager().getConnection(ec);
+        List results = new ArrayList();
         try
         {
             Session session = (Session) mconn.getConnection();
@@ -101,13 +108,19 @@ public class CQLQuery extends AbstractJavaQuery
                 NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JDOQL", getSingleStringQuery(), null));
             }
 
-            /*ResultSet rs =*/ session.execute(cql);
-            List results = null; // TODO Convert into some sort of result class
+            AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(candidateClassName, clr);
+            ResultSet rs = session.execute(cql);
+            Iterator<Row> iter = rs.iterator();
+            while (iter.hasNext())
+            {
+                Row row = iter.next();
+                // TODO Allow some form of mapping to Object[] or each row as Map<colName, value>
+                results.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+            }
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", 
-                    "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
             }
 
             return results;
