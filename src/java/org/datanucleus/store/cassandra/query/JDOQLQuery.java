@@ -261,7 +261,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 //                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
 //                        }
                     }
-                    filterInMemory = false;
+//                    filterInMemory = false;
 
                     // TODO Remove this when we have candidates via the above CQL
                     candidates = getCandidatesForQuery(session);
