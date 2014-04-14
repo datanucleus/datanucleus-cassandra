@@ -209,11 +209,11 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     {
         if (session != null)
         {
-            NucleusLogger.CONNECTION.debug("Shutting down Cassandra Session");
-            session.shutdown();
+            NucleusLogger.CONNECTION.debug("Closing Cassandra Session");
+            session.close();
         }
-        NucleusLogger.CONNECTION.debug("Shutting down Cassandra Cluster");
-        cluster.shutdown();
+        NucleusLogger.CONNECTION.debug("Closing Cassandra Cluster");
+        cluster.close();
 
         super.close();
     }
@@ -295,8 +295,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
             if (sessionPerManager)
             {
-                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - shutdown Session");
-                ((Session)conn).shutdown();
+                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - close Session");
+                ((Session)conn).close();
             }
             conn = null;
             xaRes = null;
