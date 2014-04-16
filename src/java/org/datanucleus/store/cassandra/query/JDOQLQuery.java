@@ -246,25 +246,21 @@ public class JDOQLQuery extends AbstractJDOQLQuery
                     for (String className : classNamesQueryable)
                     {
                         String cql = datastoreCompilation.getCQLForClass(className);
-//                        AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(className, clr);
+                        AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(className, clr);
 
-                        // TODO Check if any filter clause field is indexed
                         // Execute the SELECT
-                        CassandraUtils.logCqlStatement(">> TODO : " + cql, null, NucleusLogger.DATASTORE_NATIVE);
-//                        ResultSet rs = session.execute(cql);
+                        CassandraUtils.logCqlStatement(cql, null, NucleusLogger.DATASTORE_NATIVE);
+                        ResultSet rs = session.execute(cql);
 
                         // Extract the candidates from the ResultSet
-//                        Iterator<Row> iter = rs.iterator();
-//                        while (iter.hasNext())
-//                        {
-//                            Row row = iter.next();
-//                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
-//                        }
+                        Iterator<Row> iter = rs.iterator();
+                        while (iter.hasNext())
+                        {
+                            Row row = iter.next();
+                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+                        }
                     }
-//                    filterInMemory = false;
-
-                    // TODO Remove this when we have candidates via the above CQL
-                    candidates = getCandidatesForQuery(session);
+                    filterInMemory = false;
                 }
                 else
                 {
