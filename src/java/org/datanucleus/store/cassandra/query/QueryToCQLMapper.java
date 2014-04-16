@@ -445,7 +445,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                         {
                             // TODO Support multi-column mappings
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
-                            // TODO Check if this field is indexed, otherwise not executable
+                            if (mmd.getIndexMetaData() == null)
+                            {
+                                throw new NucleusUserException("Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + 
+                                    " yet this is not indexed. Must be indexed to evaluate in datastore");
+                            }
                             return new CassandraFieldExpression(mapping.getColumn(0).getIdentifier(), mmd);
                         }
                         else
