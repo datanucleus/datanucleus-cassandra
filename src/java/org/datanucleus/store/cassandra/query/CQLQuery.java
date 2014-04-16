@@ -23,19 +23,20 @@ import java.util.List;
 import java.util.Map;
 
 import org.datanucleus.ExecutionContext;
-import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.store.StoreManager;
-import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJavaQuery;
 import org.datanucleus.util.NucleusLogger;
 
+import com.datastax.driver.core.ColumnDefinitions.Definition;
+import com.datastax.driver.core.DataType;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
  * CQL query for Cassandra.
+ * Allows the user to execute a CQL query and return the results in the form "List&lt;Object[]&gt;".
  */
 public class CQLQuery extends AbstractJavaQuery
 {
@@ -108,14 +109,58 @@ public class CQLQuery extends AbstractJavaQuery
                 NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JDOQL", getSingleStringQuery(), null));
             }
 
-            AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(candidateClassName, clr);
+            // TODO Return as QueryResult that wraps ResultSet so we can fetch lazily
             ResultSet rs = session.execute(cql);
+            List<Definition> defs = rs.getColumnDefinitions().asList();
             Iterator<Row> iter = rs.iterator();
             while (iter.hasNext())
             {
                 Row row = iter.next();
-                // TODO Allow some form of mapping to Object[] or each row as Map<colName, value>
-                results.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+                Object[] resultRow = new Object[defs.size()];
+                int i=0;
+                for (Definition def : defs)
+                {
+                    DataType colType = def.getType();
+                    if (colType == DataType.varchar())
+                    {
+                        resultRow[i] = row.getString(i);
+                    }
+                    else if (colType == DataType.bigint())
+                    {
+                        resultRow[i] = row.getLong(i);
+                    }
+                    else if (colType == DataType.decimal())
+                    {
+                        resultRow[i] = row.getDecimal(i);
+                    }
+                    else if (colType == DataType.cfloat())
+                    {
+                        resultRow[i] = row.getFloat(i);
+                    }
+                    else if (colType == DataType.cdouble())
+                    {
+                        resultRow[i] = row.getDouble(i);
+                    }
+                    else if (colType == DataType.cboolean())
+                    {
+                        resultRow[i] = row.getBool(i);
+                    }
+                    else if (colType == DataType.timestamp())
+                    {
+                        resultRow[i] = row.getDate(i);
+                    }
+                    else if (colType == DataType.varint())
+                    {
+                        resultRow[i] = row.getInt(i);
+                    }
+                    else
+                    {
+                        NucleusLogger.QUERY.warn("Column " + i + " of results is of unsupported type (" + colType + ") : returning null");
+                        resultRow[i] = null;
+                    }
+                    i++;
+                }
+                results.add(resultRow);
             }
 
             if (NucleusLogger.QUERY.isDebugEnabled())
