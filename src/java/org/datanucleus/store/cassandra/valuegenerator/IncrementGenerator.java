@@ -39,7 +39,7 @@ import com.datastax.driver.core.Session;
 /**
  * Value generator using a table in the datastore and incrementing a column, keyed by the field name that has the strategy.
  */
-public class IncrementGenerator extends AbstractDatastoreGenerator
+public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 {
     static final String INCREMENT_COL_NAME = "increment";
 
@@ -97,7 +97,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
      * @see org.datanucleus.store.valuegenerator.AbstractGenerator#reserveBlock(long)
      */
     @Override
-    protected ValueGenerationBlock reserveBlock(long size)
+    protected ValueGenerationBlock<Long> reserveBlock(long size)
     {
         if (size < 1)
         {
@@ -109,7 +109,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator
             createRepository();
         }
 
-        List oids = new ArrayList();
+        List<Long> oids = new ArrayList<Long>();
         ManagedConnection mconn = connectionProvider.retrieveConnection();
         try
         {
