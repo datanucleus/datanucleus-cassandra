@@ -199,7 +199,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                ObjectProvider embOP = ec.newObjectProviderForEmbedded(embCmd, op, fieldNumber);
+                ObjectProvider embOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
                 FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
                 embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                 return embOP.getObject();
