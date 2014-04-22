@@ -31,7 +31,6 @@ import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.exceptions.NucleusOptimisticException;
 import org.datanucleus.identity.IdentityUtils;
-import org.datanucleus.identity.OID;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.DiscriminatorMetaData;
@@ -199,7 +198,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtValues[pos++] = ((OID)op.getInternalObjectId()).getKeyValue(); // TODO Cater for datastore attributed ID
+                stmtValues[pos++] = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId()); // TODO Cater for datastore attributed ID
             }
             if (versionValue != null && vermd.getFieldName() == null)
             {
@@ -508,7 +507,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                 stmtBuilder.append("=?");
-                Object oidVal = ((OID)op.getInternalObjectId()).getKeyValue();
+                Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
                 setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, storeMgr.getNucleusContext().getTypeManager()));
             }
 
@@ -1147,7 +1146,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
         else if (cmd.getIdentityType() == IdentityType.DATASTORE)
         {
-            pkVals = new Object[]{((OID)op.getInternalObjectId()).getKeyValue()};
+            pkVals = new Object[]{IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId())};
         }
 
         return pkVals;
