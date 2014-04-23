@@ -494,7 +494,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     if (RelationType.isRelationSingleValued(relType))
                     {
                         Object pc = op.provideField(pkFieldNums[i]);
-                        setVals.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc)));
+                        setVals.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter().getIdForObject(pc)));
                     }
                     else
                     {
@@ -1135,7 +1135,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 if (RelationType.isRelationSingleValued(relType))
                 {
                     Object pc = op.provideField(pkFieldNums[i]);
-                    pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter(), ec.getApiAdapter().getIdForObject(pc));
+                    pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter().getIdForObject(pc));
                 }
                 else
                 {
