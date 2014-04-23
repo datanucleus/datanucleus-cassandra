@@ -34,7 +34,6 @@ import org.datanucleus.ExecutionContext;
 import org.datanucleus.FetchPlan;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
-import org.datanucleus.identity.OID;
 import org.datanucleus.identity.OIDFactory;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -581,9 +580,9 @@ public class CassandraUtils
         }
 
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
-        OID oid = OIDFactory.getInstance(ec.getNucleusContext(), cmd.getFullClassName(), idKey);
+        Object id = OIDFactory.getInstance(ec.getNucleusContext(), cmd.getFullClassName(), idKey);
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
-        Object pc = ec.findObject(oid, 
+        Object pc = ec.findObject(id, 
             new FieldValues()
             {
                 // ObjectProvider calls the fetchFields method
