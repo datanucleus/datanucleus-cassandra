@@ -290,37 +290,66 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
         if (checkTableExistence(session, stmtProvider, schemaName, table.getIdentifier()))
         {
-            // Add/delete any columns to match the current definition (aka "schema evolution")
+            // Add/delete any columns/constraints to match the current definition (aka "schema evolution")
             Map<String, ColumnDetails> tableStructure = getColumnDetailsForTable(session, stmtProvider, schemaName, table.getIdentifier());
 
-            List<Column> columns = table.getColumns();
-            for (Column column : columns)
+            if (autoCreateColumns)
             {
-                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                if (colDetails == null)
+                // Add any missing columns
+                List<Column> columns = table.getColumns();
+                for (Column column : columns)
                 {
-                    // Add column since doesn't exist
-                    StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
-                    if (schemaName != null)
+                    ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
+                    if (colDetails == null)
                     {
-                        stmtBuilder.append(schemaName).append('.');
+                        // Add column since doesn't exist
+                        StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                        if (schemaName != null)
+                        {
+                            stmtBuilder.append(schemaName).append('.');
+                        }
+                        stmtBuilder.append(table.getIdentifier());
+                        stmtBuilder.append(" ADD COLUMN ");
+                        stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                        tableStmts.add(stmtBuilder.toString());
                     }
-                    stmtBuilder.append(table.getIdentifier());
-                    stmtBuilder.append(" ADD COLUMN ");
-                    stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
-                    tableStmts.add(stmtBuilder.toString());
-                }
-                else
-                {
-                    if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                    else
                     {
-                        // TODO Change the column type if requested. What about existing data
-                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                            column.getIdentifier(), colDetails.typeName, column.getTypeName()));
+                        if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
+                        {
+                            // TODO Change the column type if requested. What about existing data
+                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                                column.getIdentifier(), colDetails.typeName, column.getTypeName()));
+                        }
                     }
                 }
             }
-            // TODO Cycle through the current columns and check if any are not needed by this class
+
+            if (autoDeleteColumns)
+            {
+                // Delete any columns that are not needed by this class
+                Iterator<Map.Entry<String, ColumnDetails>> tableStructureIter = tableStructure.entrySet().iterator();
+                while (tableStructureIter.hasNext())
+                {
+                    Map.Entry<String, ColumnDetails> entry = tableStructureIter.next();
+                    String colName = entry.getKey();
+
+                    Column col = table.getColumnForName(colName);
+                    if (col == null)
+                    {
+                        // Add column since doesn't exist
+                        StringBuilder stmtBuilder = new StringBuilder("ALTER TABLE ");
+                        if (schemaName != null)
+                        {
+                            stmtBuilder.append(schemaName).append('.');
+                        }
+                        stmtBuilder.append(table.getIdentifier());
+                        stmtBuilder.append(" DROP COLUMN ");
+                        stmtBuilder.append(colName); // Needs quoting?
+                        tableStmts.add(stmtBuilder.toString());
+                    }
+                }
+            }
 
             if (isAutoCreateConstraints())
             {
