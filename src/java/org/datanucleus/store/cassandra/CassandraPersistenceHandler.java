@@ -328,7 +328,23 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
 
         insertStmtBuilder.append(") ");
-        // TODO Support any USING clauses
+
+        // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.insert.using')
+        String[] options = cmd.getValuesForExtension("cassandra.insert.using");
+        if (options != null && options.length > 0)
+        {
+            insertStmtBuilder.append("USING ");
+            for (int i=0;i<options.length;i++)
+            {
+                if (i > 0)
+                {
+                    insertStmtBuilder.append(" AND ");
+                }
+                insertStmtBuilder.append(options[i]);
+            }
+            insertStmtBuilder.append(' ');
+        }
+
         insertStmtBuilder.append("VALUES (");
         for (int i=0;i<numParams;i++)
         {
@@ -427,7 +443,21 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 stmtBuilder.append(schemaName).append('.');
             }
             stmtBuilder.append(table.getIdentifier());
-            // TODO Support any USING clauses
+
+            // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.update.using')
+            String[] options = cmd.getValuesForExtension("cassandra.update.using");
+            if (options != null && options.length > 0)
+            {
+                stmtBuilder.append(" USING ");
+                for (int i=0;i<options.length;i++)
+                {
+                    if (i > 0)
+                    {
+                        stmtBuilder.append(" AND ");
+                    }
+                    stmtBuilder.append(options[i]);
+                }
+            }
 
             List setVals = new ArrayList();
             stmtBuilder.append(" SET ");
@@ -582,9 +612,24 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
-                // TODO Support any USING clauses
-                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
 
+                // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.delete.using')
+                String[] options = cmd.getValuesForExtension("cassandra.delete.using");
+                if (options != null && options.length > 0)
+                {
+                    stmtBuilder.append(" USING ");
+                    for (int i=0;i<options.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(options[i]);
+                    }
+                }
+
+                // WHERE clause
+                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
                     int[] pkFieldNums = cmd.getPKMemberPositions();
@@ -814,7 +859,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                     stmtBuilder.append("=?");
                 }
-                // TODO Support any USING clauses
 
                 Object[] pkVals = getPkValuesForStatement(op, table);
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
@@ -1004,7 +1048,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                         stmtBuilder.append("=?");
                     }
-                    // TODO Support any USING clauses
                     locateStmt = stmtBuilder.toString();
 
                     // Cache the statement
@@ -1100,7 +1143,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
                 stmtBuilder.append("=?");
             }
-            // TODO Support any USING clauses
             verStmt = stmtBuilder.toString();
 
             // Cache the statement
