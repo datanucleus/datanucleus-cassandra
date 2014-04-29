@@ -61,6 +61,11 @@ import com.datastax.driver.core.Session;
 
 /**
  * Handler for schema management with Cassandra.
+ * Supports the following metadata extensions
+ * <ul>
+ * <li>ClassMetaData extension "cassandra.createTable.options" specifies any OPTIONS for a CREATE TABLE statement (comma-separated value if wanting multiple options)</li>
+ * <li>IndexMetaData extension "cassandra.createIndex.using" specifies any USING clause for a CREATE INDEX statement</li>
+ * </ul>
  */
 public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 {
@@ -376,7 +381,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0]);
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0], idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
@@ -414,7 +419,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
@@ -439,7 +444,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails == null)
                         {
                             String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), vermd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
@@ -462,7 +467,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails == null)
                         {
                             String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), dismd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
@@ -517,7 +522,22 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 stmtBuilder.append(")");
 
                 stmtBuilder.append(")");
-                // TODO Add support for "WITH option1=val1 AND option2=val2 ..." by using extensions part of metadata
+
+                // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.createTable.options')
+                String[] options = cmd.getValuesForExtension("cassandra.createTable.options");
+                if (options != null && options.length > 0)
+                {
+                    stmtBuilder.append(" WITH ");
+                    for (int i=0;i<options.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(options[i]);
+                    }
+                }
+
                 tableStmts.add(stmtBuilder.toString());
             }
 
@@ -543,7 +563,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else
                             {
                                 String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
-                                String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0]);
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0], idxmd);
                                 constraintStmts.add(indexStmt);
                             }
                         }
@@ -563,7 +583,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         {
                             // Index specified on this member, so add it TODO Add check if member has multiple columns
                             String idxName = namingFactory.getIndexName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), mapping.getColumn(0).getIdentifier());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), mapping.getColumn(0).getIdentifier(), idxmd);
                             constraintStmts.add(indexStmt);
                         }
                     }
@@ -576,7 +596,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         Column column = table.getVersionColumn();
                         String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
-                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), vermd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
                     }
                 }
@@ -587,13 +607,16 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         Column column = table.getDiscriminatorColumn();
                         String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
-                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier());
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), dismd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
                     }
                 }
                 if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
                 {
-                    // TODO Add index on multitenancy discriminator
+                    Column column = table.getMultitenancyColumn();
+                    String idxName = cmd.getName() + "_TENANCY_IDX";
+                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), null);
+                    constraintStmts.add(indexStmt);
                 }
             }
         }
@@ -1001,7 +1024,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
     }
 
-    protected String createIndexCQL(String indexName, String schemaName, String tableName, String columnName)
+    protected String createIndexCQL(String indexName, String schemaName, String tableName, String columnName, IndexMetaData idxmd)
     {
         StringBuilder stmtBuilder = new StringBuilder("CREATE INDEX ");
         stmtBuilder.append(indexName);
@@ -1012,6 +1035,16 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         stmtBuilder.append(tableName);
         stmtBuilder.append(" (").append(columnName).append(")");
+        if (idxmd != null)
+        {
+            // Allow user-specifiable USING clause
+            String using = idxmd.getValueForExtension("cassandra.createIndex.using");
+            if (!StringUtils.isWhitespace(using))
+            {
+                stmtBuilder.append(" USING ").append(using);
+            }
+        }
+
         return stmtBuilder.toString();
     }
 
