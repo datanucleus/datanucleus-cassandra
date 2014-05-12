@@ -26,6 +26,7 @@ import java.util.Set;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
+import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
@@ -218,6 +219,16 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         try
         {
             Session session = (Session) mconn.getConnection();
+
+            // TODO Support bulk update/delete
+            if (type == BULK_DELETE)
+            {
+                throw new NucleusException("Bulk Delete is not yet supported");
+            }
+            else if (type == BULK_UPDATE)
+            {
+                throw new NucleusException("Bulk Update is not yet supported");
+            }
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())

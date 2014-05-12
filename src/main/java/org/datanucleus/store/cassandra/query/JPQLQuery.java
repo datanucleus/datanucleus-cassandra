@@ -220,12 +220,6 @@ public class JPQLQuery extends AbstractJPQLQuery
         {
             Session session = (Session) mconn.getConnection();
 
-            long startTime = System.currentTimeMillis();
-            if (NucleusLogger.QUERY.isDebugEnabled())
-            {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JPQL", getSingleStringQuery(), null));
-            }
-
             // TODO Support bulk update/delete
             if (type == BULK_DELETE)
             {
@@ -234,6 +228,12 @@ public class JPQLQuery extends AbstractJPQLQuery
             else if (type == BULK_UPDATE)
             {
                 throw new NucleusException("Bulk Update is not yet supported");
+            }
+
+            long startTime = System.currentTimeMillis();
+            if (NucleusLogger.QUERY.isDebugEnabled())
+            {
+                NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JPQL", getSingleStringQuery(), null));
             }
 
             boolean filterInMemory = (filter != null);
