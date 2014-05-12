@@ -220,16 +220,6 @@ public class JPQLQuery extends AbstractJPQLQuery
         {
             Session session = (Session) mconn.getConnection();
 
-            // TODO Support bulk update/delete
-            if (type == BULK_DELETE)
-            {
-                throw new NucleusException("Bulk Delete is not yet supported");
-            }
-            else if (type == BULK_UPDATE)
-            {
-                throw new NucleusException("Bulk Update is not yet supported");
-            }
-
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
@@ -296,6 +286,17 @@ public class JPQLQuery extends AbstractJPQLQuery
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
                 NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+            }
+
+            if (type == BULK_DELETE)
+            {
+                ec.deleteObjects(results.toArray());
+                return Long.valueOf(results.size());
+            }
+            else if (type == BULK_UPDATE)
+            {
+                // TODO Support BULK UPDATE
+                throw new NucleusException("Bulk Update is not yet supported");
             }
 
             if (results instanceof QueryResult)
