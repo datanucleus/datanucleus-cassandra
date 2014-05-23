@@ -26,6 +26,7 @@ import org.datanucleus.ExecutionContext;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJavaQuery;
+import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.ColumnDefinitions.Definition;
@@ -106,7 +107,7 @@ public class CQLQuery extends AbstractJavaQuery
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JDOQL", getSingleStringQuery(), null));
+                NucleusLogger.QUERY.debug(Localiser.msg("021046", "JDOQL", getSingleStringQuery(), null));
             }
 
             // TODO Return as QueryResult that wraps ResultSet so we can fetch lazily
@@ -165,7 +166,7 @@ public class CQLQuery extends AbstractJavaQuery
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(Localiser.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
             }
 
             return results;

@@ -44,6 +44,7 @@ import org.datanucleus.store.query.AbstractQueryResult;
 import org.datanucleus.store.query.QueryManager;
 import org.datanucleus.store.query.QueryResult;
 import org.datanucleus.store.schema.table.Table;
+import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.ResultSet;
@@ -169,7 +170,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
         if (candidateClass == null)
         {
-            throw new NucleusUserException(LOCALISER.msg("021009", candidateClassName));
+            throw new NucleusUserException(Localiser.msg("021009", candidateClassName));
         }
 
         // Make sure any persistence info is loaded
@@ -223,7 +224,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021046", "JDOQL", getSingleStringQuery(), null));
+                NucleusLogger.QUERY.debug(Localiser.msg("021046", "JDOQL", getSingleStringQuery(), null));
             }
 
             boolean filterInMemory = (filter != null);
@@ -285,7 +286,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(LOCALISER.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(Localiser.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
             }
 
             if (type == BULK_DELETE)
@@ -412,7 +413,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
         if (NucleusLogger.QUERY.isDebugEnabled())
         {
             startTime = System.currentTimeMillis();
-            NucleusLogger.QUERY.debug(LOCALISER.msg("021083", getLanguage(), toString()));
+            NucleusLogger.QUERY.debug(Localiser.msg("021083", getLanguage(), toString()));
         }
 
         List<AbstractClassMetaData> cmds = MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
@@ -447,7 +448,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
         if (NucleusLogger.QUERY.isDebugEnabled())
         {
-            NucleusLogger.QUERY.debug(LOCALISER.msg("021084", getLanguage(), System.currentTimeMillis()-startTime));
+            NucleusLogger.QUERY.debug(Localiser.msg("021084", getLanguage(), System.currentTimeMillis()-startTime));
         }
     }
 }

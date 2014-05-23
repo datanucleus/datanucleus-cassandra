@@ -69,9 +69,6 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 {
-    protected static final Localiser LOCALISER_CASSANDRA = Localiser.getInstance(
-        "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
-
     CassandraStoreManager casStoreMgr;
 
     public CassandraSchemaHandler(CassandraStoreManager storeMgr)
@@ -112,9 +109,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
             }
 
-            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateSchema", stmtBuilder.toString()));
+            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateSchema", stmtBuilder.toString()));
             session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateSchema.Success"));
+            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateSchema.Success"));
         }
         finally
         {
@@ -191,9 +188,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         if (ddlFileWriter == null)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateTable", stmt));
+                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateTable", stmt));
                             session.execute(stmt);
-                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateTable.Success"));
+                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateTable.Success"));
                         }
                         else
                         {
@@ -213,9 +210,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         if (ddlFileWriter == null)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateConstraint", stmt));
+                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateConstraint", stmt));
                             session.execute(stmt);
-                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CreateConstraint.Success"));
+                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CreateConstraint.Success"));
                         }
                         else
                         {
@@ -323,7 +320,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                         {
                             // TODO Change the column type if requested. What about existing data
-                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
+                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
                                 column.getIdentifier(), colDetails.typeName, column.getTypeName()));
                         }
                     }
@@ -372,7 +369,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
                             }
                             else
                             {
@@ -388,7 +385,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 {
                                     if (!idxName.equals(colDetails.indexName))
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                                     }
                                 }
                             }
@@ -407,7 +404,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         String[] colNames = idxmd.getColumnNames();
                         if (colNames.length > 1)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", mapping.getMemberMetaData().getFullFieldName()));
+                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", mapping.getMemberMetaData().getFullFieldName()));
                         }
                         else
                         {
@@ -426,7 +423,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 {
                                     if (!idxName.equals(colDetails.indexName))
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                                     }
                                 }
                             }
@@ -452,7 +449,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String idxName = namingFactory.getIndexName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
                             if (!idxName.equals(colDetails.indexName))
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                             }
                         }
                     }
@@ -475,7 +472,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String idxName = namingFactory.getIndexName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
                             if (!idxName.equals(colDetails.indexName))
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                             }
                         }
                     }
@@ -558,7 +555,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
                             }
                             else
                             {
@@ -643,9 +640,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             StringBuilder stmtBuilder = new StringBuilder("DROP KEYSPACE IF EXISTS ");
             stmtBuilder.append(schemaName);
 
-            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropSchema", stmtBuilder.toString()));
+            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropSchema", stmtBuilder.toString()));
             session.execute(stmtBuilder.toString());
-            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropSchema", schemaName));
+            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropSchema", schemaName));
         }
         finally
         {
@@ -750,9 +747,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                                         if (ddlFileWriter == null)
                                         {
-                                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
+                                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
                                             session.execute(stmtBuilder.toString());
-                                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint.Success", idxName));
+                                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropConstraint.Success", idxName));
                                         }
                                         else
                                         {
@@ -780,9 +777,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                                     if (ddlFileWriter == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
+                                        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropConstraint", stmtBuilder.toString()));
                                         session.execute(stmtBuilder.toString());
-                                        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropConstraint.Success", idxName));
+                                        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropConstraint.Success", idxName));
                                     }
                                     else
                                     {
@@ -805,9 +802,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                             if (ddlFileWriter == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable", stmtBuilder.toString()));
+                                NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropTable", stmtBuilder.toString()));
                                 session.execute(stmtBuilder.toString());
-                                NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable.Success", tableName));
+                                NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropTable.Success", tableName));
                             }
                             else
                             {
@@ -820,7 +817,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                         else
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.DropTable.DoesntExist", tableName));
+                            NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.DropTable.DoesntExist", tableName));
                         }
                     }
                 }
@@ -902,7 +899,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
                 if (!tableExists)
                 {
-                    NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableDoesntExist", cmd.getFullClassName(), tableName, schemaName));
+                    NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableDoesntExist", cmd.getFullClassName(), tableName, schemaName));
                     success = false;
                 }
                 else
@@ -920,12 +917,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             // Column not present, so log it and fail the validation
                             if (column.getMemberColumnMapping() != null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getIdentifier(), 
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getIdentifier(), 
                                     column.getMemberColumnMapping().getMemberMetaData().getFullFieldName()));
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnForTableInvalidType", tableName, column.getIdentifier(),
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableInvalidType", tableName, column.getIdentifier(),
                                     column.getColumnType()));
                             }
                             success = false;
@@ -939,7 +936,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnTypeIncorrect", tableName, column.getIdentifier(),
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnTypeIncorrect", tableName, column.getIdentifier(),
                                     colDetails.typeName, column.getTypeName()));
                             }
                         }
@@ -947,7 +944,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                     if (success && tableStructure.size() != colsFound.size())
                     {
-                        NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.ColumnCountIncorrect", tableName, colsFound.size(), tableStructure.size()));
+                        NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnCountIncorrect", tableName, colsFound.size(), tableStructure.size()));
                         success = false;
                     }
 
@@ -968,13 +965,13 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                     String idxName = namingFactory.getIndexName(theCmd, idxmd, i);
                                     if (colDetails == null || colDetails.indexName == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colNames[0]));
+                                        NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colNames[0]));
                                     }
                                     else
                                     {
                                         if (!idxName.equals(colDetails.indexName))
                                         {
-                                            NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                                         }
                                     }
                                 }
@@ -996,13 +993,13 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String idxName = namingFactory.getIndexName(mmd, idxmd);
                             if (colDetails == null || colDetails.indexName == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(LOCALISER_CASSANDRA.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colName));
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colName));
                             }
                             else
                             {
                                 if (!idxName.equals(colDetails.indexName))
                                 {
-                                    NucleusLogger.DATASTORE_SCHEMA.warn(LOCALISER_CASSANDRA.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                    NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                                 }
                             }
                         }
@@ -1055,7 +1052,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its existence");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckTableExistence", tableName, stmtBuilder.toString()));
+        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableExistence", tableName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         if (!rs.isExhausted())
@@ -1072,7 +1069,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified in order to check its existence");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
-        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
+        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
         if (!rs.isExhausted())
@@ -1098,7 +1095,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its structure");
         }
         StringBuilder stmtBuilder = new StringBuilder("SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug(LOCALISER_CASSANDRA.msg("Cassandra.Schema.CheckTableStructure", tableName, stmtBuilder.toString()));
+        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableStructure", tableName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
         Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();

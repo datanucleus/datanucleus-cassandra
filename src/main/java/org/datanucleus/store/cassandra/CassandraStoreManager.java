@@ -36,6 +36,7 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.store.schema.table.CompleteClassTable;
+import org.datanucleus.util.Localiser;
 import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Session;
@@ -45,6 +46,11 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
+    static
+    {
+        Localiser.registerBundle("org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
+    }
+
     SessionStatementProvider stmtProvider = new SessionStatementProvider();
 
     public static final String RESERVED_WORDS = "ADD,ALLOW,ALTER,AND,ANY,APPLY,ASC,AUTHORIZE,BATCH,BEGIN,BY,COLUMNFAMILY,CREATE,DELETE,DESC,DROP," +

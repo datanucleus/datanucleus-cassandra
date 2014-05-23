@@ -66,9 +66,6 @@ import com.datastax.driver.core.exceptions.DriverException;
  */
 public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 {
-    protected static final Localiser LOCALISER_CASSANDRA = Localiser.getInstance(
-        "org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
-
     protected Map<String, String> insertStatementByClassName;
 
     protected Map<String, String> deleteStatementByClassName;
@@ -107,8 +104,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.Insert.Start", 
-                    op.getObjectAsPrintable(), op.getInternalObjectId()));
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.Insert.Start", op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
             Object versionValue = null;
@@ -227,7 +223,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
             }
             if (ec.getStatistics() != null)
             {
@@ -408,8 +404,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     fieldStr.append(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumbers[i]).getName());
                 }
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.Update.Start", 
-                    op.getObjectAsPrintable(), op.getInternalObjectId(), fieldStr.toString()));
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.Update.Start", op.getObjectAsPrintable(), op.getInternalObjectId(), fieldStr.toString()));
             }
 
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
@@ -553,8 +548,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime", 
-                    (System.currentTimeMillis() - startTime)));
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
             }
         }
         catch (DriverException e)
@@ -580,7 +574,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.Delete.Start", 
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.Delete.Start", 
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
@@ -673,8 +667,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_PERSIST.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime", 
-                    (System.currentTimeMillis() - startTime)));
+                NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
             }
         }
         catch (DriverException e)
@@ -723,8 +716,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {
-                NucleusLogger.DATASTORE_RETRIEVE.debug(LOCALISER_CASSANDRA.msg("Cassandra.Fetch.Start", 
-                    op.getObjectAsPrintable(), op.getInternalObjectId()));
+                NucleusLogger.DATASTORE_RETRIEVE.debug(Localiser.msg("Cassandra.Fetch.Start", op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
@@ -909,8 +901,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
                 {
-                    NucleusLogger.DATASTORE_RETRIEVE.debug(LOCALISER_CASSANDRA.msg("Cassandra.ExecutionTime",
-                        (System.currentTimeMillis() - startTime)));
+                    NucleusLogger.DATASTORE_RETRIEVE.debug(Localiser.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
                 }
                 if (ec.getStatistics() != null)
                 {
