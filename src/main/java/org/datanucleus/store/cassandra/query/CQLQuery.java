@@ -86,14 +86,12 @@ public class CQLQuery extends AbstractJavaQuery
         return cql;
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.query.Query#compileInternal(java.util.Map)
-     */
-    @Override
+    public void compileGeneric(Map parameterValues)
+    {
+    }
+
     protected void compileInternal(Map parameterValues)
     {
-        // TODO Auto-generated method stub
-        
     }
 
     protected Object performExecute(Map parameters)
