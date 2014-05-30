@@ -369,7 +369,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             // TODO Remove this and when class is registered, use listener to manage it
             storeMgr.manageClasses(clr, cmd.getFullClassName());
 
-            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
+            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
             if (table == null)
             {
                 continue;
@@ -433,7 +433,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             // TODO Remove this and when class is registered, use listener to manage it
             storeMgr.manageClasses(clr, cmd.getFullClassName());
 
-            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperties().get("tableObject");
+            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
             if (table == null)
             {
                 continue;

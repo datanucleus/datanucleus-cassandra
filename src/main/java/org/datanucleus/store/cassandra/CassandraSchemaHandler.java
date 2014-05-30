@@ -280,7 +280,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         Table table = null;
         if (storeData != null)
         {
-            table = (Table) storeData.getProperties().get("tableObject");
+            table = storeData.getTable();
         }
         else
         {
@@ -717,7 +717,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         Table table = null;
                         if (storeData != null)
                         {
-                            table = (Table) storeData.getProperties().get("tableObject");
+                            table = storeData.getTable();
                         }
                         else
                         {
@@ -885,7 +885,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 Table table = null;
                 if (storeData != null)
                 {
-                    table = (Table) storeData.getProperties().get("tableObject");
+                    table = storeData.getTable();
                 }
                 else
                 {

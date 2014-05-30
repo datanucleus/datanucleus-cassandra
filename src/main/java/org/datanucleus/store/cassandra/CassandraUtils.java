@@ -503,7 +503,7 @@ public class CassandraUtils
     private static Object getObjectUsingApplicationIdForRow(final Row row, 
             final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
     {
-        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = IdentityUtils.getApplicationIdentityForResultSetRow(ec, cmd, null, false, fm);
 
@@ -560,7 +560,7 @@ public class CassandraUtils
     {
         Object idKey = null;
         StoreManager storeMgr = ec.getStoreManager();
-        Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+        Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
         if (storeMgr.isStrategyDatastoreAttributed(cmd, -1))
         {
             // TODO Support this?

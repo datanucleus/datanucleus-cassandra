@@ -98,7 +98,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Make sure schema exists, using this connection
                 ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
-            Table table = (Table) storeMgr.getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
             // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
 
             long startTime = System.currentTimeMillis();
@@ -376,7 +376,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Make sure schema exists, using this connection
                 ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
-            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
 
             boolean fieldsToUpdate = false;
             for (int fieldNum : fieldNumbers)
@@ -578,7 +578,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
             Session session = (Session)mconn.getConnection();
             if (cmd.isVersioned() && ec.getTransaction().getOptimistic())
             {
@@ -720,7 +720,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             // Create PreparedStatement and values to bind ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-            Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
             Set<Integer> nonpersistableFields = null;
             ClassLoaderResolver clr = ec.getClassLoaderResolver();
             boolean first = true;
@@ -990,7 +990,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     locateStmt = locateStatementByClassName.get(cmd.getFullClassName());
                 }
-                Table table = (Table) ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getProperty("tableObject");
+                Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
                 if (locateStmt == null)
                 {
                     // Create the locate statement ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
