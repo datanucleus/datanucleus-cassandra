@@ -260,7 +260,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         {
             insertStmtBuilder.append(schemaName).append('.');
         }
-        insertStmtBuilder.append(table.getIdentifier()).append("(");
+        insertStmtBuilder.append(table.getName()).append("(");
 
         int numParams = 0;
         if (colValuesByName != null && !colValuesByName.isEmpty())
@@ -282,7 +282,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+            insertStmtBuilder.append(table.getDatastoreIdColumn().getName());
             numParams++;
         }
 
@@ -296,7 +296,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     insertStmtBuilder.append(',');
                 }
-                insertStmtBuilder.append(table.getVersionColumn().getIdentifier());
+                insertStmtBuilder.append(table.getVersionColumn().getName());
                 numParams++;
             }
         }
@@ -308,7 +308,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getDiscriminatorColumn().getIdentifier());
+            insertStmtBuilder.append(table.getDiscriminatorColumn().getName());
             numParams++;
         }
 
@@ -319,7 +319,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getMultitenancyColumn().getIdentifier());
+            insertStmtBuilder.append(table.getMultitenancyColumn().getName());
             numParams++;
         }
 
@@ -437,7 +437,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtBuilder.append(schemaName).append('.');
             }
-            stmtBuilder.append(table.getIdentifier());
+            stmtBuilder.append(table.getName());
 
             // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.update.using')
             String[] options = cmd.getValuesForExtension("cassandra.update.using");
@@ -488,14 +488,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     if (!updatingVerField)
                     {
-                        stmtBuilder.append(',').append(table.getMemberColumnMappingForMember(verMmd).getColumn(0).getIdentifier()).append("=?");
+                        stmtBuilder.append(',').append(table.getMemberColumnMappingForMember(verMmd).getColumn(0).getName()).append("=?");
                         setVals.add(op.getTransactionalVersion());
                     }
                 }
                 else
                 {
                     // Update the stored surrogate value
-                    stmtBuilder.append(",").append(table.getVersionColumn().getIdentifier()).append("=?");
+                    stmtBuilder.append(",").append(table.getVersionColumn().getName()).append("=?");
                     Object verVal = op.getTransactionalVersion();
                     setVals.add(verVal);
                 }
@@ -513,7 +513,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
                     Column pkCol = table.getMemberColumnMappingForMember(pkMmd).getColumn(0); // TODO Have PK member with multiple cols
-                    stmtBuilder.append(pkCol.getIdentifier());
+                    stmtBuilder.append(pkCol.getName());
                     stmtBuilder.append("=?");
                     RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
                     if (RelationType.isRelationSingleValued(relType))
@@ -530,7 +530,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                stmtBuilder.append(table.getDatastoreIdColumn().getName());
                 stmtBuilder.append("=?");
                 Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
                 setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, storeMgr.getNucleusContext().getTypeManager()));
@@ -623,7 +623,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
 
                 // WHERE clause
-                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
+                stmtBuilder.append(table.getName()).append(" WHERE ");
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
                     int[] pkFieldNums = cmd.getPKMemberPositions();
@@ -634,13 +634,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                             stmtBuilder.append(" AND ");
                         }
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getIdentifier());
+                        stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getName());
                         stmtBuilder.append("=?");
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                    stmtBuilder.append(table.getDatastoreIdColumn().getName());
                     stmtBuilder.append("=?");
                 }
                 deleteStmt = stmtBuilder.toString();
@@ -753,7 +753,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
                     for (int j=0;j<mapping.getNumberOfColumns();j++)
                     {
-                        String colName = mapping.getColumn(j).getIdentifier();
+                        String colName = mapping.getColumn(j).getName();
                         if (!first)
                         {
                             stmtBuilder.append(',');
@@ -796,7 +796,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         {
                             stmtBuilder.append(',');
                         }
-                        stmtBuilder.append(col.getIdentifier());
+                        stmtBuilder.append(col.getName());
                         first = false;
                     }
                 }
@@ -807,7 +807,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         stmtBuilder.append(',');
                     }
-                    stmtBuilder.append(table.getVersionColumn().getIdentifier());
+                    stmtBuilder.append(table.getVersionColumn().getName());
                     first = false;
                 }
             }
@@ -830,7 +830,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
-                stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
+                stmtBuilder.append(table.getName()).append(" WHERE ");
 
                 if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
@@ -842,13 +842,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                             stmtBuilder.append(" AND ");
                         }
                         AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                        stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getIdentifier());
+                        stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getName());
                         stmtBuilder.append("=?");
                     }
                 }
                 else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                    stmtBuilder.append(table.getDatastoreIdColumn().getName());
                     stmtBuilder.append("=?");
                 }
 
@@ -894,7 +894,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         // Surrogate version
                         Column verCol = table.getVersionColumn();
-                        Object datastoreVersion = verCol.getTypeName().equals("int") ? row.getInt(verCol.getIdentifier()) : row.getLong(verCol.getIdentifier());
+                        Object datastoreVersion = verCol.getTypeName().equals("int") ? row.getInt(verCol.getName()) : row.getLong(verCol.getName());
                         op.setVersion(datastoreVersion);
                     }
                 }
@@ -960,7 +960,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     strBuilder.append(mmd.getName());
                 }
                 strBuilder.append('.').append(embMmd.getName());
-                NucleusLogger.DATASTORE_SCHEMA.warn("Attempt to find column schema in table=" + table.getIdentifier() + " for embedded member at " + strBuilder.toString() + " but not found!" +
+                NucleusLogger.DATASTORE_SCHEMA.warn("Attempt to find column schema in table=" + table.getName() + " for embedded member at " + strBuilder.toString() + " but not found!" +
                     " Schema generation must be incomplete for this table");
                 return;
             }
@@ -969,7 +969,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 Column column = mapping.getColumn(j);
                 if (column != null)
                 {
-                    colNames.add(column.getIdentifier());
+                    colNames.add(column.getName());
                 }
             }
         }
@@ -1005,12 +1005,12 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                                 stmtBuilder.append(",");
                             }
                             AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                            stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getIdentifier());
+                            stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getName());
                         }
                     }
                     else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                     {
-                        stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                        stmtBuilder.append(table.getDatastoreIdColumn().getName());
                     }
                     stmtBuilder.append(" FROM ");
                     String schemaName = table.getSchemaName();
@@ -1018,7 +1018,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         stmtBuilder.append(schemaName).append('.');
                     }
-                    stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
+                    stmtBuilder.append(table.getName()).append(" WHERE ");
 
                     if (cmd.getIdentityType() == IdentityType.APPLICATION)
                     {
@@ -1030,13 +1030,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                                 stmtBuilder.append(" AND ");
                             }
                             AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                            stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getIdentifier());
+                            stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getName());
                             stmtBuilder.append("=?");
                         }
                     }
                     else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                     {
-                        stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                        stmtBuilder.append(table.getDatastoreIdColumn().getName());
                         stmtBuilder.append("=?");
                     }
                     locateStmt = stmtBuilder.toString();
@@ -1106,14 +1106,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
                 col = table.getMemberColumnMappingForMember(verMmd).getColumn(0);
             }
-            stmtBuilder.append(col.getIdentifier());
+            stmtBuilder.append(col.getName());
             stmtBuilder.append(" FROM ");
             String schemaName = table.getSchemaName();
             if (schemaName != null)
             {
                 stmtBuilder.append(schemaName).append('.');
             }
-            stmtBuilder.append(table.getIdentifier()).append(" WHERE ");
+            stmtBuilder.append(table.getName()).append(" WHERE ");
 
             if (cmd.getIdentityType() == IdentityType.APPLICATION)
             {
@@ -1125,13 +1125,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         stmtBuilder.append(" AND ");
                     }
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getIdentifier());
+                    stmtBuilder.append(table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getName());
                     stmtBuilder.append("=?");
                 }
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtBuilder.append(table.getDatastoreIdColumn().getIdentifier());
+                stmtBuilder.append(table.getDatastoreIdColumn().getName());
                 stmtBuilder.append("=?");
             }
             verStmt = stmtBuilder.toString();
@@ -1207,12 +1207,12 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (vermd.getFieldName() == null)
             {
                 // Surrogate version
-                verColName = table.getVersionColumn().getIdentifier();
+                verColName = table.getVersionColumn().getName();
             }
             else
             {
                 AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                verColName = table.getMemberColumnMappingForMember(verMmd).getColumn(0).getIdentifier();
+                verColName = table.getMemberColumnMappingForMember(verMmd).getColumn(0).getName();
             }
             if (currentVersion instanceof Long)
             {

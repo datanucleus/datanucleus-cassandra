@@ -113,35 +113,35 @@ public class CassandraUtils
     {
         if (column.getTypeName().equals("varchar"))
         {
-            return typeConv.toMemberType(row.getString(column.getIdentifier()));
+            return typeConv.toMemberType(row.getString(column.getName()));
         }
         else if (column.getTypeName().equals("int"))
         {
-            return typeConv.toMemberType(row.getInt(column.getIdentifier()));
+            return typeConv.toMemberType(row.getInt(column.getName()));
         }
         else if (column.getTypeName().equals("boolean"))
         {
-            return typeConv.toMemberType(row.getBool(column.getIdentifier()));
+            return typeConv.toMemberType(row.getBool(column.getName()));
         }
         else if (column.getTypeName().equals("double"))
         {
-            return typeConv.toMemberType(row.getDouble(column.getIdentifier()));
+            return typeConv.toMemberType(row.getDouble(column.getName()));
         }
         else if (column.getTypeName().equals("float"))
         {
-            return typeConv.toMemberType(row.getFloat(column.getIdentifier()));
+            return typeConv.toMemberType(row.getFloat(column.getName()));
         }
         else if (column.getTypeName().equals("bigint"))
         {
-            return typeConv.toMemberType(row.getLong(column.getIdentifier()));
+            return typeConv.toMemberType(row.getLong(column.getName()));
         }
         else if (column.getTypeName().equals("timestamp"))
         {
-            return typeConv.toMemberType(row.getDate(column.getIdentifier()));
+            return typeConv.toMemberType(row.getDate(column.getName()));
         }
         else if (column.getTypeName().equals("blob"))
         {
-            return typeConv.toMemberType(row.getBytes(column.getIdentifier()));
+            return typeConv.toMemberType(row.getBytes(column.getName()));
         }
         return null;
     }
@@ -542,11 +542,11 @@ public class CassandraUtils
                 // Get the surrogate version from the datastore
                 if (table.getVersionColumn().getTypeName().equals("int"))
                 {
-                    version = row.getInt(table.getVersionColumn().getIdentifier());
+                    version = row.getInt(table.getVersionColumn().getName());
                 }
                 else
                 {
-                    version = row.getLong(table.getVersionColumn().getIdentifier());
+                    version = row.getLong(table.getVersionColumn().getName());
                 }
             }
             op.setVersion(version);
@@ -570,11 +570,11 @@ public class CassandraUtils
             Column col = table.getDatastoreIdColumn();
             if (col.getTypeName().equals("varchar"))
             {
-                idKey = row.getString(col.getIdentifier());
+                idKey = row.getString(col.getName());
             }
             else
             {
-                idKey = row.getLong(col.getIdentifier());
+                idKey = row.getLong(col.getName());
             }
         }
 
@@ -616,11 +616,11 @@ public class CassandraUtils
                 // Get the surrogate version from the datastore
                 if (table.getVersionColumn().getTypeName().equals("int"))
                 {
-                    version = row.getInt(table.getVersionColumn().getIdentifier());
+                    version = row.getInt(table.getVersionColumn().getName());
                 }
                 else
                 {
-                    version = row.getLong(table.getVersionColumn().getIdentifier());
+                    version = row.getLong(table.getVersionColumn().getName());
                 }
             }
             op.setVersion(version);

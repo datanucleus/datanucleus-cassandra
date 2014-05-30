@@ -290,10 +290,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         String schemaName = table.getSchemaName();
 
         SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
-        if (checkTableExistence(session, stmtProvider, schemaName, table.getIdentifier()))
+        if (checkTableExistence(session, stmtProvider, schemaName, table.getName()))
         {
             // Add/delete any columns/constraints to match the current definition (aka "schema evolution")
-            Map<String, ColumnDetails> tableStructure = getColumnDetailsForTable(session, stmtProvider, schemaName, table.getIdentifier());
+            Map<String, ColumnDetails> tableStructure = getColumnDetailsForTable(session, stmtProvider, schemaName, table.getName());
 
             if (autoCreateColumns)
             {
@@ -310,9 +310,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         {
                             stmtBuilder.append(schemaName).append('.');
                         }
-                        stmtBuilder.append(table.getIdentifier());
+                        stmtBuilder.append(table.getName());
                         stmtBuilder.append(" ADD COLUMN ");
-                        stmtBuilder.append(column.getIdentifier()).append(" ").append(column.getTypeName());
+                        stmtBuilder.append(column.getName()).append(" ").append(column.getTypeName());
                         tableStmts.add(stmtBuilder.toString());
                     }
                     else
@@ -320,8 +320,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails.typeName != null && !colDetails.typeName.equals(column.getTypeName()))
                         {
                             // TODO Change the column type if requested. What about existing data
-                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getIdentifier(), 
-                                column.getIdentifier(), colDetails.typeName, column.getTypeName()));
+                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getName(), 
+                                column.getName(), colDetails.typeName, column.getTypeName()));
                         }
                     }
                 }
@@ -345,7 +345,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         {
                             stmtBuilder.append(schemaName).append('.');
                         }
-                        stmtBuilder.append(table.getIdentifier());
+                        stmtBuilder.append(table.getName());
                         stmtBuilder.append(" DROP COLUMN ");
                         stmtBuilder.append(colName); // Needs quoting?
                         tableStmts.add(stmtBuilder.toString());
@@ -378,7 +378,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0], idxmd);
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
@@ -417,7 +417,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 if (colDetails == null)
                                 {
                                     // Add index
-                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), idxmd);
+                                    String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
@@ -442,7 +442,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails == null)
                         {
                             String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), vermd.getIndexMetaData());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
@@ -465,7 +465,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (colDetails == null)
                         {
                             String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), dismd.getIndexMetaData());
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
@@ -494,16 +494,16 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
-                stmtBuilder.append(table.getIdentifier());
+                stmtBuilder.append(table.getName());
                 stmtBuilder.append(" (");
 
                 List<String> pkColNames = new ArrayList<String>();
                 for (Column column : table.getColumns())
                 {
-                    stmtBuilder.append(column.getIdentifier()).append(' ').append(column.getTypeName()).append(',');
+                    stmtBuilder.append(column.getName()).append(' ').append(column.getTypeName()).append(',');
                     if (column.isPrimaryKey())
                     {
-                        pkColNames.add(column.getIdentifier());
+                        pkColNames.add(column.getName());
                     }
                 }
 
@@ -561,7 +561,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else
                             {
                                 String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
-                                String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), colNames[0], idxmd);
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
                                 constraintStmts.add(indexStmt);
                             }
                         }
@@ -581,7 +581,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         {
                             // Index specified on this member, so add it TODO Add check if member has multiple columns
                             String idxName = namingFactory.getConstraintName(mmd, idxmd);
-                            String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), mapping.getColumn(0).getIdentifier(), idxmd);
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), mapping.getColumn(0).getName(), idxmd);
                             constraintStmts.add(indexStmt);
                         }
                     }
@@ -594,7 +594,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         Column column = table.getVersionColumn();
                         String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
-                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), vermd.getIndexMetaData());
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
                     }
                 }
@@ -605,7 +605,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     {
                         Column column = table.getDiscriminatorColumn();
                         String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
-                        String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), dismd.getIndexMetaData());
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
                     }
                 }
@@ -613,7 +613,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 {
                     Column column = table.getMultitenancyColumn();
                     String idxName = cmd.getName() + "_TENANCY_IDX";
-                    String indexStmt = createIndexCQL(idxName, schemaName, table.getIdentifier(), column.getIdentifier(), null);
+                    String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                     constraintStmts.add(indexStmt);
                 }
             }
@@ -726,7 +726,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                         // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
                         String schemaName = table.getSchemaName();
-                        String tableName = table.getIdentifier();
+                        String tableName = table.getName();
 
                         NamingFactory namingFactory = storeMgr.getNamingFactory();
                         SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
@@ -894,7 +894,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
                 // TODO Check existence of schema using "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
                 String schemaName = table.getSchemaName();
-                String tableName = table.getIdentifier();
+                String tableName = table.getName();
 
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
                 boolean tableExists = checkTableExistence(session, stmtProvider, schemaName, tableName);
@@ -918,12 +918,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             // Column not present, so log it and fail the validation
                             if (column.getMemberColumnMapping() != null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getIdentifier(), 
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableDoesntExist", tableName, column.getName(), 
                                     column.getMemberColumnMapping().getMemberMetaData().getFullFieldName()));
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableInvalidType", tableName, column.getIdentifier(),
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnForTableInvalidType", tableName, column.getName(),
                                     column.getColumnType()));
                             }
                             success = false;
@@ -937,7 +937,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnTypeIncorrect", tableName, column.getIdentifier(),
+                                NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.ColumnTypeIncorrect", tableName, column.getName(),
                                     colDetails.typeName, column.getTypeName()));
                             }
                         }
@@ -1161,7 +1161,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     private ColumnDetails getColumnDetailsForColumn(Column col, Map<String, ColumnDetails> tableStructure)
     {
-        String colName = col.getIdentifier();
+        String colName = col.getName();
         if (colName.startsWith("\""))
         {
             // Remove any quotes if the identifier is quoted since table structure will not have quotes

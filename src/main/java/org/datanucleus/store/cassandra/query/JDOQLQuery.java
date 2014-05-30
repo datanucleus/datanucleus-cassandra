@@ -376,13 +376,13 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
             // Obtain candidate objects for this class
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
-            stmtBuilder.append(table.getSchemaName()).append('.').append(table.getIdentifier());
+            stmtBuilder.append(table.getSchemaName()).append('.').append(table.getName());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
             if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
-                stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getIdentifier()).append("='").append(multitenancyValue).append("'");
+                stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getName()).append("='").append(multitenancyValue).append("'");
             }
 
             // Execute the SELECT

@@ -121,7 +121,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
                             for (int j=0;j<mapping.getNumberOfColumns();j++)
                             {
-                                columnValueByName.put(mapping.getColumn(j).getIdentifier(), null);
+                                columnValueByName.put(mapping.getColumn(j).getName(), null);
                             }
                         }
                         else if (Object.class.isAssignableFrom(embMmd.getType()))
@@ -147,7 +147,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             {
                 // TODO Embedded Collection
                 NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                 return;
             }
         }
@@ -158,7 +158,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             MemberColumnMapping mapping = getColumnMapping(fieldNumber);
             for (int i=0;i<mapping.getNumberOfColumns();i++)
             {
-                columnValueByName.put(mapping.getColumn(i).getIdentifier(), null);
+                columnValueByName.put(mapping.getColumn(i).getName(), null);
             }
             return;
         }

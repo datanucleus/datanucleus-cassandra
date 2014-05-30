@@ -91,7 +91,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public boolean fetchBooleanField(int fieldNumber)
     {
-        return row.getBool(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return row.getBool(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -100,7 +100,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public char fetchCharField(int fieldNumber)
     {
-        return row.getString(getColumnMapping(fieldNumber).getColumn(0).getIdentifier()).charAt(0);
+        return row.getString(getColumnMapping(fieldNumber).getColumn(0).getName()).charAt(0);
     }
 
     /* (non-Javadoc)
@@ -109,7 +109,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public byte fetchByteField(int fieldNumber)
     {
-        return (byte) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return (byte) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -118,7 +118,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public short fetchShortField(int fieldNumber)
     {
-        return (short) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return (short) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -127,7 +127,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public int fetchIntField(int fieldNumber)
     {
-        return row.getInt(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -136,7 +136,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public long fetchLongField(int fieldNumber)
     {
-        return row.getLong(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return row.getLong(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -148,13 +148,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         Column col = getColumnMapping(fieldNumber).getColumn(0);
         if (col.getJdbcType() == JdbcType.DECIMAL)
         {
-            return row.getDecimal(col.getIdentifier()).floatValue();
+            return row.getDecimal(col.getName()).floatValue();
         }
         else if (col.getJdbcType() == JdbcType.DOUBLE)
         {
-            return (float)row.getDouble(col.getIdentifier());
+            return (float)row.getDouble(col.getName());
         }
-        return row.getFloat(col.getIdentifier());
+        return row.getFloat(col.getName());
     }
 
     /* (non-Javadoc)
@@ -166,9 +166,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         Column col = getColumnMapping(fieldNumber).getColumn(0);
         if (col.getJdbcType() == JdbcType.DECIMAL)
         {
-            return row.getDecimal(col.getIdentifier()).doubleValue();
+            return row.getDecimal(col.getName()).doubleValue();
         }
-        return row.getDouble(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return row.getDouble(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -177,7 +177,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public String fetchStringField(int fieldNumber)
     {
-        return row.getString(getColumnMapping(fieldNumber).getColumn(0).getIdentifier());
+        return row.getString(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /* (non-Javadoc)
@@ -222,12 +222,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
         if (RelationType.isRelationSingleValued(relationType))
         {
-            if (row.isNull(mapping.getColumn(0).getIdentifier()))
+            if (row.isNull(mapping.getColumn(0).getName()))
             {
                 return null;
             }
 
-            Object value = row.getString(mapping.getColumn(0).getIdentifier());
+            Object value = row.getString(mapping.getColumn(0).getName());
             return getValueForSingleRelationField(mmd, value, clr);
         }
         else if (RelationType.isRelationMultiValued(relationType))
@@ -238,15 +238,15 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Class elementCls = mmd.getCollection().isSerializedElement() ? ByteBuffer.class : String.class;
                 if (Set.class.isAssignableFrom(mmd.getType()))
                 {
-                    value = row.getSet(mapping.getColumn(0).getIdentifier(), elementCls);
+                    value = row.getSet(mapping.getColumn(0).getName(), elementCls);
                 }
                 else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
-                    value = row.getList(mapping.getColumn(0).getIdentifier(), elementCls);
+                    value = row.getList(mapping.getColumn(0).getName(), elementCls);
                 }
                 else
                 {
-                    value = row.getSet(mapping.getColumn(0).getIdentifier(), elementCls);
+                    value = row.getSet(mapping.getColumn(0).getName(), elementCls);
                 }
             }
             else if (mmd.hasMap())
@@ -261,11 +261,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     valCls = mmd.getMap().isSerializedValue() ? ByteBuffer.class : String.class;
                 }
-                value = row.getMap(mapping.getColumn(0).getIdentifier(), keyCls, valCls);
+                value = row.getMap(mapping.getColumn(0).getName(), keyCls, valCls);
             }
             else if (mmd.hasArray())
             {
-                value = row.getList(mapping.getColumn(0).getIdentifier(), String.class);
+                value = row.getList(mapping.getColumn(0).getName(), String.class);
             }
             return getValueForContainerRelationField(mmd, value, clr);
         }
@@ -277,7 +277,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 boolean allNull = true;
                 for (int i=0;i<mapping.getNumberOfColumns();i++)
                 {
-                    if (!row.isNull(mapping.getColumn(i).getIdentifier()))
+                    if (!row.isNull(mapping.getColumn(i).getName()))
                     {
                         allNull = false;
                     }
@@ -289,7 +289,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else
             {
-                if (row.isNull(mapping.getColumn(0).getIdentifier()))
+                if (row.isNull(mapping.getColumn(0).getName()))
                 {
                     return null;
                 }
@@ -332,35 +332,35 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         Column col = mapping.getColumn(i);
                         if (col.getTypeName().equals("int"))
                         {
-                            Array.set(valuesArr, i, row.getInt(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getInt(col.getName()));
                         }
                         else if (col.getTypeName().equals("bool"))
                         {
-                            Array.set(valuesArr, i, row.getBool(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getBool(col.getName()));
                         }
                         else if (col.getTypeName().equals("timestamp"))
                         {
-                            Array.set(valuesArr, i, row.getDate(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getDate(col.getName()));
                         }
                         else if (col.getTypeName().equals("decimal"))
                         {
-                            Array.set(valuesArr, i, row.getDecimal(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getDecimal(col.getName()));
                         }
                         else if (col.getTypeName().equals("double"))
                         {
-                            Array.set(valuesArr, i, row.getDouble(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getDouble(col.getName()));
                         }
                         else if (col.getTypeName().equals("float"))
                         {
-                            Array.set(valuesArr, i, row.getFloat(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getFloat(col.getName()));
                         }
                         else if (col.getTypeName().equals("bigint"))
                         {
-                            Array.set(valuesArr, i, row.getLong(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getLong(col.getName()));
                         }
                         else
                         {
-                            Array.set(valuesArr, i, row.getString(col.getIdentifier()));
+                            Array.set(valuesArr, i, row.getString(col.getName()));
                         }
                         // TODO Support other types
                         if (isNull && Array.get(valuesArr, i) != null)
@@ -390,15 +390,15 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 // TODO Cater for type conversion, and update elementCls to the Cassandra type
                 if (Set.class.isAssignableFrom(mmd.getType()))
                 {
-                    cassColl = row.getSet(mapping.getColumn(0).getIdentifier(), cassElemCls);
+                    cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
                 }
                 else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
-                    cassColl = row.getList(mapping.getColumn(0).getIdentifier(), cassElemCls);
+                    cassColl = row.getList(mapping.getColumn(0).getName(), cassElemCls);
                 }
                 else
                 {
-                    cassColl = row.getSet(mapping.getColumn(0).getIdentifier(), cassElemCls);
+                    cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
                 }
 
                 Collection<Object> coll;
@@ -449,7 +449,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Class valCls = clr.classForName(mmd.getMap().getValueType());
                 String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
                 Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
-                Map cassMap = row.getMap(mapping.getColumn(0).getIdentifier(), cassKeyCls, cassValCls);
+                Map cassMap = row.getMap(mapping.getColumn(0).getName(), cassKeyCls, cassValCls);
                 if (cassMap != null)
                 {
                     Iterator<Map.Entry> cassMapEntryIter = cassMap.entrySet().iterator();
@@ -490,59 +490,59 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 // Convert back from ByteBuffer
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                return serialConv.toMemberType(row.getBytes(mapping.getColumn(0).getIdentifier()));
+                return serialConv.toMemberType(row.getBytes(mapping.getColumn(0).getName()));
             }
             // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
             else if (BigInteger.class.isAssignableFrom(mmd.getType()))
             {
             	// TODO There is a TypeConverter for this
-            	return BigInteger.valueOf(row.getLong(mapping.getColumn(0).getIdentifier()));
+            	return BigInteger.valueOf(row.getLong(mapping.getColumn(0).getName()));
             }
             else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
             {
             	// TODO There is a TypeConverter for this
-            	return row.getDecimal(mapping.getColumn(0).getIdentifier());
+            	return row.getDecimal(mapping.getColumn(0).getName());
             }
             else if (Byte.class.isAssignableFrom(mmd.getType()))
             {
-                return (byte)row.getInt(mapping.getColumn(0).getIdentifier());
+                return (byte)row.getInt(mapping.getColumn(0).getName());
             }
             else if (Character.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getString(mapping.getColumn(0).getIdentifier()).charAt(0);
+                return row.getString(mapping.getColumn(0).getName()).charAt(0);
             }
             else if (Double.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getDouble(mapping.getColumn(0).getIdentifier());
+                return row.getDouble(mapping.getColumn(0).getName());
             }
             else if (Float.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getFloat(mapping.getColumn(0).getIdentifier());
+                return row.getFloat(mapping.getColumn(0).getName());
             }
             else if (Long.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getLong(mapping.getColumn(0).getIdentifier());
+                return row.getLong(mapping.getColumn(0).getName());
             }
             else if (Integer.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getInt(mapping.getColumn(0).getIdentifier());
+                return row.getInt(mapping.getColumn(0).getName());
             }
             else if (Short.class.isAssignableFrom(mmd.getType()))
             {
-                return (short)row.getInt(mapping.getColumn(0).getIdentifier());
+                return (short)row.getInt(mapping.getColumn(0).getName());
             }
             else if (Boolean.class.isAssignableFrom(mmd.getType()))
             {
-                return row.getBool(mapping.getColumn(0).getIdentifier());
+                return row.getBool(mapping.getColumn(0).getName());
             }
             else if (Enum.class.isAssignableFrom(mmd.getType()))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
             	if (mapping.getColumn(0).getTypeName().equals("varchar"))
             	{
-            		return Enum.valueOf(mmd.getType(), row.getString(mapping.getColumn(0).getIdentifier()));
+            		return Enum.valueOf(mmd.getType(), row.getString(mapping.getColumn(0).getName()));
             	}
-                return mmd.getType().getEnumConstants()[row.getInt(mapping.getColumn(0).getIdentifier())];
+                return mmd.getType().getEnumConstants()[row.getInt(mapping.getColumn(0).getName())];
             }
             else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
             {
@@ -551,11 +551,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
             	}
             	// TODO There is a TypeConverter for this
-            	return new java.sql.Date(row.getDate(mapping.getColumn(0).getIdentifier()).getTime());
+            	return new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
             {
@@ -564,11 +564,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
             	}
             	// TODO There is a TypeConverter for this
-            	return new java.sql.Time(row.getDate(mapping.getColumn(0).getIdentifier()).getTime());
+            	return new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
             {
@@ -577,11 +577,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
             	}
             	// TODO There is a TypeConverter for this
-            	return new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getIdentifier()).getTime());
+            	return new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (Calendar.class.isAssignableFrom(mmd.getType()))
             {
@@ -590,12 +590,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
             	}
             	// TODO Support Calendar with multiple columns and do via TypeConverter
                 Calendar cal = Calendar.getInstance();
-                cal.setTime(row.getDate(mapping.getColumn(0).getIdentifier()));
+                cal.setTime(row.getDate(mapping.getColumn(0).getName()));
             	return cal;
             }
             else if (Date.class.isAssignableFrom(mmd.getType()))
@@ -605,10 +605,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                return row.getDate(mapping.getColumn(0).getIdentifier());
+                return row.getDate(mapping.getColumn(0).getName());
             }
             else
             {
@@ -616,12 +616,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getIdentifier()));
+                    return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                 }
                 TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
                 if (longConverter != null)
                 {
-                    return longConverter.toMemberType(row.getLong(mapping.getColumn(0).getIdentifier()));
+                    return longConverter.toMemberType(row.getLong(mapping.getColumn(0).getName()));
                 }
             }
         }

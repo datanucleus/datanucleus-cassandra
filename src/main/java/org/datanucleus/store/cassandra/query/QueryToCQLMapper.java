@@ -149,11 +149,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
         if (table.getSchemaName() != null)
         {
-            str.append(" FROM ").append(table.getSchemaName()).append('.').append(table.getIdentifier());
+            str.append(" FROM ").append(table.getSchemaName()).append('.').append(table.getName());
         }
         else
         {
-            str.append(" FROM ").append(table.getIdentifier());
+            str.append(" FROM ").append(table.getName());
         }
 
         if (filterCql != null)
@@ -450,7 +450,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                                 throw new NucleusUserException("Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + 
                                     " yet this is not indexed. Must be indexed to evaluate in datastore");
                             }
-                            return new CassandraFieldExpression(mapping.getColumn(0).getIdentifier(), mmd);
+                            return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
                         else
                         {

@@ -92,7 +92,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
     /* (non-Javadoc)
@@ -105,7 +105,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), ""+value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), ""+value);
     }
 
     /* (non-Javadoc)
@@ -118,7 +118,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), Integer.valueOf(value));
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), Integer.valueOf(value));
     }
 
     /* (non-Javadoc)
@@ -131,7 +131,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), Integer.valueOf(value));
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), Integer.valueOf(value));
     }
 
     /* (non-Javadoc)
@@ -144,7 +144,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
     /* (non-Javadoc)
@@ -157,7 +157,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
     /* (non-Javadoc)
@@ -173,15 +173,15 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         Column column = getColumnMapping(fieldNumber).getColumn(0);
         if (column.getJdbcType() == JdbcType.DECIMAL)
         {
-            columnValueByName.put(column.getIdentifier(), BigDecimal.valueOf(value));
+            columnValueByName.put(column.getName(), BigDecimal.valueOf(value));
         }
         else if (column.getJdbcType() == JdbcType.DOUBLE)
         {
-            columnValueByName.put(column.getIdentifier(), Double.valueOf(value));
+            columnValueByName.put(column.getName(), Double.valueOf(value));
         }
         else
         {
-            columnValueByName.put(column.getIdentifier(), value);
+            columnValueByName.put(column.getName(), value);
         }
     }
 
@@ -198,11 +198,11 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         Column column = getColumnMapping(fieldNumber).getColumn(0);
         if (column.getJdbcType() == JdbcType.DECIMAL)
         {
-            columnValueByName.put(column.getIdentifier(), BigDecimal.valueOf(value));
+            columnValueByName.put(column.getName(), BigDecimal.valueOf(value));
         }
         else
         {
-            columnValueByName.put(column.getIdentifier(), value);
+            columnValueByName.put(column.getName(), value);
         }
     }
 
@@ -216,7 +216,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
     /* (non-Javadoc)
@@ -257,7 +257,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
                             for (int j=0;j<mapping.getNumberOfColumns();j++)
                             {
-                                columnValueByName.put(mapping.getColumn(j).getIdentifier(), null);
+                                columnValueByName.put(mapping.getColumn(j).getName(), null);
                             }
                         }
                         else if (Object.class.isAssignableFrom(embMmd.getType()))
@@ -281,7 +281,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 // TODO Embedded Collection
                 NucleusLogger.PERSISTENCE.warn("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                 return;
             }
         }
@@ -298,7 +298,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             for (int i=0;i<mapping.getNumberOfColumns();i++)
             {
-                columnValueByName.put(mapping.getColumn(i).getIdentifier(), null);
+                columnValueByName.put(mapping.getColumn(i).getName(), null);
             }
             return;
         }
@@ -326,7 +326,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             	// TODO Support serialised persistable object
                 throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
             }
-            columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), IdentityUtils.getPersistableIdentityForId(valueID));
+            columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
             return;
         }
         else if (RelationType.isRelationMultiValued(relationType))
@@ -377,7 +377,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         cassColl.add("NULL");
                     }
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), cassColl);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
@@ -449,7 +449,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                     idMap.put(key, val);
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), idMap);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), idMap);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
@@ -477,7 +477,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         cassColl.add("NULL");
                     }
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), cassColl);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 return;
             }
         }
@@ -491,12 +491,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     for (int i=0;i<Array.getLength(datastoreValue);i++)
                     {
-                        columnValueByName.put(mapping.getColumn(i).getIdentifier(), Array.get(datastoreValue, i));
+                        columnValueByName.put(mapping.getColumn(i).getName(), Array.get(datastoreValue, i));
                     }
                 }
                 else
                 {
-                    columnValueByName.put(mapping.getColumn(0).getIdentifier(), datastoreValue);
+                    columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
                 }
                 return;
             }
@@ -507,7 +507,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Collection coll = (Collection)value;
                 if (coll.size() == 0)
                 {
-                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                     return;
                 }
 
@@ -528,7 +528,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = collIter.next();
                     cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), cassColl);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
@@ -539,7 +539,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Map map = (Map)value;
                 if (map.size() == 0)
                 {
-                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                     return;
                 }
 
@@ -558,7 +558,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
                     cassMap.put(key, val);
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), cassMap);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
@@ -566,7 +566,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 if (Array.getLength(value) == 0)
                 {
-                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), null);
+                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                     return;
                 }
 
@@ -574,7 +574,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
                     Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
-                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), datastoreValue);
+                    columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
                 }
 
@@ -595,7 +595,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                     }
                 }
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getIdentifier(), cassArr);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
@@ -605,13 +605,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
             if (datastoreValue != null)
             {
-                columnValueByName.put(mapping.getColumn(0).getIdentifier(), datastoreValue);
+                columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
                 return;
             }
         }
 
         NucleusLogger.PERSISTENCE.warn("Not generated persistable value for field " + mmd.getFullFieldName() + " so putting null");
-        columnValueByName.put(mapping.getColumn(0).getIdentifier(), null);
+        columnValueByName.put(mapping.getColumn(0).getName(), null);
     }
 }
