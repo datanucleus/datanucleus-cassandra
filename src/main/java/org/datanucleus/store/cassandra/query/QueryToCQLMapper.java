@@ -17,10 +17,11 @@ Contributors:
 **********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Stack;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -86,7 +87,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     boolean precompilable = true;
 
     /** Stack of expressions, used during compilation process. */
-    Stack<CassandraExpression> stack = new Stack();
+    Deque<CassandraExpression> stack = new ArrayDeque<CassandraExpression>();
 
     String cql = null;
 
