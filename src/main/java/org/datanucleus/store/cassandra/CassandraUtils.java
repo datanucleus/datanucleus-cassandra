@@ -56,6 +56,8 @@ import com.datastax.driver.core.Row;
  */
 public class CassandraUtils
 {
+    private CassandraUtils() {}
+
     static Map<String, String> cassandraTypeByJavaType = new HashMap<String, String>();
 
     static Map<String, Class> datastoreTypeByCassandraType = new HashMap<String, Class>();
@@ -167,7 +169,7 @@ public class CassandraUtils
             }
             else
             {
-                return Enum.valueOf(javaType, (String)datastoreValue);
+                return Enum.valueOf(javaType, (String) datastoreValue);
             }
         }
         else if (java.sql.Date.class.isAssignableFrom(javaType))
@@ -177,11 +179,11 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String)datastoreValue);
+                    return stringConverter.toMemberType((String) datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Date(((Date)datastoreValue).getTime());
+            return new java.sql.Date(((Date) datastoreValue).getTime());
         }
         else if (java.sql.Time.class.isAssignableFrom(javaType))
         {
@@ -190,11 +192,11 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String)datastoreValue);
+                    return stringConverter.toMemberType((String) datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Time(((Date)datastoreValue).getTime());
+            return new java.sql.Time(((Date) datastoreValue).getTime());
         }
         else if (java.sql.Timestamp.class.isAssignableFrom(javaType))
         {
@@ -203,11 +205,11 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String)datastoreValue);
+                    return stringConverter.toMemberType((String) datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Timestamp(((Date)datastoreValue).getTime());
+            return new java.sql.Timestamp(((Date) datastoreValue).getTime());
         }
         else if (Calendar.class.isAssignableFrom(javaType))
         {
@@ -216,12 +218,12 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String)datastoreValue);
+                    return stringConverter.toMemberType((String) datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
             Calendar cal = Calendar.getInstance();
-            cal.setTime((Date)datastoreValue);
+            cal.setTime((Date) datastoreValue);
             return cal;
         }
         else if (Date.class.isAssignableFrom(javaType))
@@ -231,17 +233,17 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String)datastoreValue);
+                    return stringConverter.toMemberType((String) datastoreValue);
                 }
             }
-            return (Date)datastoreValue;
+            return (Date) datastoreValue;
         }
         else if (datastoreValue instanceof String)
         {
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
             if (converter != null)
             {
-                return converter.toMemberType((String)datastoreValue);
+                return converter.toMemberType((String) datastoreValue);
             }
         }
         else if (datastoreValue instanceof Long)
@@ -249,7 +251,7 @@ public class CassandraUtils
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Long.class);
             if (converter != null)
             {
-                return converter.toMemberType((Long)datastoreValue);
+                return converter.toMemberType((Long) datastoreValue);
             }
         }
         else if (datastoreValue instanceof Integer)
@@ -257,7 +259,7 @@ public class CassandraUtils
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Integer.class);
             if (converter != null)
             {
-                return converter.toMemberType((Integer)datastoreValue);
+                return converter.toMemberType((Integer) datastoreValue);
             }
         }
 
@@ -265,8 +267,8 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to return the Cassandra type that we would store the provided type as. Note that this does not support container (Collection, Map) types
-     * just single value types.
+     * Convenience method to return the Cassandra type that we would store the provided type as. Note that
+     * this does not support container (Collection, Map) types just single value types.
      * @param type The java type
      * @param serialised Whether it should be serialised
      * @param typeMgr The type manager
@@ -328,7 +330,7 @@ public class CassandraUtils
      */
     public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
     {
-    	// TODO Support TypeManager autoApply type converter
+        // TODO Support TypeManager autoApply type converter
         if (value == null)
         {
             return value;
@@ -345,21 +347,21 @@ public class CassandraUtils
         }
         else if (value.getClass() == Byte.class)
         {
-        	return ((Byte)value).intValue();
+            return ((Byte) value).intValue();
         }
         else if (value.getClass() == Short.class)
         {
-        	return ((Short)value).intValue();
+            return ((Short) value).intValue();
         }
         else if (value.getClass() == Float.class)
         {
             if (datastoreType.equals("decimal"))
             {
-                return BigDecimal.valueOf((Float)value);
+                return BigDecimal.valueOf((Float) value);
             }
             if (datastoreType.equals("double"))
             {
-                return Double.valueOf((Float)value);
+                return Double.valueOf((Float) value);
             }
             return value;
         }
@@ -367,7 +369,7 @@ public class CassandraUtils
         {
             if (datastoreType.equals("decimal"))
             {
-                return BigDecimal.valueOf((Double)value);
+                return BigDecimal.valueOf((Double) value);
             }
             return value;
         }
@@ -377,54 +379,54 @@ public class CassandraUtils
         }
         else if (value.getClass() == BigInteger.class)
         {
-        	// TODO There is a TypeConverter for this
-        	return ((BigInteger)value).longValue();
+            // TODO There is a TypeConverter for this
+            return ((BigInteger) value).longValue();
         }
         else if (value.getClass() == BigDecimal.class)
         {
-        	// TODO There is a TypeConverter for this
-        	return value;
+            // TODO There is a TypeConverter for this
+            return value;
         }
         else if (value instanceof Enum)
         {
             // Persist as ordinal unless user specifies jdbc-type of "varchar"
             if (datastoreType.equals("varchar"))
             {
-                return ((Enum)value).name();
+                return ((Enum) value).name();
             }
-            return ((Enum)value).ordinal();
+            return ((Enum) value).ordinal();
         }
         else if (value instanceof Calendar)
         {
-        	if (datastoreType.equals("varchar"))
-        	{
+            if (datastoreType.equals("varchar"))
+            {
                 TypeConverter stringConverter = typeMgr.getTypeConverterForType(Calendar.class, String.class);
                 if (stringConverter != null)
                 {
                     return stringConverter.toDatastoreType(value);
                 }
-        	}
-        	// TODO There is a TypeConverter for this
-        	return ((Calendar)value).getTime();
+            }
+            // TODO There is a TypeConverter for this
+            return ((Calendar) value).getTime();
         }
         else if (value instanceof Date)
         {
             if (datastoreType.equals("varchar"))
             {
-            	// TODO When we have a lookup map per table of column and TypeConverter, remove this
-            	Class valueType = Date.class;
-            	if (value instanceof Time)
-            	{
-            		valueType = Time.class;
-            	}
-            	else if (value instanceof java.sql.Date)
-            	{
-            		valueType = java.sql.Date.class;
-            	}
-            	else if (value instanceof Timestamp)
-            	{
-            		valueType = Timestamp.class;
-            	}
+                // TODO When we have a lookup map per table of column and TypeConverter, remove this
+                Class valueType = Date.class;
+                if (value instanceof Time)
+                {
+                    valueType = Time.class;
+                }
+                else if (value instanceof java.sql.Date)
+                {
+                    valueType = java.sql.Date.class;
+                }
+                else if (value instanceof Timestamp)
+                {
+                    valueType = Timestamp.class;
+                }
                 TypeConverter stringConverter = typeMgr.getTypeConverterForType(valueType, String.class);
                 if (stringConverter != null)
                 {
@@ -480,7 +482,8 @@ public class CassandraUtils
         if (cmd.hasDiscriminatorStrategy())
         {
             // Determine the class from the discriminator property
-//            String discrimColName = ec.getStoreManager().getNamingFactory().getColumnName(cmd, ColumnType.DISCRIMINATOR_COLUMN);
+            // String discrimColName = ec.getStoreManager().getNamingFactory().getColumnName(cmd,
+            // ColumnType.DISCRIMINATOR_COLUMN);
             // TODO Get the value for this column
         }
 
@@ -495,35 +498,37 @@ public class CassandraUtils
         }
         else
         {
-            throw new NucleusUserException("Attempt to get candidate for class " + cmd.getFullClassName() + " but uses nondurable-identity and this is not supported by this datastore");
+            throw new NucleusUserException(
+                    "Attempt to get candidate for class " + cmd.getFullClassName() + " but uses nondurable-identity and this is not supported by this datastore");
         }
         return pojo;
     }
 
-    private static Object getObjectUsingApplicationIdForRow(final Row row, 
-            final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
+    private static Object getObjectUsingApplicationIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
+            final int[] fpMembers)
     {
         Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = IdentityUtils.getApplicationIdentityForResultSetRow(ec, cmd, null, false, fm);
 
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
-        Object pc = ec.findObject(id, 
-            new FieldValues()
+        Object pc = ec.findObject(id, new FieldValues()
+        {
+            public void fetchFields(ObjectProvider op)
             {
-                public void fetchFields(ObjectProvider op)
-                {
-                    op.replaceFields(fpMembers, fm);
-                }
-                public void fetchNonLoadedFields(ObjectProvider op)
-                {
-                    op.replaceNonLoadedFields(fpMembers, fm);
-                }
-                public FetchPlan getFetchPlanForLoading()
-                {
-                    return null;
-                }
-            }, type, ignoreCache, false);
+                op.replaceFields(fpMembers, fm);
+            }
+
+            public void fetchNonLoadedFields(ObjectProvider op)
+            {
+                op.replaceNonLoadedFields(fpMembers, fm);
+            }
+
+            public FetchPlan getFetchPlanForLoading()
+            {
+                return null;
+            }
+        }, type, ignoreCache, false);
 
         if (cmd.isVersioned())
         {
@@ -555,8 +560,8 @@ public class CassandraUtils
         return pc;
     }
 
-    private static Object getObjectUsingDatastoreIdForRow(final Row row, 
-            final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache, final int[] fpMembers)
+    private static Object getObjectUsingDatastoreIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
+            final int[] fpMembers)
     {
         Object idKey = null;
         StoreManager storeMgr = ec.getStoreManager();
@@ -581,23 +586,24 @@ public class CassandraUtils
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = ec.getNucleusContext().getIdentityManager().getDatastoreId(cmd.getFullClassName(), idKey);
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
-        Object pc = ec.findObject(id, 
-            new FieldValues()
+        Object pc = ec.findObject(id, new FieldValues()
+        {
+            // ObjectProvider calls the fetchFields method
+            public void fetchFields(ObjectProvider op)
             {
-                // ObjectProvider calls the fetchFields method
-                public void fetchFields(ObjectProvider op)
-                {
-                    op.replaceFields(fpMembers, fm);
-                }
-                public void fetchNonLoadedFields(ObjectProvider op)
-                {
-                    op.replaceNonLoadedFields(fpMembers, fm);
-                }
-                public FetchPlan getFetchPlanForLoading()
-                {
-                    return null;
-                }
-            }, type, ignoreCache, false);
+                op.replaceFields(fpMembers, fm);
+            }
+
+            public void fetchNonLoadedFields(ObjectProvider op)
+            {
+                op.replaceNonLoadedFields(fpMembers, fm);
+            }
+
+            public FetchPlan getFetchPlanForLoading()
+            {
+                return null;
+            }
+        }, type, ignoreCache, false);
 
         if (cmd.isVersioned())
         {
@@ -629,7 +635,8 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to log the provided CQL statement, substituting the provided parameters for any "?" in the statement
+     * Convenience method to log the provided CQL statement, substituting the provided parameters for any "?"
+     * in the statement
      * @param stmt The CQL statement
      * @param values Any parameter values
      * @param logger The logger to log to (at DEBUG level).
@@ -655,7 +662,7 @@ public class CassandraUtils
                 str.append('<').append("" + values[paramNo]).append('>');
                 paramNo++;
 
-                currentPos = pos+1;
+                currentPos = pos + 1;
             }
             else
             {

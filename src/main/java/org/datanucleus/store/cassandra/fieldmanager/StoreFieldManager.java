@@ -82,7 +82,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         return columnValueByName;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeBooleanField(int, boolean)
      */
     @Override
@@ -95,7 +96,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeCharField(int, char)
      */
     @Override
@@ -105,10 +107,11 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), ""+value);
+        columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), "" + value);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeByteField(int, byte)
      */
     @Override
@@ -121,7 +124,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), Integer.valueOf(value));
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeShortField(int, short)
      */
     @Override
@@ -134,7 +138,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), Integer.valueOf(value));
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeIntField(int, int)
      */
     @Override
@@ -147,7 +152,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeLongField(int, long)
      */
     @Override
@@ -160,7 +166,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeFloatField(int, float)
      */
     @Override
@@ -185,7 +192,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeDoubleField(int, double)
      */
     @Override
@@ -206,7 +214,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeStringField(int, java.lang.String)
      */
     @Override
@@ -219,7 +228,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), value);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeObjectField(int, java.lang.Object)
      */
     @Override
@@ -246,16 +256,17 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (value == null)
                 {
                     StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
-                    for (int i=0;i<embMmdPosns.length;i++)
+                    for (int i = 0; i < embMmdPosns.length; i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd
+                                .getTypeName()))
                         {
                             // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                             colEmbMmds.add(embMmd);
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
-                            for (int j=0;j<mapping.getNumberOfColumns();j++)
+                            for (int j = 0; j < mapping.getNumberOfColumns(); j++)
                             {
                                 columnValueByName.put(mapping.getColumn(j).getName(), null);
                             }
@@ -296,7 +307,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
         if (value == null)
         {
-            for (int i=0;i<mapping.getNumberOfColumns();i++)
+            for (int i = 0; i < mapping.getNumberOfColumns(); i++)
             {
                 columnValueByName.put(mapping.getColumn(i).getName(), null);
             }
@@ -312,8 +323,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     // Related PC object not persistent, but cant do cascade-persist so throw exception
                     if (NucleusLogger.PERSISTENCE.isDebugEnabled())
                     {
-                        NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", 
-                            mmd.getFullFieldName()));
+                        NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
                     }
                     throw new ReachableObjectNotCascadedException(mmd.getFullFieldName(), value);
                 }
@@ -323,7 +333,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             if (mmd.isSerialized())
             {
-            	// TODO Support serialised persistable object
+                // TODO Support serialised persistable object
                 throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
             }
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
@@ -333,7 +343,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mmd.hasCollection())
             {
-                Collection coll = (Collection)value;
+                Collection coll = (Collection) value;
                 if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
                 {
                     // Field doesnt support cascade-persist so no reachability
@@ -366,8 +376,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         if (mmd.getCollection().isSerializedElement())
                         {
                             // TODO Support persistable element
-                            throw new NucleusUserException("Don't currently support serialised collection elements at " + 
-                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                            throw new NucleusUserException(
+                                    "Don't currently support serialised collection elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
                         }
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
@@ -386,7 +396,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // TODO Add check on reachability
                 Map idMap = new HashMap();
 
-                Map map = (Map)value;
+                Map map = (Map) value;
                 Iterator<Map.Entry> entryIter = map.entrySet().iterator();
                 String keyCassType = null;
                 if (!mmd.getMap().keyIsPersistent())
@@ -412,9 +422,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
                         if (mmd.getMap().isSerializedKey())
                         {
-                        	// TODO Support persistable key
-                            throw new NucleusUserException("Don't currently support serialised map keys at " + 
-                                    mmd.getFullFieldName() + ". Serialise the whole field");
+                            // TODO Support persistable key
+                            throw new NucleusUserException(
+                                    "Don't currently support serialised map keys at " + mmd.getFullFieldName() + ". Serialise the whole field");
                         }
                         key = IdentityUtils.getPersistableIdentityForId(keyID);
                     }
@@ -432,8 +442,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                             if (mmd.getMap().isSerializedValue())
                             {
                                 // TODO Support persistable value
-                                throw new NucleusUserException("Don't currently support serialised map values at " + 
-                                        mmd.getFullFieldName() + ". Serialise the whole field");
+                                throw new NucleusUserException(
+                                        "Don't currently support serialised map values at " + mmd.getFullFieldName() + ". Serialise the whole field");
                             }
                             val = IdentityUtils.getPersistableIdentityForId(valID);
                         }
@@ -456,13 +466,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             else if (mmd.hasArray())
             {
                 Collection cassColl = new ArrayList();
-                for (int i=0;i<Array.getLength(value);i++)
+                for (int i = 0; i < Array.getLength(value); i++)
                 {
                     if (mmd.getArray().isSerializedElement())
                     {
                         // TODO Support Serialised elements
-                        throw new NucleusUserException("Don't currently support serialised array elements at " + 
-                            mmd.getFullFieldName() + ". Serialise the whole field");
+                        throw new NucleusUserException(
+                                "Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
                     }
                     Object element = Array.get(value, i);
                     if (element != null)
@@ -489,7 +499,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Object datastoreValue = mapping.getTypeConverter().toDatastoreType(value);
                 if (mapping.getNumberOfColumns() > 1)
                 {
-                    for (int i=0;i<Array.getLength(datastoreValue);i++)
+                    for (int i = 0; i < Array.getLength(datastoreValue); i++)
                     {
                         columnValueByName.put(mapping.getColumn(i).getName(), Array.get(datastoreValue, i));
                     }
@@ -504,7 +514,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             // Member with non-persistable object(s)
             if (mmd.hasCollection())
             {
-                Collection coll = (Collection)value;
+                Collection coll = (Collection) value;
                 if (coll.size() == 0)
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
@@ -536,7 +546,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 Map cassMap = new HashMap();
 
-                Map map = (Map)value;
+                Map map = (Map) value;
                 if (map.size() == 0)
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
@@ -573,7 +583,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (mmd.isSerialized())
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
-                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(),
+                        ec.getTypeManager());
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
                 }
@@ -581,13 +592,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Collection cassArr = new ArrayList();
                 Class elemCls = clr.classForName(mmd.getArray().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
-                for (int i=0;i<Array.getLength(value);i++)
+                for (int i = 0; i < Array.getLength(value); i++)
                 {
                     if (mmd.getArray().isSerializedElement())
                     {
                         // TODO Support Serialised elements
-                        throw new NucleusUserException("Don't currently support serialised array elements at " + 
-                            mmd.getFullFieldName() + ". Serialise the whole field");
+                        throw new NucleusUserException(
+                                "Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
                     }
                     Object element = Array.get(value, i);
                     if (element != null)

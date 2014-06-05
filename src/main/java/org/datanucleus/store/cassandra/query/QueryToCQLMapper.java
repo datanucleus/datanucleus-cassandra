@@ -181,12 +181,12 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         {
             compileComponent = CompilationComponent.FILTER;
 
-            String cql = null;
+            String cqlString = null;
             try
             {
                 compilation.getExprFilter().evaluate(this);
                 CassandraExpression filterExpr = stack.pop();
-                cql = ((CassandraBooleanExpression)filterExpr).getCQL();
+                cqlString = ((CassandraBooleanExpression)filterExpr).getCQL();
             }
             catch (Exception e)
             {
@@ -199,7 +199,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             }
 
             compileComponent = null;
-            return cql;
+            return cqlString;
         }
         return null;
     }

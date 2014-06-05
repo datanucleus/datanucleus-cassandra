@@ -85,7 +85,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return table.getMemberColumnMappingForMember(cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber));
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchBooleanField(int)
      */
     @Override
@@ -94,7 +95,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getBool(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchCharField(int)
      */
     @Override
@@ -103,7 +105,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getString(getColumnMapping(fieldNumber).getColumn(0).getName()).charAt(0);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchByteField(int)
      */
     @Override
@@ -112,7 +115,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return (byte) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchShortField(int)
      */
     @Override
@@ -121,7 +125,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return (short) row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchIntField(int)
      */
     @Override
@@ -130,7 +135,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getInt(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchLongField(int)
      */
     @Override
@@ -139,7 +145,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getLong(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchFloatField(int)
      */
     @Override
@@ -152,12 +159,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else if (col.getJdbcType() == JdbcType.DOUBLE)
         {
-            return (float)row.getDouble(col.getName());
+            return (float) row.getDouble(col.getName());
         }
         return row.getFloat(col.getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchDoubleField(int)
      */
     @Override
@@ -171,7 +179,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getDouble(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchStringField(int)
      */
     @Override
@@ -180,7 +189,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         return row.getString(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#fetchObjectField(int)
      */
     @Override
@@ -275,7 +285,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (mapping.getNumberOfColumns() > 1)
             {
                 boolean allNull = true;
-                for (int i=0;i<mapping.getNumberOfColumns();i++)
+                for (int i = 0; i < mapping.getNumberOfColumns(); i++)
                 {
                     if (!row.isNull(mapping.getColumn(i).getName()))
                     {
@@ -297,11 +307,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
             if (mapping.getTypeConverter() != null && !mmd.isSerialized())
             {
-                // Convert any columns that have a converter defined back to the member type with the converter
+                // Convert any columns that have a converter defined back to the member type with the
+                // converter
                 if (mapping.getNumberOfColumns() > 1)
                 {
                     Object valuesArr = null;
-                    Class[] colTypes = ((MultiColumnConverter)mapping.getTypeConverter()).getDatastoreColumnTypes();
+                    Class[] colTypes = ((MultiColumnConverter) mapping.getTypeConverter()).getDatastoreColumnTypes();
                     if (colTypes[0] == int.class)
                     {
                         valuesArr = new int[mapping.getNumberOfColumns()];
@@ -327,7 +338,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         valuesArr = new Object[mapping.getNumberOfColumns()];
                     }
                     boolean isNull = true;
-                    for (int i=0;i<mapping.getNumberOfColumns();i++)
+                    for (int i = 0; i < mapping.getNumberOfColumns(); i++)
                     {
                         Column col = mapping.getColumn(i);
                         if (col.getTypeName().equals("int"))
@@ -471,20 +482,17 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (mmd.hasArray())
             {
                 // TODO Cater for serialised Array field
-//                Class elemCls = clr.classForName(mmd.getArray().getElementType());
-//                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
-//                Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
+                // Class elemCls = clr.classForName(mmd.getArray().getElementType());
+                // String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false,
+                // ec.getTypeManager(), null);
+                // Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
                 NucleusLogger.DATASTORE_RETRIEVE.warn("Field=" + mmd.getFullFieldName() + " has datastore array; not supported yet");
-                /*List cassColl = row.getList(colName, cassElemCls);
-
-                Object array = Array.newInstance(mmd.getType().getComponentType(), cassColl.size());
-                int i=0;
-                for (Object cassElem : cassColl)
-                {
-                    Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem, elemCassType, elemCls, ec);
-                    Array.set(array, i++, elem);
-                }
-                return array;*/
+                /*
+                 * List cassColl = row.getList(colName, cassElemCls); Object array =
+                 * Array.newInstance(mmd.getType().getComponentType(), cassColl.size()); int i=0; for (Object
+                 * cassElem : cassColl) { Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem,
+                 * elemCassType, elemCls, ec); Array.set(array, i++, elem); } return array;
+                 */
             }
             else if (mmd.isSerialized())
             {
@@ -495,17 +503,17 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
             else if (BigInteger.class.isAssignableFrom(mmd.getType()))
             {
-            	// TODO There is a TypeConverter for this
-            	return BigInteger.valueOf(row.getLong(mapping.getColumn(0).getName()));
+                // TODO There is a TypeConverter for this
+                return BigInteger.valueOf(row.getLong(mapping.getColumn(0).getName()));
             }
             else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
             {
-            	// TODO There is a TypeConverter for this
-            	return row.getDecimal(mapping.getColumn(0).getName());
+                // TODO There is a TypeConverter for this
+                return row.getDecimal(mapping.getColumn(0).getName());
             }
             else if (Byte.class.isAssignableFrom(mmd.getType()))
             {
-                return (byte)row.getInt(mapping.getColumn(0).getName());
+                return (byte) row.getInt(mapping.getColumn(0).getName());
             }
             else if (Character.class.isAssignableFrom(mmd.getType()))
             {
@@ -529,7 +537,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (Short.class.isAssignableFrom(mmd.getType()))
             {
-                return (short)row.getInt(mapping.getColumn(0).getName());
+                return (short) row.getInt(mapping.getColumn(0).getName());
             }
             else if (Boolean.class.isAssignableFrom(mmd.getType()))
             {
@@ -538,65 +546,65 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (Enum.class.isAssignableFrom(mmd.getType()))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
-            	if (mapping.getColumn(0).getTypeName().equals("varchar"))
-            	{
-            		return Enum.valueOf(mmd.getType(), row.getString(mapping.getColumn(0).getName()));
-            	}
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    return Enum.valueOf(mmd.getType(), row.getString(mapping.getColumn(0).getName()));
+                }
                 return mmd.getType().getEnumConstants()[row.getInt(mapping.getColumn(0).getName())];
             }
             else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
             {
-            	if (mapping.getColumn(0).getTypeName().equals("varchar"))
-            	{
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
                         return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
-            	}
-            	// TODO There is a TypeConverter for this
-            	return new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
+                // TODO There is a TypeConverter for this
+                return new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
             {
-            	if (mapping.getColumn(0).getTypeName().equals("varchar"))
-            	{
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
                         return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
-            	}
-            	// TODO There is a TypeConverter for this
-            	return new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
+                // TODO There is a TypeConverter for this
+                return new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
             {
-            	if (mapping.getColumn(0).getTypeName().equals("varchar"))
-            	{
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
                         return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
-            	}
-            	// TODO There is a TypeConverter for this
-            	return new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
+                // TODO There is a TypeConverter for this
+                return new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
             }
             else if (Calendar.class.isAssignableFrom(mmd.getType()))
             {
-            	if (mapping.getColumn(0).getTypeName().equals("varchar"))
-            	{
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
                     TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
                     if (stringConverter != null)
                     {
                         return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
-            	}
-            	// TODO Support Calendar with multiple columns and do via TypeConverter
+                }
+                // TODO Support Calendar with multiple columns and do via TypeConverter
                 Calendar cal = Calendar.getInstance();
                 cal.setTime(row.getDate(mapping.getColumn(0).getName()));
-            	return cal;
+                return cal;
             }
             else if (Date.class.isAssignableFrom(mmd.getType()))
             {
@@ -638,7 +646,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             return null;
         }
 
-        String persistableId = (String)value;
+        String persistableId = (String) value;
         try
         {
             AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
@@ -648,7 +656,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else
             {
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_FIELD, clr, ec.getMetaDataManager());
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_FIELD, clr,
+                    ec.getMetaDataManager());
                 if (implNames != null && implNames.length == 1)
                 {
                     // Only one possible implementation, so use that
@@ -657,7 +666,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else if (implNames != null && implNames.length > 1)
                 {
-                    // Multiple implementations, so try each implementation in turn (note we only need this if some impls have different "identity" type from each other)
+                    // Multiple implementations, so try each implementation in turn (note we only need this if
+                    // some impls have different "identity" type from each other)
                     for (String implName : implNames)
                     {
                         try
@@ -677,14 +687,14 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     }
                 }
 
-                throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
-                        " which has an interdeterminate type (e.g interface or Object element types)");
+                throw new NucleusUserException(
+                        "We do not currently support the field type of " + mmd.getFullFieldName() + " which has an interdeterminate type (e.g interface or Object element types)");
             }
         }
         catch (NucleusObjectNotFoundException onfe)
         {
-            NucleusLogger.GENERAL.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId +
-                " but could not instantiate object with that identity");
+            NucleusLogger.GENERAL
+                    .warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId + " but could not instantiate object with that identity");
             return null;
         }
     }
@@ -709,8 +719,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (elemCmd == null)
             {
                 // Try any listed implementations
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
-                    FieldRole.ROLE_COLLECTION_ELEMENT, clr, ec.getMetaDataManager());
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr,
+                    ec.getMetaDataManager());
                 if (implNames != null && implNames.length > 0)
                 {
                     // Just use first implementation TODO What if the impls have different id type?
@@ -718,13 +728,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 if (elemCmd == null)
                 {
-                    throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
-                        " which has a collection of interdeterminate element type (e.g interface or Object element types)");
+                    throw new NucleusUserException(
+                            "We do not currently support the field type of " + mmd.getFullFieldName() + " which has a collection of interdeterminate element type (e.g interface or Object element types)");
                 }
             }
 
             // TODO Support serialised element which will be of type ByteBuffer
-            Collection<String> collIds = (Collection<String>)value;
+            Collection<String> collIds = (Collection<String>) value;
             Iterator<String> idIter = collIds.iterator();
             boolean changeDetected = false;
             while (idIter.hasNext())
@@ -774,7 +784,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 throw new NucleusDataStoreException(e.getMessage(), e);
             }
 
-            Map mapIds = (Map)value;
+            Map mapIds = (Map) value;
             AbstractClassMetaData keyCmd = null;
             if (mmd.getMap().keyIsPersistent())
             {
@@ -782,16 +792,16 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 if (keyCmd == null)
                 {
                     // Try any listed implementations
-                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
-                        FieldRole.ROLE_MAP_KEY, clr, ec.getMetaDataManager());
+                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_MAP_KEY, clr,
+                        ec.getMetaDataManager());
                     if (implNames != null && implNames.length == 1)
                     {
                         keyCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
                     }
                     if (keyCmd == null)
                     {
-                        throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
-                                " which has a map of interdeterminate key type (e.g interface or Object element types)");
+                        throw new NucleusUserException(
+                                "We do not currently support the field type of " + mmd.getFullFieldName() + " which has a map of interdeterminate key type (e.g interface or Object element types)");
                     }
                 }
             }
@@ -802,16 +812,16 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 if (valCmd == null)
                 {
                     // Try any listed implementations
-                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
-                        FieldRole.ROLE_MAP_VALUE, clr, ec.getMetaDataManager());
+                    String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_MAP_VALUE, clr,
+                        ec.getMetaDataManager());
                     if (implNames != null && implNames.length == 1)
                     {
                         valCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
                     }
                     if (valCmd == null)
                     {
-                        throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
-                                " which has a map of interdeterminate value type (e.g interface or Object element types)");
+                        throw new NucleusUserException(
+                                "We do not currently support the field type of " + mmd.getFullFieldName() + " which has a map of interdeterminate value type (e.g interface or Object element types)");
                     }
                 }
             }
@@ -890,20 +900,20 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (elemCmd == null)
             {
                 // Try any listed implementations
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, 
-                    FieldRole.ROLE_ARRAY_ELEMENT, clr, ec.getMetaDataManager());
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_ARRAY_ELEMENT, clr,
+                    ec.getMetaDataManager());
                 if (implNames != null && implNames.length == 1)
                 {
                     elemCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
                 }
                 if (elemCmd == null)
                 {
-                    throw new NucleusUserException("We do not currently support the field type of " + mmd.getFullFieldName() +
-                        " which has an array of interdeterminate element type (e.g interface or Object element types)");
+                    throw new NucleusUserException(
+                            "We do not currently support the field type of " + mmd.getFullFieldName() + " which has an array of interdeterminate element type (e.g interface or Object element types)");
                 }
             }
 
-            Collection<String> collIds = (Collection<String>)value;
+            Collection<String> collIds = (Collection<String>) value;
             Object array = Array.newInstance(mmd.getType().getComponentType(), collIds.size());
             Iterator<String> idIter = collIds.iterator();
             boolean changeDetected = false;
@@ -937,7 +947,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     // Some elements not found, so resize the array
                     Object arrayOld = array;
                     array = Array.newInstance(mmd.getType().getComponentType(), pos);
-                    for (int j=0;j<pos;j++)
+                    for (int j = 0; j < pos; j++)
                     {
                         Array.set(array, j, Array.get(arrayOld, j));
                     }

@@ -1146,7 +1146,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return cols;
     }
 
-    public class ColumnDetails
+    public static class ColumnDetails
     {
         String name;
         String indexName;
