@@ -101,7 +101,6 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             if (RelationType.isRelationSingleValued(relationType))
             {
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                int[] embMmdPosns = embCmd.getAllMemberPositions();
                 List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                 embMmds.add(mmd);
 
@@ -109,6 +108,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                 {
                     // Store null in all columns of this and any nested embedded objects
                     StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
+                    int[] embMmdPosns = embCmd.getAllMemberPositions();
                     for (int i=0;i<embMmdPosns.length;i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
