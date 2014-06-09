@@ -57,6 +57,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     public static final String CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.readTimeoutMillis";
     public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
 
+    protected static final String DEFAULT_IP_ADDR = "127.0.0.1";
+
     Cluster cluster;
 
     boolean sessionPerManager = false;
@@ -114,7 +116,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         }
 
         Builder builder = Cluster.builder();
-        if (hosts.size() > 0)
+        if (!hosts.isEmpty())
         {
             NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for hosts " + StringUtils.collectionToString(hosts));
             for (String host : hosts)
@@ -125,8 +127,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         else
         {
             // Fallback to localhost
-            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for host 127.0.0.1");
-            builder.addContactPoint("127.0.0.1");
+            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for host " + DEFAULT_IP_ADDR);
+            builder.addContactPoint(DEFAULT_IP_ADDR);
         }
         if (port != null)
         {
@@ -335,12 +337,9 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
      */
     static class EmulatedXAResource extends AbstractEmulatedXAResource
     {
-        Session session;
-
         EmulatedXAResource(ManagedConnectionImpl mconn, Session session)
         {
             super(mconn);
-            this.session = session;
         }
         // Cassandra has no commit/rollback as such so just use superclass logging
     }

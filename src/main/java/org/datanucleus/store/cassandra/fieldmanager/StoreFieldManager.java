@@ -515,7 +515,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (mmd.hasCollection())
             {
                 Collection coll = (Collection) value;
-                if (coll.size() == 0)
+                if (coll.isEmpty())
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                     return;
@@ -547,7 +547,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Map cassMap = new HashMap();
 
                 Map map = (Map) value;
-                if (map.size() == 0)
+                if (map.isEmpty())
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
                     return;

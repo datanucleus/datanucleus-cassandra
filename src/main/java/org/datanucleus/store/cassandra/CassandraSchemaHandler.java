@@ -69,12 +69,9 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 {
-    CassandraStoreManager casStoreMgr;
-
     public CassandraSchemaHandler(CassandraStoreManager storeMgr)
     {
         super(storeMgr);
-        this.casStoreMgr = (CassandraStoreManager)storeMgr;
         // TODO Check if the schema exists and create it according to isAutoCreateSchema()
     }
 
