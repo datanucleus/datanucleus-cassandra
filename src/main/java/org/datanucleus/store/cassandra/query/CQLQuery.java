@@ -41,6 +41,7 @@ import com.datastax.driver.core.Session;
  */
 public class CQLQuery extends AbstractJavaQuery
 {
+    private static final long serialVersionUID = 2808968696540162104L;
     String cql;
 
     /**

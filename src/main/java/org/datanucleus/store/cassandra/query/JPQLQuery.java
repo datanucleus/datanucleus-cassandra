@@ -56,6 +56,7 @@ import com.datastax.driver.core.Session;
  */
 public class JPQLQuery extends AbstractJPQLQuery
 {
+    private static final long serialVersionUID = -8227071426747396356L;
     /** The compilation of the query for this datastore. Not applicable if totally in-memory. */
     protected transient CassandraQueryCompilation datastoreCompilation;
 
