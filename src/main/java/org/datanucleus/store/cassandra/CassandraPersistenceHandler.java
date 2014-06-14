@@ -174,7 +174,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 numValues++;
             }
-            if (versionValue != null && vermd.getFieldName() == null)
+            if (versionValue != null && vermd != null && vermd.getFieldName() == null)
             {
                 numValues++;
             }
@@ -196,7 +196,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtValues[pos++] = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId()); // TODO Cater for datastore attributed ID
             }
-            if (versionValue != null && vermd.getFieldName() == null)
+            if (versionValue != null && vermd != null && vermd.getFieldName() == null)
             {
                 stmtValues[pos++] = versionValue;
             }
