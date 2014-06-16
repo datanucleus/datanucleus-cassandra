@@ -133,23 +133,19 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     columnValueByName.putAll(embColValuesByName);
                     return;
                 }
-                else
-                {
-                    ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                    StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
-                    embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
-                    Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
-                    columnValueByName.putAll(embColValuesByName);
-                    return;
-                }
-            }
-            else
-            {
-                // TODO Embedded Collection
-                NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
-                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
+
+                ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
+                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
+                embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
+                Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
+                columnValueByName.putAll(embColValuesByName);
                 return;
             }
+
+            // TODO Embedded Collection
+            NucleusLogger.PERSISTENCE.debug("Field=" + mmd.getFullFieldName() + " not currently supported (embedded), storing as null");
+            columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
+            return;
         }
 
         if (op == null)

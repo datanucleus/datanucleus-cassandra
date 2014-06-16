@@ -1200,35 +1200,33 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Object doesn't exist
             throw new NucleusDataStoreException("Could not find object with id " + op.getInternalObjectId() + " in the datastore, so cannot update it");
         }
+
+        Row row = rs.one();
+        String verColName = null;
+        if (vermd.getFieldName() == null)
+        {
+            // Surrogate version
+            verColName = table.getVersionColumn().getName();
+        }
         else
         {
-            Row row = rs.one();
-            String verColName = null;
-            if (vermd.getFieldName() == null)
+            AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+            verColName = table.getMemberColumnMappingForMember(verMmd).getColumn(0).getName();
+        }
+        if (currentVersion instanceof Long)
+        {
+            long datastoreVersion = row.getLong(verColName);
+            if ((Long)currentVersion != datastoreVersion)
             {
-                // Surrogate version
-                verColName = table.getVersionColumn().getName();
+                throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
             }
-            else
+        }
+        else if (currentVersion instanceof Integer)
+        {
+            int datastoreVersion = row.getInt(verColName);
+            if ((Integer)currentVersion != datastoreVersion)
             {
-                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                verColName = table.getMemberColumnMappingForMember(verMmd).getColumn(0).getName();
-            }
-            if (currentVersion instanceof Long)
-            {
-                long datastoreVersion = row.getLong(verColName);
-                if ((Long)currentVersion != datastoreVersion)
-                {
-                    throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
-                }
-            }
-            else if (currentVersion instanceof Integer)
-            {
-                int datastoreVersion = row.getInt(verColName);
-                if ((Integer)currentVersion != datastoreVersion)
-                {
-                    throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
-                }
+                throw new NucleusOptimisticException("Object " + op.getInternalObjectId() + " has version=" + datastoreVersion + " in the datastore yet version=" + currentVersion + " in memory");
             }
         }
     }

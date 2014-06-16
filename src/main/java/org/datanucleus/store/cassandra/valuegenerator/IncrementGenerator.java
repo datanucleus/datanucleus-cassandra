@@ -173,15 +173,13 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
         {
             return schemaName;
         }
-        else
+
+        schemaName = properties.getProperty("schema-name");
+        if (schemaName == null)
         {
-            schemaName = properties.getProperty("schema-name");
-            if (schemaName == null)
-            {
-                schemaName = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
-            }
-            return schemaName;
+            schemaName = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
         }
+        return schemaName;
     }
 
     protected boolean createRepository()

@@ -385,10 +385,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     }
                     return mapping.getTypeConverter().toMemberType(valuesArr);
                 }
-                else
-                {
-                    return CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
-                }
+
+                return CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
             }
 
             if (mmd.hasCollection())
@@ -654,42 +652,40 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
             }
-            else
+
+            String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_FIELD, clr,
+                ec.getMetaDataManager());
+            if (implNames != null && implNames.length == 1)
             {
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_FIELD, clr,
-                    ec.getMetaDataManager());
-                if (implNames != null && implNames.length == 1)
+                // Only one possible implementation, so use that
+                mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
+                return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+            }
+            else if (implNames != null && implNames.length > 1)
+            {
+                // Multiple implementations, so try each implementation in turn (note we only need this if
+                // some impls have different "identity" type from each other)
+                for (String implName : implNames)
                 {
-                    // Only one possible implementation, so use that
-                    mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implNames[0], clr);
-                    return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
-                }
-                else if (implNames != null && implNames.length > 1)
-                {
-                    // Multiple implementations, so try each implementation in turn (note we only need this if
-                    // some impls have different "identity" type from each other)
-                    for (String implName : implNames)
+                    try
                     {
-                        try
-                        {
-                            mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implName, clr);
-                            return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
-                        }
-                        catch (NucleusObjectNotFoundException nonfe)
-                        {
-                            // Object no longer present in the datastore, must have been deleted
-                            throw nonfe;
-                        }
-                        catch (Exception e)
-                        {
-                            // Not possible with this implementation
-                        }
+                        mmdCmd = ec.getMetaDataManager().getMetaDataForClass(implName, clr);
+                        return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);
+                    }
+                    catch (NucleusObjectNotFoundException nonfe)
+                    {
+                        // Object no longer present in the datastore, must have been deleted
+                        throw nonfe;
+                    }
+                    catch (Exception e)
+                    {
+                        // Not possible with this implementation
                     }
                 }
-
-                throw new NucleusUserException(
-                        "We do not currently support the field type of " + mmd.getFullFieldName() + " which has an interdeterminate type (e.g interface or Object element types)");
             }
+
+            throw new NucleusUserException(
+                "We do not currently support the field type of " + mmd.getFullFieldName() + " which has an interdeterminate type (e.g interface or Object element types)");
         }
         catch (NucleusObjectNotFoundException onfe)
         {

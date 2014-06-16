@@ -167,10 +167,8 @@ public class CassandraUtils
             {
                 return javaType.getEnumConstants()[(Integer) datastoreValue];
             }
-            else
-            {
-                return Enum.valueOf(javaType, (String) datastoreValue);
-            }
+
+            return Enum.valueOf(javaType, (String) datastoreValue);
         }
         else if (java.sql.Date.class.isAssignableFrom(javaType))
         {
@@ -179,7 +177,7 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String) datastoreValue);
+                    return stringConverter.toMemberType(datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
@@ -192,7 +190,7 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String) datastoreValue);
+                    return stringConverter.toMemberType(datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
@@ -205,7 +203,7 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String) datastoreValue);
+                    return stringConverter.toMemberType(datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
@@ -218,7 +216,7 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String) datastoreValue);
+                    return stringConverter.toMemberType(datastoreValue);
                 }
             }
             // TODO There is a TypeConverter for this
@@ -233,17 +231,17 @@ public class CassandraUtils
                 TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType((String) datastoreValue);
+                    return stringConverter.toMemberType(datastoreValue);
                 }
             }
-            return (Date) datastoreValue;
+            return datastoreValue;
         }
         else if (datastoreValue instanceof String)
         {
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
             if (converter != null)
             {
-                return converter.toMemberType((String) datastoreValue);
+                return converter.toMemberType(datastoreValue);
             }
         }
         else if (datastoreValue instanceof Long)
@@ -251,7 +249,7 @@ public class CassandraUtils
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Long.class);
             if (converter != null)
             {
-                return converter.toMemberType((Long) datastoreValue);
+                return converter.toMemberType(datastoreValue);
             }
         }
         else if (datastoreValue instanceof Integer)
@@ -259,7 +257,7 @@ public class CassandraUtils
             TypeConverter converter = ec.getTypeManager().getTypeConverterForType(javaType, Integer.class);
             if (converter != null)
             {
-                return converter.toMemberType((Integer) datastoreValue);
+                return converter.toMemberType(datastoreValue);
             }
         }
 

@@ -453,10 +453,8 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                             }
                             return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
-                        else
-                        {
-                            // TODO Cater for relations?
-                        }
+
+                        // TODO Cater for relations?
                     }
                 }
             }
