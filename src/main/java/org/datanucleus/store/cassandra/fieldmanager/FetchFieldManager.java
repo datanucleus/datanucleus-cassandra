@@ -854,7 +854,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     String valPersistableId = (String) entry.getValue();
                     if (valPersistableId.equals("NULL"))
                     {
-                        val = null;
                     }
                     else
                     {

@@ -134,8 +134,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             op.provideFields(cmd.getAllMemberPositions() , storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
-            if (insertStmt == null)
-            {
+            /*if (insertStmt == null)
+            {*/
                 // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
                 insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
 
@@ -145,7 +145,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     insertStatementByClassName = new HashMap<String, String>();
                 }
                 insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
-            }
+            /*}*/
 
             Object discrimValue = null;
             if (cmd.hasDiscriminatorStrategy())
