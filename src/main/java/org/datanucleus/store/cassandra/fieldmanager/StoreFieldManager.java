@@ -248,6 +248,19 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             // Embedded field
             if (RelationType.isRelationSingleValued(relationType))
             {
+                if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
+                {
+                    if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
+                    {
+                        // Related PC object not persistent, but cant do cascade-persist so throw exception
+                        if (NucleusLogger.PERSISTENCE.isDebugEnabled())
+                        {
+                            NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
+                        }
+                        throw new ReachableObjectNotCascadedException(mmd.getFullFieldName(), value);
+                    }
+                }
+
                 // TODO Support discriminator on embedded object
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                 int[] embMmdPosns = embCmd.getAllMemberPositions();
@@ -259,8 +272,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     for (int i = 0; i < embMmdPosns.length; i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd
-                                .getTypeName()))
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
                         {
                             // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
