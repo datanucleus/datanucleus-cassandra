@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra;
 
 import java.io.Serializable;
@@ -56,7 +56,9 @@ import com.datastax.driver.core.Row;
  */
 public class CassandraUtils
 {
-    private CassandraUtils() {}
+    private CassandraUtils()
+    {
+    }
 
     static Map<String, String> cassandraTypeByJavaType = new HashMap<String, String>();
 
@@ -158,7 +160,8 @@ public class CassandraUtils
         if (cassandraType.equals("blob") && datastoreValue instanceof ByteBuffer)
         {
             // Serialised field
-            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class,
+                ByteBuffer.class);
             return serialConv.toMemberType((ByteBuffer) datastoreValue);
         }
         else if (javaType.isEnum())
@@ -265,12 +268,18 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to return the Cassandra type that we would store the provided type as. Note that
-     * this does not support container (Collection, Map) types just single value types.
-     * @param type The java type
-     * @param serialised Whether it should be serialised
-     * @param typeMgr The type manager
-     * @param jdbcType Any jdbc-type that has been specified to take into account
+     * Convenience method to return the Cassandra type that we would store the
+     * provided type as. Note that this does not support container (Collection,
+     * Map) types just single value types.
+     * 
+     * @param type
+     *            The java type
+     * @param serialised
+     *            Whether it should be serialised
+     * @param typeMgr
+     *            The type manager
+     * @param jdbcType
+     *            Any jdbc-type that has been specified to take into account
      * @return The Cassandra type
      */
     public static String getCassandraTypeForNonPersistableType(Class type, boolean serialised, TypeManager typeMgr, String jdbcType)
@@ -319,11 +328,17 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to convert from a non-persistable value to the value to be stored in Cassandra.
-     * @param value Value for the member
-     * @param datastoreType Cassandra column type
-     * @param serialised Whether the value is to be stored serialised
-     * @param typeMgr Type Manager
+     * Convenience method to convert from a non-persistable value to the value
+     * to be stored in Cassandra.
+     * 
+     * @param value
+     *            Value for the member
+     * @param datastoreType
+     *            Cassandra column type
+     * @param serialised
+     *            Whether the value is to be stored serialised
+     * @param typeMgr
+     *            Type Manager
      * @return The value to be stored
      */
     public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
@@ -337,7 +352,12 @@ public class CassandraUtils
         {
             // Convert to ByteBuffer and use that
             TypeConverter serialConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            if (value instanceof byte[])
+            {
+                serialConv = typeMgr.getTypeConverterForType(byte[].class, ByteBuffer.class);
+            }
             return serialConv.toDatastoreType(value);
+
         }
         else if (value.getClass() == Character.class)
         {
@@ -411,7 +431,8 @@ public class CassandraUtils
         {
             if (datastoreType.equals("varchar"))
             {
-                // TODO When we have a lookup map per table of column and TypeConverter, remove this
+                // TODO When we have a lookup map per table of column and
+                // TypeConverter, remove this
                 Class valueType = Date.class;
                 if (value instanceof Time)
                 {
@@ -468,19 +489,28 @@ public class CassandraUtils
 
     /**
      * Method to take a ResultSet Row and convert it into a persistable object.
-     * @param row The results row
-     * @param cmd Metadata for the class of which this is an instance (or subclass)
-     * @param ec ExecutionContext managing it
-     * @param fpMembers FetchPlan members to populate
-     * @param ignoreCache Whether to ignore the cache when instantiating this
+     * 
+     * @param row
+     *            The results row
+     * @param cmd
+     *            Metadata for the class of which this is an instance (or
+     *            subclass)
+     * @param ec
+     *            ExecutionContext managing it
+     * @param fpMembers
+     *            FetchPlan members to populate
+     * @param ignoreCache
+     *            Whether to ignore the cache when instantiating this
      * @return The persistable object for this row.
      */
-    public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers, boolean ignoreCache)
+    public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers,
+            boolean ignoreCache)
     {
         if (cmd.hasDiscriminatorStrategy())
         {
             // Determine the class from the discriminator property
-            // String discrimColName = ec.getStoreManager().getNamingFactory().getColumnName(cmd,
+            // String discrimColName =
+            // ec.getStoreManager().getNamingFactory().getColumnName(cmd,
             // ColumnType.DISCRIMINATOR_COLUMN);
             // TODO Get the value for this column
         }
@@ -502,8 +532,8 @@ public class CassandraUtils
         return pojo;
     }
 
-    private static Object getObjectUsingApplicationIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
-            final int[] fpMembers)
+    private static Object getObjectUsingApplicationIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec,
+            boolean ignoreCache, final int[] fpMembers)
     {
         Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
@@ -558,8 +588,8 @@ public class CassandraUtils
         return pc;
     }
 
-    private static Object getObjectUsingDatastoreIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
-            final int[] fpMembers)
+    private static Object getObjectUsingDatastoreIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec,
+            boolean ignoreCache, final int[] fpMembers)
     {
         Object idKey = null;
         StoreManager storeMgr = ec.getStoreManager();
@@ -633,11 +663,15 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to log the provided CQL statement, substituting the provided parameters for any "?"
-     * in the statement
-     * @param stmt The CQL statement
-     * @param values Any parameter values
-     * @param logger The logger to log to (at DEBUG level).
+     * Convenience method to log the provided CQL statement, substituting the
+     * provided parameters for any "?" in the statement
+     * 
+     * @param stmt
+     *            The CQL statement
+     * @param values
+     *            Any parameter values
+     * @param logger
+     *            The logger to log to (at DEBUG level).
      */
     public static void logCqlStatement(String stmt, Object[] values, NucleusLogger logger)
     {
