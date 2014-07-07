@@ -351,11 +351,16 @@ public class CassandraUtils
         else if (serialised && value instanceof Serializable)
         {
             // Convert to ByteBuffer and use that
-            TypeConverter serialConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            TypeConverter serialConv;
             if (value instanceof byte[])
             {
                 serialConv = typeMgr.getTypeConverterForType(byte[].class, ByteBuffer.class);
             }
+            else
+            {
+                serialConv = typeMgr.getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            }
+
             return serialConv.toDatastoreType(value);
 
         }
