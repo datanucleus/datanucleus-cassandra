@@ -24,6 +24,7 @@ import java.util.*;
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityMetaData;
 import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaDataUtils;
@@ -64,8 +65,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier# verifyTypeConverterForMember
-     * (org.datanucleus.metadata.AbstractMemberMetaData, org.datanucleus.store.types.converters.TypeConverter)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier# verifyTypeConverterForMember(org.datanucleus.metadata.AbstractMemberMetaData, org.datanucleus.store.types.converters.TypeConverter)
      */
     @Override
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
@@ -73,12 +73,30 @@ public class SchemaVerifierImpl implements SchemaVerifier
         if (conv != null && !(conv instanceof MultiColumnConverter))
         {
             Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(conv, mmd.getType());
-            if (datastoreType != null && java.util.Date.class.isAssignableFrom(datastoreType) && datastoreType != java.util.Date.class)
+            if (datastoreType != null)
             {
-                // Swap for a converter that has java.util.Date in the datastore
-                // (since that's what Cassandra returns)
-                TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
-                return newConv;
+                if (java.util.Date.class.isAssignableFrom(datastoreType) && datastoreType != java.util.Date.class)
+                {
+                    // Swap for a converter that has java.util.Date in the datastore
+                    // (since that's what Cassandra returns)
+                    TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
+                    return newConv;
+                }
+                else if (java.util.UUID.class.isAssignableFrom(mmd.getType()))
+                {
+                    // UUID : by default this will get a TypeConverter<UUID,String> assigned, so unset unless explicitly requested
+                    ColumnMetaData[] colmds = mmd.getColumnMetaData();
+                    boolean jdbcTypeSpecified = false;
+                    if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcTypeName()))
+                    {
+                        jdbcTypeSpecified = true;
+                    }
+                    if (!jdbcTypeSpecified)
+                    {
+                        // We don't want a TypeConverter for UUID except when requested, so unset the default TypeConverter
+                        return null;
+                    }
+                }
             }
         }
         return conv;
@@ -86,8 +104,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org
-     * .datanucleus.store.schema.table.MemberColumnMapping)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org.datanucleus.store.schema.table.MemberColumnMapping)
      */
     @Override
     public void attributeMember(MemberColumnMapping mapping)
@@ -127,8 +144,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org
-     * .datanucleus.store.schema.table.MemberColumnMapping, org.datanucleus.metadata.AbstractMemberMetaData)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org.datanucleus.store.schema.table.MemberColumnMapping, org.datanucleus.metadata.AbstractMemberMetaData)
      */
     @Override
     public void attributeMember(MemberColumnMapping mapping, AbstractMemberMetaData mmd)
@@ -138,8 +154,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn
-     * (org.datanucleus.store.schema.table.MemberColumnMapping, java.util.List)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn(org.datanucleus.store.schema.table.MemberColumnMapping, java.util.List)
      */
     @Override
     public void attributeEmbeddedMember(MemberColumnMapping mapping, List<AbstractMemberMetaData> mmds)
@@ -149,8 +164,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
     }
 
     /**
-     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it
-     * contains.
+     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it contains.
      * @param mmd Metadata for the member
      * @param mapping Member-column mapping
      * @param typeMgr Type manager
@@ -174,16 +188,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             }
             else
             {
-                Class datastoreJavaType;
-                if (UUID.class == mmd.getType())
-                {
-                    datastoreJavaType = mmd.getType();
-                }
-                else
-                {
-                    datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(mapping.getTypeConverter(), mmd.getType());
-                }
-
+                Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(mapping.getTypeConverter(), mmd.getType());
                 type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
                 mapping.getColumn(0).setTypeName(type);
             }
@@ -230,10 +235,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     // Map<NonPC, NonPC>
                     Class keyType = clr.classForName(mmd.getMap().getKeyType());
                     Class valType = clr.classForName(mmd.getMap().getValueType());
-                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr,
-                        null);
-                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false,
-                        typeMgr, null);
+                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
+                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
                     type = "map<" + cqlKeyType + "," + cqlValType + ">";
                 }
                 else if (mmd.hasArray())
@@ -260,8 +263,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (col.getJdbcType() == JdbcType.CHAR)
                         {
-                            col.setJdbcType(JdbcType.VARCHAR); // Not available
-                                                               // with Cassandra
+                            col.setJdbcType(JdbcType.VARCHAR); // Not available with Cassandra
                             type = "varchar";
                         }
                         else if (col.getJdbcType() == JdbcType.BLOB)
@@ -299,14 +301,12 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (Enum.class.isAssignableFrom(mmd.getType()))
                         {
-                            // Default to persisting the Enum.ordinal (can use
-                            // Enum.name if varchar specified above)
+                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified above)
                             type = "int";
                         }
                         else
                         {
-                            // Try String/Long/Int converters (in case not
-                            // assigned by CompleteClassTable)
+                            // Try String/Long/Int converters (in case not assigned by CompleteClassTable)
                             TypeConverter stringConverter = typeMgr.getTypeConverterForType(mmd.getType(), String.class);
                             if (stringConverter != null)
                             {
@@ -347,8 +347,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             }
             else if (RelationType.isRelationMultiValued(relType))
             {
-                // 1-N/M-N relation stored as set/list<String> or set/list<blob>
-                // (or serialised whole field)
+                // 1-N/M-N relation stored as set/list<String> or set/list<blob> (or serialised whole field)
                 if (mmd.hasCollection())
                 {
                     if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
@@ -409,10 +408,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
             }
             else
             {
-                // TODO Allow for fields declared as Object but with particular
-                // persistent implementations
-                NucleusLogger.DATASTORE_SCHEMA
-                        .warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
+                // TODO Allow for fields declared as Object but with particular persistent implementations
+                NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + 
+                    " could not be directly mapped for Cassandra. Using varchar column");
                 // Fallback to varchar - maybe BLOB would be better???
                 mapping.getColumn(0).setTypeName("varchar");
             }

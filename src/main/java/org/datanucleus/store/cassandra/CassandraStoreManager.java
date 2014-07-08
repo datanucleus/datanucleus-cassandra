@@ -37,6 +37,7 @@ import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.util.Localiser;
+import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Session;
@@ -156,6 +157,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
                     if (sd == null)
                     {
                         CompleteClassTable table = new CompleteClassTable(this, cmd, new SchemaVerifierImpl(this, cmd, clr));
+                        NucleusLogger.GENERAL.info(">> StoreMgr CompleteClassTable=" + table);
                         sd = newStoreData(cmd, clr);
                         sd.setTable(table);
                         registerStoreData(sd);

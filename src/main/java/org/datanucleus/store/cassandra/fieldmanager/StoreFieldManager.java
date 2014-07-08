@@ -504,16 +504,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mapping.getTypeConverter() != null)
             {
-                Object datastoreValue;
-                if (value instanceof UUID)
-                {
-                    datastoreValue = value;
-                }
-                else
-                {
-                    // Use defined type converter
-                    datastoreValue = mapping.getTypeConverter().toDatastoreType(value);
-                }
+                Object datastoreValue = mapping.getTypeConverter().toDatastoreType(value);
                 if (mapping.getNumberOfColumns() > 1)
                 {
                     for (int i = 0; i < Array.getLength(datastoreValue); i++)
