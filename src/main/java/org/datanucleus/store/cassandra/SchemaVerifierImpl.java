@@ -42,11 +42,10 @@ import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
 /**
- * Implementation of a schema verifier for Cassandra. This class provides a way
- * for the Cassandra plugin to override any "default" handling that core
- * provides to better fit in with the types that are persistable in Cassandra.
- * It also allows us to specify the Cassandra "type name" on the Columns (for
- * later use in schema generation).
+ * Implementation of a schema verifier for Cassandra. This class provides a way for the Cassandra plugin to
+ * override any "default" handling that core provides to better fit in with the types that are persistable in
+ * Cassandra. It also allows us to specify the Cassandra "type name" on the Columns (for later use in schema
+ * generation).
  */
 public class SchemaVerifierImpl implements SchemaVerifier
 {
@@ -65,11 +64,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * 
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#
-     * verifyTypeConverterForMember
-     * (org.datanucleus.metadata.AbstractMemberMetaData,
-     * org.datanucleus.store.types.converters.TypeConverter)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier# verifyTypeConverterForMember
+     * (org.datanucleus.metadata.AbstractMemberMetaData, org.datanucleus.store.types.converters.TypeConverter)
      */
     @Override
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
@@ -81,8 +77,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             {
                 // Swap for a converter that has java.util.Date in the datastore
                 // (since that's what Cassandra returns)
-                TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager()
-                        .getTypeConverterForType(mmd.getType(), java.util.Date.class);
+                TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
                 return newConv;
             }
         }
@@ -91,9 +86,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * 
-     * @see
-     * org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org
      * .datanucleus.store.schema.table.MemberColumnMapping)
      */
     @Override
@@ -134,11 +127,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * 
-     * @see
-     * org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org
-     * .datanucleus.store.schema.table.MemberColumnMapping,
-     * org.datanucleus.metadata.AbstractMemberMetaData)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org
+     * .datanucleus.store.schema.table.MemberColumnMapping, org.datanucleus.metadata.AbstractMemberMetaData)
      */
     @Override
     public void attributeMember(MemberColumnMapping mapping, AbstractMemberMetaData mmd)
@@ -148,9 +138,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * 
-     * @see
-     * org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn
      * (org.datanucleus.store.schema.table.MemberColumnMapping, java.util.List)
      */
     @Override
@@ -161,20 +149,14 @@ public class SchemaVerifierImpl implements SchemaVerifier
     }
 
     /**
-     * Method to verify the member-column mapping and assign the Cassandra type
-     * to all Columns that it contains.
-     * 
-     * @param mmd
-     *            Metadata for the member
-     * @param mapping
-     *            Member-column mapping
-     * @param typeMgr
-     *            Type manager
-     * @param clr
-     *            ClassLoader resolver
+     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it
+     * contains.
+     * @param mmd Metadata for the member
+     * @param mapping Member-column mapping
+     * @param typeMgr Type manager
+     * @param clr ClassLoader resolver
      */
-    public static void verifyMemberColumnMapping(AbstractMemberMetaData mmd, MemberColumnMapping mapping, TypeManager typeMgr,
-            ClassLoaderResolver clr)
+    public static void verifyMemberColumnMapping(AbstractMemberMetaData mmd, MemberColumnMapping mapping, TypeManager typeMgr, ClassLoaderResolver clr)
     {
         String type = null;
 
@@ -183,7 +165,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             // TypeConverter defined, so just lookup the Cassandra type
             if (mapping.getNumberOfColumns() > 1)
             {
-                Class[] datastoreJavaTypes = ((MultiColumnConverter) mapping.getTypeConverter()).getDatastoreColumnTypes();
+                Class[] datastoreJavaTypes = ((MultiColumnConverter)mapping.getTypeConverter()).getDatastoreColumnTypes();
                 for (int i = 0; i < datastoreJavaTypes.length; i++)
                 {
                     type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaTypes[i].getName());
@@ -221,8 +203,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 else if (mmd.hasCollection())
                 {
                     Class elementType = clr.classForName(mmd.getCollection().getElementType());
-                    String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : CassandraUtils
-                            .getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
+                    String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(
+                        elementType, false, typeMgr, null);
                     if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
                     {
                         type = "list<" + cqlElementType + ">";
@@ -248,18 +230,18 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     // Map<NonPC, NonPC>
                     Class keyType = clr.classForName(mmd.getMap().getKeyType());
                     Class valType = clr.classForName(mmd.getMap().getValueType());
-                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(
-                        keyType, false, typeMgr, null);
-                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(
-                        valType, false, typeMgr, null);
+                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr,
+                        null);
+                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false,
+                        typeMgr, null);
                     type = "map<" + cqlKeyType + "," + cqlValType + ">";
                 }
                 else if (mmd.hasArray())
                 {
                     // NonPC[]
                     Class elementType = clr.classForName(mmd.getArray().getElementType());
-                    String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : CassandraUtils
-                            .getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
+                    String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType,
+                        false, typeMgr, null);
                     type = "list<" + cqlElementType + ">";
                 }
                 else
