@@ -14,19 +14,12 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
@@ -49,10 +42,11 @@ import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
 /**
- * FieldManager for the storing of field values into Cassandra.
- * Note that for fields that are persistable objects, we store the "persistable-identity" of that object (see IdentityUtils class).
- * When this class is invoked for all fields required it builds up a Map of column value keyed by the name of the column; this is for
- * use by the calling class.
+ * FieldManager for the storing of field values into Cassandra. Note that for
+ * fields that are persistable objects, we store the "persistable-identity" of
+ * that object (see IdentityUtils class). When this class is invoked for all
+ * fields required it builds up a Map of column value keyed by the name of the
+ * column; this is for use by the calling class.
  */
 public class StoreFieldManager extends AbstractStoreFieldManager
 {
@@ -84,7 +78,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeBooleanField(int, boolean)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeBooleanField
+     * (int, boolean)
      */
     @Override
     public void storeBooleanField(int fieldNumber, boolean value)
@@ -98,7 +95,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeCharField(int, char)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeCharField
+     * (int, char)
      */
     @Override
     public void storeCharField(int fieldNumber, char value)
@@ -112,7 +112,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeByteField(int, byte)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeByteField
+     * (int, byte)
      */
     @Override
     public void storeByteField(int fieldNumber, byte value)
@@ -126,7 +129,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeShortField(int, short)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeShortField
+     * (int, short)
      */
     @Override
     public void storeShortField(int fieldNumber, short value)
@@ -140,7 +146,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeIntField(int, int)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeIntField
+     * (int, int)
      */
     @Override
     public void storeIntField(int fieldNumber, int value)
@@ -154,7 +163,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeLongField(int, long)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeLongField
+     * (int, long)
      */
     @Override
     public void storeLongField(int fieldNumber, long value)
@@ -168,7 +180,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeFloatField(int, float)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeFloatField
+     * (int, float)
      */
     @Override
     public void storeFloatField(int fieldNumber, float value)
@@ -194,7 +209,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeDoubleField(int, double)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeDoubleField
+     * (int, double)
      */
     @Override
     public void storeDoubleField(int fieldNumber, double value)
@@ -216,7 +234,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeStringField(int, java.lang.String)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeStringField
+     * (int, java.lang.String)
      */
     @Override
     public void storeStringField(int fieldNumber, String value)
@@ -230,7 +251,10 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.fieldmanager.AbstractFieldManager#storeObjectField(int, java.lang.Object)
+     * 
+     * @see
+     * org.datanucleus.store.fieldmanager.AbstractFieldManager#storeObjectField
+     * (int, java.lang.Object)
      */
     @Override
     public void storeObjectField(int fieldNumber, Object value)
@@ -243,7 +267,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
-        if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
+        if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd,
+            relationType, null))
         {
             // Embedded field
             if (RelationType.isRelationSingleValued(relationType))
@@ -252,7 +277,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
                     {
-                        // Related PC object not persistent, but cant do cascade-persist so throw exception
+                        // Related PC object not persistent, but cant do
+                        // cascade-persist so throw exception
                         if (NucleusLogger.PERSISTENCE.isDebugEnabled())
                         {
                             NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
@@ -272,9 +298,11 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     for (int i = 0; i < embMmdPosns.length; i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils
+                                .isPrimitiveWrapperType(mmd.getTypeName()))
                         {
-                            // Store a null for any primitive/wrapper/String fields
+                            // Store a null for any primitive/wrapper/String
+                            // fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                             colEmbMmds.add(embMmd);
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
@@ -332,7 +360,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
                 {
-                    // Related PC object not persistent, but cant do cascade-persist so throw exception
+                    // Related PC object not persistent, but cant do
+                    // cascade-persist so throw exception
                     if (NucleusLogger.PERSISTENCE.isDebugEnabled())
                     {
                         NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
@@ -346,7 +375,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (mmd.isSerialized())
             {
                 // TODO Support serialised persistable object
-                throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
+                throw new NucleusUserException(
+                        "Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
             }
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
             return;
@@ -507,8 +537,16 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mapping.getTypeConverter() != null)
             {
-                // Use defined type converter
-                Object datastoreValue = mapping.getTypeConverter().toDatastoreType(value);
+                Object datastoreValue;
+                if (value instanceof UUID)
+                {
+                    datastoreValue = value;
+                }
+                else
+                {
+                    // Use defined type converter
+                    datastoreValue = mapping.getTypeConverter().toDatastoreType(value);
+                }
                 if (mapping.getNumberOfColumns() > 1)
                 {
                     for (int i = 0; i < Array.getLength(datastoreValue); i++)
@@ -595,8 +633,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (mmd.isSerialized())
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
-                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(),
-                        ec.getTypeManager());
+                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType,
+                        mmd.isSerialized(), ec.getTypeManager());
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
                 }
@@ -615,7 +653,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
-                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
+                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false,
+                            ec.getTypeManager()));
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
@@ -625,7 +664,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
             // TODO What if there are multiple columns?
             String cassandraType = mapping.getColumn(0).getTypeName();
-            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(),
+                ec.getTypeManager());
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);

@@ -50,6 +50,7 @@ import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
+import java.util.*;
 
 /**
  * Utility methods for handling Cassandra datastores.
@@ -92,6 +93,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
         cassandraTypeByJavaType.put(Locale.class.getName(), "varchar");
+        cassandraTypeByJavaType.put(UUID.class.getName(), "uuid");
 
         datastoreTypeByCassandraType.put("timestamp", Date.class);
         datastoreTypeByCassandraType.put("boolean", Boolean.class);
@@ -101,6 +103,7 @@ public class CassandraUtils
         datastoreTypeByCassandraType.put("bigint", Long.class);
         datastoreTypeByCassandraType.put("varchar", String.class);
         datastoreTypeByCassandraType.put("blob", ByteBuffer.class);
+        datastoreTypeByCassandraType.put("uuid", UUID.class);
     }
 
     public static Class getJavaTypeForCassandraType(String cassandraType)
@@ -146,6 +149,10 @@ public class CassandraUtils
         else if (column.getTypeName().equals("blob"))
         {
             return typeConv.toMemberType(row.getBytes(column.getName()));
+        }
+        else if (column.getTypeName().equals("uuid"))
+        {
+            return row.getUUID(column.getName());
         }
         return null;
     }
@@ -475,6 +482,10 @@ public class CassandraUtils
             {
                 return stringConverter.toDatastoreType(value);
             }
+        }
+        else if (value instanceof UUID)
+        {
+            return value;
         }
 
         TypeConverter stringConverter = typeMgr.getTypeConverterForType(value.getClass(), String.class);
