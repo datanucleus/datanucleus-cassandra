@@ -60,6 +60,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.DriverException;
+import org.datanucleus.metadata.*;
 
 /**
  * Handler for basic persistence operations with Cassandra datastores.
@@ -524,7 +525,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     else
                     {
                         String cassandraType = pkCol.getTypeName();
-                        setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                        JdbcType jdbcType = pkCol.getJdbcType();
+                        setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, jdbcType, false, storeMgr.getNucleusContext().getTypeManager()));
                     }
                 }
             }
@@ -533,7 +535,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 stmtBuilder.append(table.getDatastoreIdColumn().getName());
                 stmtBuilder.append("=?");
                 Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
-                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, storeMgr.getNucleusContext().getTypeManager()));
+                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(),table.getDatastoreIdColumn().getJdbcType(), false, storeMgr.getNucleusContext().getTypeManager()));
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
@@ -1173,7 +1175,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 else
                 {
                     String cassandraType = table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getTypeName();
-                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    JdbcType jdbcType = table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getJdbcType();
+                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, jdbcType,false, storeMgr.getNucleusContext().getTypeManager());
                 }
             }
         }

@@ -56,6 +56,7 @@ import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
+import java.util.*;
 
 /**
  * FieldManager to use for retrieving values from Cassandra to put into a persistable object.
@@ -615,6 +616,19 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     }
                 }
                 return row.getDate(mapping.getColumn(0).getName());
+            }
+            else if (UUID.class.isAssignableFrom(mmd.getType()))
+            {
+                if (null != mapping.getColumn(0).getJdbcType() && mapping.getColumn(0).getJdbcType().equals(JdbcType.VARCHAR))
+                {
+                   TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    if (stringConverter != null)
+                    {
+                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }        
+                }
+                // uuid is the default type
+                return row.getUUID(mapping.getColumn(0).getName());
             }
             else
             {
