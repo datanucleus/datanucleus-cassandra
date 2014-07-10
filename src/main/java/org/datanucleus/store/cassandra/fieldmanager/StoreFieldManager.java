@@ -439,7 +439,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, null, false, ec.getTypeManager());
+                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
                     }
 
                     if (mmd.getMap().valueIsPersistent())
@@ -463,7 +463,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, null, false, ec.getTypeManager());
+                        val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
                     }
 
                     idMap.put(key, val);
@@ -544,7 +544,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 while (collIter.hasNext())
                 {
                     Object element = collIter.next();
-                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, null, false, ec.getTypeManager()));
+                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 op.wrapSCOField(fieldNumber, value, false, false, true);
@@ -572,8 +572,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object key = entry.getKey();
                     Object val = entry.getValue();
 
-                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, null, false, ec.getTypeManager());
-                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, null, false, ec.getTypeManager());
+                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
+                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
@@ -591,9 +591,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (mmd.isSerialized())
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
-                    JdbcType jdbcType = mapping.getColumn(0).getJdbcType();
-                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, jdbcType, mmd.isSerialized(),
-                        ec.getTypeManager());
+                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
                 }
@@ -612,7 +610,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
-                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, null, false, ec.getTypeManager()));
+                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
@@ -622,9 +620,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
             // TODO What if there are multiple columns?
             String cassandraType = mapping.getColumn(0).getTypeName();
-            JdbcType jdbcType = mapping.getColumn(0).getJdbcType();
-            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, jdbcType, mmd.isSerialized(),
-                ec.getTypeManager());
+            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);

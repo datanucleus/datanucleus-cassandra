@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.UUID;
 
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.FetchPlan;
@@ -50,8 +51,6 @@ import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
-import java.util.*;
-import org.datanucleus.metadata.*;
 
 /**
  * Utility methods for handling Cassandra datastores.
@@ -332,13 +331,11 @@ public class CassandraUtils
      * Convenience method to convert from a non-persistable value to the value to be stored in Cassandra.
      * @param value Value for the member
      * @param datastoreType Cassandra column type
-     * @param jdbcType jdo column jdbcType ie. uuid default cassandra type is uuid if jdbctype is varchar than
-     * cassandra type becomes text.
      * @param serialised Whether the value is to be stored serialised
      * @param typeMgr Type Manager
      * @return The value to be stored
      */
-    public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, JdbcType jdbcType, boolean serialised, TypeManager typeMgr)
+    public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
     {
         // TODO Support TypeManager autoApply type converter
         if (value == null)
@@ -475,7 +472,7 @@ public class CassandraUtils
         }
         else if (value instanceof UUID)
         {
-            if (jdbcType != null && jdbcType.equals(JdbcType.VARCHAR))
+            if (datastoreType.equals("varchar"))
             {
                 TypeConverter stringConverter = typeMgr.getTypeConverterForType(UUID.class, String.class);
                 if (stringConverter != null)
@@ -483,7 +480,6 @@ public class CassandraUtils
                     return stringConverter.toDatastoreType(value);
                 }
             }
-            // uuid is default jdbc type.
             return value;
         }
 
