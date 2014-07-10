@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra;
 
 import org.datanucleus.properties.PropertyValidator;
@@ -40,9 +40,8 @@ public class CassandraPropertyValidator implements PropertyValidator
         {
             if (value instanceof String)
             {
-                String strVal = (String)value;
-                if (strVal.equalsIgnoreCase("none") ||
-                    strVal.equalsIgnoreCase("snappy"))
+                String strVal = (String) value;
+                if (strVal.equalsIgnoreCase("none") || strVal.equalsIgnoreCase("snappy"))
                 {
                     return true;
                 }

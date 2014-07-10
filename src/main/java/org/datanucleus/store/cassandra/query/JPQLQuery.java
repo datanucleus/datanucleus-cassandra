@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors :
     ...
-***********************************************************************/
+ ***********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
 import java.util.ArrayList;
@@ -57,6 +57,7 @@ import com.datastax.driver.core.Session;
 public class JPQLQuery extends AbstractJPQLQuery
 {
     private static final long serialVersionUID = -8227071426747396356L;
+
     /** The compilation of the query for this datastore. Not applicable if totally in-memory. */
     protected transient CassandraQueryCompilation datastoreCompilation;
 
@@ -78,7 +79,7 @@ public class JPQLQuery extends AbstractJPQLQuery
      */
     public JPQLQuery(StoreManager storeMgr, ExecutionContext ec, Object q)
     {
-        super(storeMgr, ec, (JPQLQuery)q);
+        super(storeMgr, ec, (JPQLQuery) q);
     }
 
     /**
@@ -128,7 +129,8 @@ public class JPQLQuery extends AbstractJPQLQuery
         {
             if (compilation != null && compilation.getSubqueryAliases() != null)
             {
-                // TODO In-memory evaluation of subqueries isn't fully implemented yet, so remove this when it is
+                // TODO In-memory evaluation of subqueries isn't fully implemented yet, so remove this when it
+                // is
                 NucleusLogger.QUERY.warn("In-memory evaluator doesn't currently handle subqueries completely so evaluating in datastore");
                 return false;
             }
@@ -138,15 +140,14 @@ public class JPQLQuery extends AbstractJPQLQuery
             {
                 return true;
             }
-            return Boolean.valueOf((String)val);
+            return Boolean.valueOf((String) val);
         }
         return super.evaluateInMemory();
     }
 
     /**
-     * Method to compile the JDOQL query.
-     * Uses the superclass to compile the generic query populating the "compilation", and then generates
-     * the datastore-specific "datastoreCompilation".
+     * Method to compile the JDOQL query. Uses the superclass to compile the generic query populating the
+     * "compilation", and then generates the datastore-specific "datastoreCompilation".
      * @param parameterValues Map of param values keyed by param name (if available at compile time)
      */
     protected synchronized void compileInternal(Map parameterValues)
@@ -162,7 +163,8 @@ public class JPQLQuery extends AbstractJPQLQuery
         boolean inMemory = evaluateInMemory();
         if (candidateCollection != null && inMemory)
         {
-            // Querying a candidate collection in-memory, so just return now (don't need datastore compilation)
+            // Querying a candidate collection in-memory, so just return now (don't need datastore
+            // compilation)
             // TODO Maybe apply the result class checks ?
             return;
         }
@@ -181,7 +183,7 @@ public class JPQLQuery extends AbstractJPQLQuery
         if (useCaching())
         {
             // Allowing caching so try to find compiled (datastore) query
-            datastoreCompilation = (CassandraQueryCompilation)qm.getDatastoreQueryCompilation(datastoreKey, getLanguage(), cacheKey);
+            datastoreCompilation = (CassandraQueryCompilation) qm.getDatastoreQueryCompilation(datastoreKey, getLanguage(), cacheKey);
             if (datastoreCompilation != null)
             {
                 // Cached compilation exists for this datastore so reuse it
@@ -258,7 +260,8 @@ public class JPQLQuery extends AbstractJPQLQuery
                         while (iter.hasNext())
                         {
                             Row row = iter.next();
-                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(),
+                                getIgnoreCache()));
                         }
                     }
                     filterInMemory = false;
@@ -276,7 +279,7 @@ public class JPQLQuery extends AbstractJPQLQuery
                 if (candidates instanceof QueryResult)
                 {
                     // Make sure the cursor(s) are all loaded
-                    ((QueryResult)candidates).disconnect();
+                    ((QueryResult) candidates).disconnect();
                 }
 
                 JavaQueryEvaluator resultMapper = new JPQLEvaluator(this, candidates, compilation, parameters, ec.getClassLoaderResolver());
@@ -301,16 +304,20 @@ public class JPQLQuery extends AbstractJPQLQuery
 
             if (results instanceof QueryResult)
             {
-                final QueryResult qr1 = (QueryResult)results;
+                final QueryResult qr1 = (QueryResult) results;
                 final ManagedConnection mconn1 = mconn;
                 ManagedConnectionResourceListener listener = new ManagedConnectionResourceListener()
                 {
-                    public void transactionFlushed(){}
+                    public void transactionFlushed()
+                    {
+                    }
+
                     public void transactionPreClose()
                     {
                         // Tx : disconnect query from ManagedConnection (read in unread rows etc)
                         qr1.disconnect();
                     }
+
                     public void managedConnectionPreClose()
                     {
                         if (!ec.getTransaction().isActive())
@@ -319,7 +326,11 @@ public class JPQLQuery extends AbstractJPQLQuery
                             qr1.disconnect();
                         }
                     }
-                    public void managedConnectionPostClose(){}
+
+                    public void managedConnectionPostClose()
+                    {
+                    }
+
                     public void resourcePostClose()
                     {
                         mconn1.removeListener(this);
@@ -328,7 +339,7 @@ public class JPQLQuery extends AbstractJPQLQuery
                 mconn.addListener(listener);
                 if (qr1 instanceof AbstractQueryResult)
                 {
-                    ((AbstractQueryResult)qr1).addConnectionListener(listener);
+                    ((AbstractQueryResult) qr1).addConnectionListener(listener);
                 }
             }
 
@@ -341,8 +352,8 @@ public class JPQLQuery extends AbstractJPQLQuery
     }
 
     /**
-     * Convenience method that returns all candidate objects for this query.
-     * This is performed using a "SELECT * FROM schema.table" for the candidate, and optionally its subclasses.
+     * Convenience method that returns all candidate objects for this query. This is performed using a
+     * "SELECT * FROM schema.table" for the candidate, and optionally its subclasses.
      * @param session The session
      * @return The candidate objects
      */
@@ -351,16 +362,15 @@ public class JPQLQuery extends AbstractJPQLQuery
         // TODO Create lazy-loading QueryResult object to contain these and return that
         List candidateObjs = new ArrayList();
 
-        CassandraStoreManager storeMgr = (CassandraStoreManager)this.storeMgr;
-        List<AbstractClassMetaData> cmds =
-            MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
+        CassandraStoreManager storeMgr = (CassandraStoreManager) this.storeMgr;
+        List<AbstractClassMetaData> cmds = MetaDataUtils.getMetaDataForCandidates(getCandidateClass(), isSubclasses(), ec);
         for (AbstractClassMetaData cmd : cmds)
         {
             if (cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE || cmd.isEmbeddedOnly())
             {
                 continue;
             }
-            else if (cmd instanceof ClassMetaData && ((ClassMetaData)cmd).isAbstract())
+            else if (cmd instanceof ClassMetaData && ((ClassMetaData) cmd).isAbstract())
             {
                 continue;
             }
@@ -379,7 +389,8 @@ public class JPQLQuery extends AbstractJPQLQuery
             stmtBuilder.append(table.getSchemaName()).append('.').append(table.getName());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd
+                    .getValueForExtension("multitenancy-disable")))
             {
                 String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
                 stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getName()).append("='").append(multitenancyValue).append("'");
@@ -394,13 +405,13 @@ public class JPQLQuery extends AbstractJPQLQuery
             while (iter.hasNext())
             {
                 Row row = iter.next();
-                candidateObjs.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+                candidateObjs.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(),
+                    getIgnoreCache()));
             }
         }
 
         return candidateObjs;
     }
-
 
     /**
      * Method to compile the query for the datastore attempting to evaluate the whole query in the datastore
@@ -424,7 +435,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             {
                 continue;
             }
-            else if (cmd instanceof ClassMetaData && ((ClassMetaData)cmd).isAbstract())
+            else if (cmd instanceof ClassMetaData && ((ClassMetaData) cmd).isAbstract())
             {
                 continue;
             }
@@ -449,7 +460,7 @@ public class JPQLQuery extends AbstractJPQLQuery
 
         if (NucleusLogger.QUERY.isDebugEnabled())
         {
-            NucleusLogger.QUERY.debug(Localiser.msg("021084", getLanguage(), System.currentTimeMillis()-startTime));
+            NucleusLogger.QUERY.debug(Localiser.msg("021084", getLanguage(), System.currentTimeMillis() - startTime));
         }
     }
 }

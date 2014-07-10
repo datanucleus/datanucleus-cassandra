@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra;
 
 import java.util.ArrayList;
@@ -42,18 +42,27 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
 
 /**
- * Connection factory for Cassandra datastores.
- * Accepts a URL of the form <pre>cassandra:[host1:port[,host2[,host3]]]</pre>
- * Defaults to a server of "127.0.0.1" if no host/port specified
- * Defaults to a single Session per PMF/EMF, but can be overridden using "datanucleus.cassandra.sessionPerManager".
+ * Connection factory for Cassandra datastores. Accepts a URL of the form
+ * 
+ * <pre>
+ * cassandra:[host1:port[,host2[,host3]]]
+ * </pre>
+ * 
+ * Defaults to a server of "127.0.0.1" if no host/port specified Defaults to a single Session per PMF/EMF, but
+ * can be overridden using "datanucleus.cassandra.sessionPerManager".
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
 {
     public static final String CASSANDRA_CONNECTION_PER_MANAGER = "datanucleus.cassandra.sessionPerManager";
+
     public static final String CASSANDRA_COMPRESSION = "datanucleus.cassandra.compression";
+
     public static final String CASSANDRA_METRICS = "datanucleus.cassandra.metrics";
+
     public static final String CASSANDRA_SSL = "datanucleus.cassandra.ssl";
+
     public static final String CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.readTimeoutMillis";
+
     public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
 
     protected static final String DEFAULT_IP_ADDR = "127.0.0.1";
@@ -103,7 +112,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 int nextSemiColon = token.indexOf(':');
                 if (nextSemiColon > 0)
                 {
-                    port = token.substring(nextSemiColon+1);
+                    port = token.substring(nextSemiColon + 1);
                     hostStr = token.substring(0, nextSemiColon);
                 }
                 else
@@ -220,7 +229,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     }
 
     /**
-     * Obtain a connection from the Factory. The connection will be enlisted within the transaction associated to the ExecutionContext
+     * Obtain a connection from the Factory. The connection will be enlisted within the transaction associated
+     * to the ExecutionContext
      * @param ec the pool that is bound the connection during its lifecycle (or null)
      * @param options Any options for then creating the connection (currently ignored)
      * @return the {@link org.datanucleus.store.connection.ManagedConnection}
@@ -281,7 +291,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             }
 
             // Notify anything using this connection to use it now
-            for (int i=0; i<listeners.size(); i++)
+            for (int i = 0; i < listeners.size(); i++)
             {
                 listeners.get(i).managedConnectionPreClose();
             }
@@ -289,7 +299,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - closed connection");
 
             // Removes the connection from pooling
-            for (int i=0; i<listeners.size(); i++)
+            for (int i = 0; i < listeners.size(); i++)
             {
                 listeners.get(i).managedConnectionPostClose();
             }
@@ -297,7 +307,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             if (sessionPerManager)
             {
                 NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - close Session");
-                ((Session)conn).close();
+                ((Session) conn).close();
             }
             conn = null;
             xaRes = null;
@@ -311,12 +321,13 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 {
                     obtainNewConnection();
                 }
-                xaRes = new EmulatedXAResource(this, (Session)conn);
+                xaRes = new EmulatedXAResource(this, (Session) conn);
             }
             return xaRes;
         }
 
-        /* (non-Javadoc)
+        /*
+         * (non-Javadoc)
          * @see org.datanucleus.store.connection.AbstractManagedConnection#closeAfterTransactionEnd()
          */
         @Override

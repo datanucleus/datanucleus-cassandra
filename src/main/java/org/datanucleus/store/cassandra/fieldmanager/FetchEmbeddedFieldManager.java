@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.util.ArrayList;
@@ -62,7 +62,8 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         return table.getMemberColumnMappingForEmbeddedMember(embMmds);
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager#fetchObjectField(int)
      */
     @Override
@@ -74,7 +75,8 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
-            // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
+            // Special case of this being a link back to the owner. TODO Repeat this for nested and their
+            // owners
             ObjectProvider[] ownerOps = op.getEmbeddedOwners();
             return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
         }

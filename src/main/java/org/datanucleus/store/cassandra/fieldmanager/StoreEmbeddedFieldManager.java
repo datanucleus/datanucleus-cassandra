@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
 import java.util.ArrayList;
@@ -43,7 +43,8 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
     protected List<AbstractMemberMetaData> mmds;
 
     /**
-     * Constructor called when it is needed to null out all columns of an embedded object (and nested embedded columns).
+     * Constructor called when it is needed to null out all columns of an embedded object (and nested embedded
+     * columns).
      * @param ec ExecutionContext
      * @param cmd Metadata for the class
      * @param insert Whether we are inserting
@@ -69,18 +70,21 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         return table.getMemberColumnMappingForEmbeddedMember(embMmds);
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager#storeObjectField(int, java.lang.Object)
+    /*
+     * (non-Javadoc)
+     * @see org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager#storeObjectField(int,
+     * java.lang.Object)
      */
     @Override
     public void storeObjectField(int fieldNumber, Object value)
     {
         AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
-        AbstractMemberMetaData lastMmd = mmds.get(mmds.size()-1);
+        AbstractMemberMetaData lastMmd = mmds.get(mmds.size() - 1);
         EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
-            // Special case of this member being a link back to the owner. TODO Repeat this for nested and their owners
+            // Special case of this member being a link back to the owner. TODO Repeat this for nested and
+            // their owners
             if (op != null)
             {
                 ObjectProvider[] ownerOPs = op.getEmbeddedOwners();
@@ -109,17 +113,18 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     // Store null in all columns of this and any nested embedded objects
                     StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(ec, embCmd, insert, embMmds, table);
                     int[] embMmdPosns = embCmd.getAllMemberPositions();
-                    for (int i=0;i<embMmdPosns.length;i++)
+                    for (int i = 0; i < embMmdPosns.length; i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd
+                                .getTypeName()))
                         {
                             // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                             colEmbMmds.add(embMmd);
 
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
-                            for (int j=0;j<mapping.getNumberOfColumns();j++)
+                            for (int j = 0; j < mapping.getNumberOfColumns(); j++)
                             {
                                 columnValueByName.put(mapping.getColumn(j).getName(), null);
                             }
@@ -152,7 +157,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         {
             // Null the column
             MemberColumnMapping mapping = getColumnMapping(fieldNumber);
-            for (int i=0;i<mapping.getNumberOfColumns();i++)
+            for (int i = 0; i < mapping.getNumberOfColumns(); i++)
             {
                 columnValueByName.put(mapping.getColumn(i).getName(), null);
             }

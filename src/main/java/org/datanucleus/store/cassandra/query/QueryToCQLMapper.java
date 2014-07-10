@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
 import java.util.ArrayDeque;
@@ -186,7 +186,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             {
                 compilation.getExprFilter().evaluate(this);
                 CassandraExpression filterExpr = stack.pop();
-                cqlString = ((CassandraBooleanExpression)filterExpr).getCQL();
+                cqlString = ((CassandraBooleanExpression) filterExpr).getCQL();
             }
             catch (Exception e)
             {
@@ -216,6 +216,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         }
         return null;
     }
+
     /**
      * Method to compile the GROUPING clause of the query
      */
@@ -226,6 +227,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             // TODO Implement this
         }
     }
+
     /**
      * Method to compile the HAVING clause of the query
      */
@@ -236,6 +238,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             // TODO Implement this
         }
     }
+
     /**
      * Method to compile the ORDERING clause of the query
      * @return The CQL for the result
@@ -362,8 +365,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         return boolExpr;
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processPrimaryExpression(org.datanucleus.query.expression.PrimaryExpression)
+    /*
+     * (non-Javadoc)
+     * @see
+     * org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processPrimaryExpression(org.datanucleus
+     * .query.expression.PrimaryExpression)
      */
     @Override
     protected Object processPrimaryExpression(PrimaryExpression expr)
@@ -414,7 +420,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             if (firstTuple && name.equals(candidateAlias))
             {
                 cmd = candidateCmd;
-            } 
+            }
             else
             {
                 AbstractMemberMetaData mmd = cmd.getMetaDataForMember(name);
@@ -425,7 +431,8 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                     {
                         if (iter.hasNext())
                         {
-                            throw new NucleusUserException("Query has reference to " + StringUtils.collectionToString(tuples) + " yet " + name + " is a non-relation field!");
+                            throw new NucleusUserException(
+                                    "Query has reference to " + StringUtils.collectionToString(tuples) + " yet " + name + " is a non-relation field!");
                         }
                     }
 
@@ -448,8 +455,8 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
                             if (mmd.getIndexMetaData() == null)
                             {
-                                throw new NucleusUserException("Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + 
-                                    " yet this is not indexed. Must be indexed to evaluate in datastore");
+                                throw new NucleusUserException(
+                                        "Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + " yet this is not indexed. Must be indexed to evaluate in datastore");
                             }
                             return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
@@ -462,8 +469,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         return null;
     }
 
-    /* (non-Javadoc)
-     * @see org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processParameterExpression(org.datanucleus.query.expression.ParameterExpression)
+    /*
+     * (non-Javadoc)
+     * @see
+     * org.datanucleus.query.evaluator.AbstractExpressionEvaluator#processParameterExpression(org.datanucleus
+     * .query.expression.ParameterExpression)
      */
     @Override
     protected Object processParameterExpression(ParameterExpression expr)
@@ -498,7 +508,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                 {
                     paramValue = parameters.get(Integer.valueOf(position));
                     paramValueSet = true;
-                    positionalParamNumber = position+1;
+                    positionalParamNumber = position + 1;
                 }
             }
         }

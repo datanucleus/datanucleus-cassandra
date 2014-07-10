@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
    ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.query.expression;
 
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -25,6 +25,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 public class CassandraFieldExpression extends CassandraExpression
 {
     AbstractMemberMetaData mmd;
+
     String columnName;
 
     public CassandraFieldExpression(String columnName, AbstractMemberMetaData mmd)

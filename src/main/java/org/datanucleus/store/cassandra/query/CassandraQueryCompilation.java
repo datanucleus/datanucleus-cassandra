@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
 import java.util.HashMap;
@@ -27,7 +27,9 @@ import java.util.Set;
 public class CassandraQueryCompilation
 {
     boolean resultComplete = true;
+
     boolean filterComplete = true;
+
     boolean orderComplete = true;
 
     Map<String, String> cqlByClass = new HashMap<String, String>();
@@ -87,7 +89,7 @@ public class CassandraQueryCompilation
     {
         return cqlByClass.get(className);
     }
-    
+
     public Set<String> getClassNames()
     {
         return cqlByClass.keySet();

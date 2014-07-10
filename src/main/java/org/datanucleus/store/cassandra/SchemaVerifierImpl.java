@@ -65,7 +65,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier# verifyTypeConverterForMember(org.datanucleus.metadata.AbstractMemberMetaData, org.datanucleus.store.types.converters.TypeConverter)
+     * @see org.datanucleus.store.schema.table.SchemaVerifier#
+     * verifyTypeConverterForMember(org.datanucleus.metadata.AbstractMemberMetaData,
+     * org.datanucleus.store.types.converters.TypeConverter)
      */
     @Override
     public TypeConverter verifyTypeConverterForMember(AbstractMemberMetaData mmd, TypeConverter conv)
@@ -84,7 +86,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 }
                 else if (java.util.UUID.class.isAssignableFrom(mmd.getType()))
                 {
-                    // UUID : by default this will get a TypeConverter<UUID,String> assigned, so unset unless explicitly requested
+                    // UUID : by default this will get a TypeConverter<UUID,String> assigned, so unset unless
+                    // explicitly requested
                     ColumnMetaData[] colmds = mmd.getColumnMetaData();
                     boolean jdbcTypeSpecified = false;
                     if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcTypeName()))
@@ -93,7 +96,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     }
                     if (!jdbcTypeSpecified)
                     {
-                        // We don't want a TypeConverter for UUID except when requested, so unset the default TypeConverter
+                        // We don't want a TypeConverter for UUID except when requested, so unset the default
+                        // TypeConverter
                         return null;
                     }
                 }
@@ -104,7 +108,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org.datanucleus.store.schema.table.MemberColumnMapping)
+     * @see
+     * org.datanucleus.store.schema.table.SchemaVerifier#attributeMember(org.datanucleus.store.schema.table
+     * .MemberColumnMapping)
      */
     @Override
     public void attributeMember(MemberColumnMapping mapping)
@@ -144,7 +150,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org.datanucleus.store.schema.table.MemberColumnMapping, org.datanucleus.metadata.AbstractMemberMetaData)
+     * @see
+     * org.datanucleus.store.schema.table.SchemaVerifier#attributeColumn(org.datanucleus.store.schema.table
+     * .MemberColumnMapping, org.datanucleus.metadata.AbstractMemberMetaData)
      */
     @Override
     public void attributeMember(MemberColumnMapping mapping, AbstractMemberMetaData mmd)
@@ -154,7 +162,9 @@ public class SchemaVerifierImpl implements SchemaVerifier
 
     /*
      * (non-Javadoc)
-     * @see org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn(org.datanucleus.store.schema.table.MemberColumnMapping, java.util.List)
+     * @see
+     * org.datanucleus.store.schema.table.SchemaVerifier#attributeEmbeddedColumn(org.datanucleus.store.schema
+     * .table.MemberColumnMapping, java.util.List)
      */
     @Override
     public void attributeEmbeddedMember(MemberColumnMapping mapping, List<AbstractMemberMetaData> mmds)
@@ -164,7 +174,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
     }
 
     /**
-     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it contains.
+     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it
+     * contains.
      * @param mmd Metadata for the member
      * @param mapping Member-column mapping
      * @param typeMgr Type manager
@@ -179,7 +190,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             // TypeConverter defined, so just lookup the Cassandra type
             if (mapping.getNumberOfColumns() > 1)
             {
-                Class[] datastoreJavaTypes = ((MultiColumnConverter)mapping.getTypeConverter()).getDatastoreColumnTypes();
+                Class[] datastoreJavaTypes = ((MultiColumnConverter) mapping.getTypeConverter()).getDatastoreColumnTypes();
                 for (int i = 0; i < datastoreJavaTypes.length; i++)
                 {
                     type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaTypes[i].getName());
@@ -235,8 +246,10 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     // Map<NonPC, NonPC>
                     Class keyType = clr.classForName(mmd.getMap().getKeyType());
                     Class valType = clr.classForName(mmd.getMap().getValueType());
-                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
-                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
+                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr,
+                        null);
+                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false,
+                        typeMgr, null);
                     type = "map<" + cqlKeyType + "," + cqlValType + ">";
                 }
                 else if (mmd.hasArray())
@@ -301,7 +314,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (Enum.class.isAssignableFrom(mmd.getType()))
                         {
-                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified above)
+                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified
+                            // above)
                             type = "int";
                         }
                         else
@@ -409,8 +423,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
             else
             {
                 // TODO Allow for fields declared as Object but with particular persistent implementations
-                NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + 
-                    " could not be directly mapped for Cassandra. Using varchar column");
+                NucleusLogger.DATASTORE_SCHEMA
+                        .warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
                 // Fallback to varchar - maybe BLOB would be better???
                 mapping.getColumn(0).setTypeName("varchar");
             }

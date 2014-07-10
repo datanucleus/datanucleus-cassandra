@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors :
     ...
-***********************************************************************/
+ ***********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
 import java.util.ArrayList;
@@ -36,12 +36,13 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
- * CQL query for Cassandra.
- * Allows the user to execute a CQL query and return the results in the form "List&lt;Object[]&gt;".
+ * CQL query for Cassandra. Allows the user to execute a CQL query and return the results in the form
+ * "List&lt;Object[]&gt;".
  */
 public class CQLQuery extends AbstractJavaQuery
 {
     private static final long serialVersionUID = 2808968696540162104L;
+
     String cql;
 
     /**
@@ -78,7 +79,8 @@ public class CQLQuery extends AbstractJavaQuery
         this.cql = query;
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.query.AbstractJavaQuery#getSingleStringQuery()
      */
     @Override
@@ -117,7 +119,7 @@ public class CQLQuery extends AbstractJavaQuery
             {
                 Row row = iter.next();
                 Object[] resultRow = new Object[defs.size()];
-                int i=0;
+                int i = 0;
                 for (Definition def : defs)
                 {
                     DataType colType = def.getType();

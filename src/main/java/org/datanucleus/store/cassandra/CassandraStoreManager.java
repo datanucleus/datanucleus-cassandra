@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra;
 
 import java.util.Collection;
@@ -53,9 +53,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
     SessionStatementProvider stmtProvider = new SessionStatementProvider();
 
-    public static final String RESERVED_WORDS = "ADD,ALLOW,ALTER,AND,ANY,APPLY,ASC,AUTHORIZE,BATCH,BEGIN,BY,COLUMNFAMILY,CREATE,DELETE,DESC,DROP," +
-        "FROM,GRANT,IN,INDEX,INET,INSERT,INTO,KEYSPACE,KEYSPACES,LIMIT,MODIFY,NORECURSIVE,OF,ON,ONE,ORDER,PASSWORD,PRIMARY,QUORUM,RENAME,REVOKE," +
-        "SCHEMA,SELECT,SET,TABLE,TO,TOKEN,THREE,TRUNCATE,TWO,UNLOGGED,UPDATE,USE,USING,WHERE,WITH";
+    public static final String RESERVED_WORDS = "ADD,ALLOW,ALTER,AND,ANY,APPLY,ASC,AUTHORIZE,BATCH,BEGIN,BY,COLUMNFAMILY,CREATE,DELETE,DESC,DROP," + "FROM,GRANT,IN,INDEX,INET,INSERT,INTO,KEYSPACE,KEYSPACES,LIMIT,MODIFY,NORECURSIVE,OF,ON,ONE,ORDER,PASSWORD,PRIMARY,QUORUM,RENAME,REVOKE," + "SCHEMA,SELECT,SET,TABLE,TO,TOKEN,THREE,TRUNCATE,TWO,UNLOGGED,UPDATE,USE,USING,WHERE,WITH";
 
     /**
      * Constructor.
@@ -123,7 +121,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         ManagedConnection mconn = getConnection(-1);
         try
         {
-            Session session = (Session)mconn.getConnection();
+            Session session = (Session) mconn.getConnection();
             manageClasses(classNames, clr, session);
         }
         finally
@@ -147,7 +145,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         Iterator iter = getMetaDataManager().getReferencedClasses(filteredClassNames, clr).iterator();
         while (iter.hasNext())
         {
-            ClassMetaData cmd = (ClassMetaData)iter.next();
+            ClassMetaData cmd = (ClassMetaData) iter.next();
             if (cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE && !cmd.isEmbeddedOnly() && !cmd.isAbstract())
             {
                 if (!storeDataMgr.managesClass(cmd.getFullClassName()))

@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
     ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.valuegenerator;
 
 import java.util.ArrayList;
@@ -37,7 +37,8 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 
 /**
- * Value generator using a table in the datastore and incrementing a column, keyed by the field name that has the strategy.
+ * Value generator using a table in the datastore and incrementing a column, keyed by the field name that has
+ * the strategy.
  */
 public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 {
@@ -46,8 +47,11 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
     private String key = null;
 
     private String schemaName = null;
+
     private String tableName = "incrementtable";
+
     private String keyColName = "key";
+
     private String valColName = "value";
 
     public IncrementGenerator(String name, Properties props)
@@ -93,7 +97,8 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
         }
     }
 
-    /* (non-Javadoc)
+    /*
+     * (non-Javadoc)
      * @see org.datanucleus.store.valuegenerator.AbstractGenerator#reserveBlock(long)
      */
     @Override
@@ -116,9 +121,10 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
             Session session = (Session) mconn.getConnection();
 
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
-            stmtBuilder.append(valColName).append(" FROM ").append(getSchemaName()).append('.').append(tableName).append(" WHERE ").append(keyColName).append("=?");
+            stmtBuilder.append(valColName).append(" FROM ").append(getSchemaName()).append('.').append(tableName).append(" WHERE ").append(keyColName)
+                    .append("=?");
             NucleusLogger.VALUEGENERATION.debug("Getting current value for increment strategy for key=" + key + " : " + stmtBuilder.toString());
-            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
             PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
             ResultSet rs = session.execute(stmt.bind(key));
             if (rs.isExhausted())
@@ -131,12 +137,14 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 
                 // No existing values, so add new row, starting at end of this first block
                 stmtBuilder = new StringBuilder("INSERT INTO ");
-                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName).append(") VALUES(?,?)");
-                NucleusLogger.VALUEGENERATION.debug("Setting value for increment strategy for key=" + key + " val=" + (initialValue+size+1) + " : " + stmtBuilder.toString());
+                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName)
+                        .append(") VALUES(?,?)");
+                NucleusLogger.VALUEGENERATION
+                        .debug("Setting value for increment strategy for key=" + key + " val=" + (initialValue + size + 1) + " : " + stmtBuilder.toString());
                 stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-                session.execute(stmt.bind(key, (initialValue+size+1)));
+                session.execute(stmt.bind(key, (initialValue + size + 1)));
 
-                for (int i=0;i<size;i++)
+                for (int i = 0; i < size; i++)
                 {
                     oids.add(initialValue + i);
                 }
@@ -148,12 +156,14 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 
                 // Update value allowing for this block
                 stmtBuilder = new StringBuilder("INSERT INTO ");
-                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName).append(") VALUES(?,?)");
-                NucleusLogger.VALUEGENERATION.debug("Setting next value for increment strategy for key=" + key + " val=" + (val+size) + " : " + stmtBuilder.toString());
+                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName)
+                        .append(") VALUES(?,?)");
+                NucleusLogger.VALUEGENERATION.debug("Setting next value for increment strategy for key=" + key + " val=" + (val + size) + " : " + stmtBuilder
+                        .toString());
                 stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-                session.execute(stmt.bind(key, (val+size)));
+                session.execute(stmt.bind(key, (val + size)));
 
-                for (int i=0;i<size;i++)
+                for (int i = 0; i < size; i++)
                 {
                     oids.add(val + i);
                 }
@@ -193,7 +203,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
         try
         {
             Session session = (Session) mconn.getConnection();
-            SessionStatementProvider stmtProvider = ((CassandraStoreManager)storeMgr).getStatementProvider();
+            SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
 
             if (CassandraSchemaHandler.checkTableExistence(session, stmtProvider, getSchemaName(), tableName))
             {

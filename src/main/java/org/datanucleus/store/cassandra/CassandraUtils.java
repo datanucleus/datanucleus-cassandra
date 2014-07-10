@@ -169,16 +169,16 @@ public class CassandraUtils
         {
             // Serialised field
             TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-            return serialConv.toMemberType((ByteBuffer)datastoreValue);
+            return serialConv.toMemberType((ByteBuffer) datastoreValue);
         }
         else if (javaType.isEnum())
         {
             if (cassandraType.equals("int"))
             {
-                return javaType.getEnumConstants()[(Integer)datastoreValue];
+                return javaType.getEnumConstants()[(Integer) datastoreValue];
             }
 
-            return Enum.valueOf(javaType, (String)datastoreValue);
+            return Enum.valueOf(javaType, (String) datastoreValue);
         }
         else if (java.sql.Date.class.isAssignableFrom(javaType))
         {
@@ -191,7 +191,7 @@ public class CassandraUtils
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Date(((Date)datastoreValue).getTime());
+            return new java.sql.Date(((Date) datastoreValue).getTime());
         }
         else if (java.sql.Time.class.isAssignableFrom(javaType))
         {
@@ -204,7 +204,7 @@ public class CassandraUtils
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Time(((Date)datastoreValue).getTime());
+            return new java.sql.Time(((Date) datastoreValue).getTime());
         }
         else if (java.sql.Timestamp.class.isAssignableFrom(javaType))
         {
@@ -217,7 +217,7 @@ public class CassandraUtils
                 }
             }
             // TODO There is a TypeConverter for this
-            return new java.sql.Timestamp(((Date)datastoreValue).getTime());
+            return new java.sql.Timestamp(((Date) datastoreValue).getTime());
         }
         else if (Calendar.class.isAssignableFrom(javaType))
         {
@@ -231,7 +231,7 @@ public class CassandraUtils
             }
             // TODO There is a TypeConverter for this
             Calendar cal = Calendar.getInstance();
-            cal.setTime((Date)datastoreValue);
+            cal.setTime((Date) datastoreValue);
             return cal;
         }
         else if (Date.class.isAssignableFrom(javaType))
@@ -332,7 +332,8 @@ public class CassandraUtils
      * Convenience method to convert from a non-persistable value to the value to be stored in Cassandra.
      * @param value Value for the member
      * @param datastoreType Cassandra column type
-     * @param jdbcType jdo column jdbcType ie. uuid default cassandra type is uuid if jdbctype is varchar than cassandra type becomes text.
+     * @param jdbcType jdo column jdbcType ie. uuid default cassandra type is uuid if jdbctype is varchar than
+     * cassandra type becomes text.
      * @param serialised Whether the value is to be stored serialised
      * @param typeMgr Type Manager
      * @return The value to be stored
@@ -366,21 +367,21 @@ public class CassandraUtils
         }
         else if (value.getClass() == Byte.class)
         {
-            return ((Byte)value).intValue();
+            return ((Byte) value).intValue();
         }
         else if (value.getClass() == Short.class)
         {
-            return ((Short)value).intValue();
+            return ((Short) value).intValue();
         }
         else if (value.getClass() == Float.class)
         {
             if (datastoreType.equals("decimal"))
             {
-                return BigDecimal.valueOf((Float)value);
+                return BigDecimal.valueOf((Float) value);
             }
             if (datastoreType.equals("double"))
             {
-                return Double.valueOf((Float)value);
+                return Double.valueOf((Float) value);
             }
             return value;
         }
@@ -388,7 +389,7 @@ public class CassandraUtils
         {
             if (datastoreType.equals("decimal"))
             {
-                return BigDecimal.valueOf((Double)value);
+                return BigDecimal.valueOf((Double) value);
             }
             return value;
         }
@@ -399,7 +400,7 @@ public class CassandraUtils
         else if (value.getClass() == BigInteger.class)
         {
             // TODO There is a TypeConverter for this
-            return ((BigInteger)value).longValue();
+            return ((BigInteger) value).longValue();
         }
         else if (value.getClass() == BigDecimal.class)
         {
@@ -411,9 +412,9 @@ public class CassandraUtils
             // Persist as ordinal unless user specifies jdbc-type of "varchar"
             if (datastoreType.equals("varchar"))
             {
-                return ((Enum)value).name();
+                return ((Enum) value).name();
             }
-            return ((Enum)value).ordinal();
+            return ((Enum) value).ordinal();
         }
         else if (value instanceof Calendar)
         {
@@ -426,7 +427,7 @@ public class CassandraUtils
                 }
             }
             // TODO There is a TypeConverter for this
-            return ((Calendar)value).getTime();
+            return ((Calendar) value).getTime();
         }
         else if (value instanceof Date)
         {
@@ -474,12 +475,13 @@ public class CassandraUtils
         }
         else if (value instanceof UUID)
         {
-            if(jdbcType != null && jdbcType.equals(JdbcType.VARCHAR)){
-               TypeConverter stringConverter = typeMgr.getTypeConverterForType(UUID.class, String.class);
-               if (stringConverter != null)
-               {
-                   return stringConverter.toDatastoreType(value);
-               }               
+            if (jdbcType != null && jdbcType.equals(JdbcType.VARCHAR))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(UUID.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
             }
             // uuid is default jdbc type.
             return value;

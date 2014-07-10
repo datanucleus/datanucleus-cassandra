@@ -14,7 +14,7 @@ limitations under the License.
 
 Contributors:
    ...
-**********************************************************************/
+ **********************************************************************/
 package org.datanucleus.store.cassandra.query.expression;
 
 import org.datanucleus.exceptions.NucleusException;
@@ -35,17 +35,16 @@ public class CassandraBooleanExpression extends CassandraExpression
      */
     public CassandraBooleanExpression(CassandraExpression leftExpr, CassandraExpression rightExpr, Expression.Operator op)
     {
-        if (op == Expression.OP_EQ || op == Expression.OP_NOTEQ || op == Expression.OP_LT || op == Expression.OP_LTEQ ||
-            op == Expression.OP_GT || op == Expression.OP_GTEQ)
+        if (op == Expression.OP_EQ || op == Expression.OP_NOTEQ || op == Expression.OP_LT || op == Expression.OP_LTEQ || op == Expression.OP_GT || op == Expression.OP_GTEQ)
         {
             String leftCql = null;
             if (leftExpr instanceof CassandraFieldExpression)
             {
-                leftCql = ((CassandraFieldExpression)leftExpr).getColumnName();
+                leftCql = ((CassandraFieldExpression) leftExpr).getColumnName();
             }
             else if (leftExpr instanceof CassandraLiteral)
             {
-                Object value = ((CassandraLiteral)leftExpr).getValue();
+                Object value = ((CassandraLiteral) leftExpr).getValue();
                 if (value instanceof String || value instanceof Character)
                 {
                     leftCql = "'" + value + "'";
@@ -63,11 +62,11 @@ public class CassandraBooleanExpression extends CassandraExpression
             String rightCql = null;
             if (rightExpr instanceof CassandraFieldExpression)
             {
-                rightCql = ((CassandraFieldExpression)rightExpr).getColumnName();
+                rightCql = ((CassandraFieldExpression) rightExpr).getColumnName();
             }
             else if (rightExpr instanceof CassandraLiteral)
             {
-                Object value = ((CassandraLiteral)rightExpr).getValue();
+                Object value = ((CassandraLiteral) rightExpr).getValue();
                 if (value instanceof String || value instanceof Character)
                 {
                     rightCql = "'" + value + "'";
@@ -88,11 +87,12 @@ public class CassandraBooleanExpression extends CassandraExpression
         {
             if (leftExpr instanceof CassandraBooleanExpression && rightExpr instanceof CassandraBooleanExpression)
             {
-                cql = "(" + ((CassandraBooleanExpression)leftExpr).getCQL() + ")" + op.toString() + "(" + ((CassandraBooleanExpression)rightExpr).getCQL() + ")";
+                cql = "(" + ((CassandraBooleanExpression) leftExpr).getCQL() + ")" + op.toString() + "(" + ((CassandraBooleanExpression) rightExpr).getCQL() + ")";
             }
             else
             {
-                throw new NucleusException("Cannot create CassandraBooleanExpression with left=" + leftExpr.getClass().getName() + " right=" + rightExpr.getClass().getName());
+                throw new NucleusException("Cannot create CassandraBooleanExpression with left=" + leftExpr.getClass().getName() + " right=" + rightExpr
+                        .getClass().getName());
             }
         }
         else

@@ -352,7 +352,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mmd.hasCollection())
             {
-                Collection coll = (Collection)value;
+                Collection coll = (Collection) value;
                 if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
                 {
                     // Field doesnt support cascade-persist so no reachability
@@ -405,7 +405,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // TODO Add check on reachability
                 Map idMap = new HashMap();
 
-                Map map = (Map)value;
+                Map map = (Map) value;
                 Iterator<Map.Entry> entryIter = map.entrySet().iterator();
                 String keyCassType = null;
                 if (!mmd.getMap().keyIsPersistent())
@@ -439,7 +439,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType,null,false, ec.getTypeManager());
+                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, null, false, ec.getTypeManager());
                     }
 
                     if (mmd.getMap().valueIsPersistent())
@@ -522,7 +522,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             // Member with non-persistable object(s)
             if (mmd.hasCollection())
             {
-                Collection coll = (Collection)value;
+                Collection coll = (Collection) value;
                 if (coll.isEmpty())
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
@@ -554,7 +554,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 Map cassMap = new HashMap();
 
-                Map map = (Map)value;
+                Map map = (Map) value;
                 if (map.isEmpty())
                 {
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), null);
@@ -573,7 +573,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object val = entry.getValue();
 
                     key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, null, false, ec.getTypeManager());
-                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, null,false, ec.getTypeManager());
+                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, null, false, ec.getTypeManager());
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
@@ -592,7 +592,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
                     JdbcType jdbcType = mapping.getColumn(0).getJdbcType();
-                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType,jdbcType, mmd.isSerialized(),
+                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, jdbcType, mmd.isSerialized(),
                         ec.getTypeManager());
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
@@ -623,7 +623,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             // TODO What if there are multiple columns?
             String cassandraType = mapping.getColumn(0).getTypeName();
             JdbcType jdbcType = mapping.getColumn(0).getJdbcType();
-            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, jdbcType,mmd.isSerialized(), ec.getTypeManager());
+            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, jdbcType, mmd.isSerialized(),
+                ec.getTypeManager());
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
