@@ -619,14 +619,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (UUID.class.isAssignableFrom(mmd.getType()))
             {
-                if (null != mapping.getColumn(0).getJdbcType() && mapping.getColumn(0).getJdbcType().equals(JdbcType.VARCHAR))
-                {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
-                    if (stringConverter != null)
-                    {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
-                    }
-                }
                 // uuid is the default type
                 return row.getUUID(mapping.getColumn(0).getName());
             }
