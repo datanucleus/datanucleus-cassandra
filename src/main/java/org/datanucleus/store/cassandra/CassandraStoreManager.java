@@ -37,6 +37,7 @@ import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.util.Localiser;
+import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.Session;
@@ -146,6 +147,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         while (iter.hasNext())
         {
             ClassMetaData cmd = (ClassMetaData) iter.next();
+            NucleusLogger.GENERAL.info(">> manageClasses cmd=" + cmd.getFullClassName() + " modifier=" + cmd.getPersistenceModifier() + " embOnly=" + cmd.isEmbeddedOnly() + " abstract=" + cmd.isAbstract());
             if (cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE && !cmd.isEmbeddedOnly() && !cmd.isAbstract())
             {
                 if (!storeDataMgr.managesClass(cmd.getFullClassName()))
@@ -164,8 +166,16 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             }
         }
 
-        // Create schema for classes
-        schemaHandler.createSchemaForClasses(clsNameSet, null, session);
+        try
+        {
+            // Create schema for classes
+            schemaHandler.createSchemaForClasses(clsNameSet, null, session);
+        }
+        catch (Throwable thr)
+        {
+            NucleusLogger.DATASTORE_SCHEMA.error(">> Exception creating schema", thr);
+            throw thr;
+        }
     }
 
     public void createSchema(String schemaName, Properties props)
