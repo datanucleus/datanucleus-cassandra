@@ -99,8 +99,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
             Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
-            // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT
-            // (overwriting the existent object)
+            // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
@@ -126,8 +125,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             String insertStmt = null;
             // TODO Enable this
             /*
-             * if (insertStatementByClassName != null) { insertStmt =
-             * insertStatementByClassName.get(cmd.getFullClassName()); }
+             * if (insertStatementByClassName != null) 
+             * { 
+             *     insertStmt = insertStatementByClassName.get(cmd.getFullClassName()); 
+             * }
              */
 
             // Use StoreFieldManager to work out the column names and values
@@ -136,7 +137,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
             /*
-             * if (insertStmt == null) {
+             * if (insertStmt == null) 
+             * {
              */
             // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
             insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
@@ -165,8 +167,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             Object multitenancyValue = null;
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd
-                    .getValueForExtension("multitenancy-disable")))
+            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && 
+                    !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
             {
                 // Multitenancy discriminator
                 multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
@@ -197,12 +199,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtValues[pos++] = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId()); // TODO
-                                                                                                              // Cater
-                                                                                                              // for
-                                                                                                              // datastore
-                                                                                                              // attributed
-                                                                                                              // ID
+                // TODO Cater for datastore attributed ID
+                stmtValues[pos++] = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
             }
             if (versionValue != null && vermd != null && vermd.getFieldName() == null)
             {
@@ -340,8 +338,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
         insertStmtBuilder.append(") ");
 
-        // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with
-        // key='cassandra.insert.using')
+        // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.insert.using')
         String[] options = cmd.getValuesForExtension("cassandra.insert.using");
         if (options != null && options.length > 0)
         {
@@ -447,8 +444,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             op.provideFields(fieldNumbers, storeFM);
             Map<String, Object> columnValuesByName = storeFM.getColumnValueByName();
 
-            // Create PreparedStatement and values to bind
-            // ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
+            // Create PreparedStatement and values to bind ("UPDATE <schema>.<table> SET COL1=?, COL3=? WHERE KEY1=? (AND KEY2=?)")
             StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
             String schemaName = table.getSchemaName();
             if (schemaName != null)
@@ -457,8 +453,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             stmtBuilder.append(table.getName());
 
-            // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with
-            // key='cassandra.update.using')
+            // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.update.using')
             String[] options = cmd.getValuesForExtension("cassandra.update.using");
             if (options != null && options.length > 0)
             {
@@ -531,9 +526,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         stmtBuilder.append(" AND ");
                     }
                     AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                    Column pkCol = table.getMemberColumnMappingForMember(pkMmd).getColumn(0); // TODO Have PK
-                                                                                              // member with
-                                                                                              // multiple cols
+                    // TODO Have PK member with multiple cols
+                    Column pkCol = table.getMemberColumnMappingForMember(pkMmd).getColumn(0);
                     stmtBuilder.append(pkCol.getName());
                     stmtBuilder.append("=?");
                     RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
