@@ -174,7 +174,15 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null)
                     {
-                        createSchemaForClass(cmd, session, clr, tableStmts, constraintStmts);
+                        try
+                        {
+                            createSchemaForClass(cmd, session, clr, tableStmts, constraintStmts);
+                        }
+                        catch (Exception e)
+                        {
+                            NucleusLogger.DATASTORE_SCHEMA.error("Could not create schema for class=" + cmd.getFullClassName() + " - see the nested exception", e);
+                            // TODO Throw an exception
+                        }
                     }
                 }
 
@@ -224,6 +232,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                     }
                 }
+            }
+            catch (Exception e)
+            {
+                NucleusLogger.GENERAL.error("Exception in schema generation", e);
+                throw e;
             }
             finally
             {
@@ -494,11 +507,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 // Create the table required for this class
                 // "CREATE TABLE keyspace.tblName (col1 type1, col2 type2, ...)"
-                StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE "); // Note that we could do
-                                                                                // "IF NOT EXISTS" but have
-                                                                                // the existence checker
-                                                                                // method for validation so
-                                                                                // use that
+                // Note that we could do "IF NOT EXISTS" but have the existence checker method for validation so use that
+                StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
                 if (schemaName != null)
                 {
                     stmtBuilder.append(schemaName).append('.');
