@@ -27,7 +27,6 @@ import java.util.Set;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
-import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
@@ -169,9 +168,10 @@ public class JPQLQuery extends AbstractJPQLQuery
             return;
         }
 
-        if (candidateClass == null)
+        if (candidateClass == null || candidateClassName == null)
         {
-            throw new NucleusUserException(Localiser.msg("021009", candidateClassName));
+            candidateClass = compilation.getCandidateClass();
+            candidateClassName = candidateClass.getName();
         }
 
         // Make sure any persistence info is loaded
