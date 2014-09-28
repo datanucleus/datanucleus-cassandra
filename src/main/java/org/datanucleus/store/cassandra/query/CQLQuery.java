@@ -41,167 +41,165 @@ import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
 
 /**
- * CQL query for Cassandra. Allows the user to execute a CQL query and return
- * the results in the form "List&lt;Object[]&gt;".
+ * CQL query for Cassandra. Allows the user to execute a CQL query and return the results in the form
+ * "List&lt;Object[]&gt;".
  */
-public class CQLQuery extends AbstractJavaQuery {
-	private static final long serialVersionUID = 2808968696540162104L;
+public class CQLQuery extends AbstractJavaQuery
+{
+    private static final long serialVersionUID = 2808968696540162104L;
 
-	/**
-	 * The compilation of the query for this datastore. Not applicable if
-	 * totally in-memory.
-	 */
-	protected transient CassandraQueryCompilation datastoreCompilation;
+    /**
+     * The compilation of the query for this datastore. Not applicable if totally in-memory.
+     */
+    protected transient CassandraQueryCompilation datastoreCompilation;
 
-	String cql;
+    String cql;
 
-	/**
-	 * Constructs a new query instance that uses the given execution context.
-	 * 
-	 * @param storeMgr
-	 *            StoreManager for this query
-	 * @param ec
-	 *            execution context
-	 */
-	public CQLQuery(StoreManager storeMgr, ExecutionContext ec) {
-		this(storeMgr, ec, (CQLQuery) null);
-	}
+    /**
+     * Constructs a new query instance that uses the given execution context.
+     * @param storeMgr StoreManager for this query
+     * @param ec execution context
+     */
+    public CQLQuery(StoreManager storeMgr, ExecutionContext ec)
+    {
+        this(storeMgr, ec, (CQLQuery) null);
+    }
 
-	/**
-	 * Constructs a new query instance having the same criteria as the given
-	 * query.
-	 * 
-	 * @param storeMgr
-	 *            StoreManager for this query
-	 * @param ec
-	 *            execution context
-	 * @param q
-	 *            The query from which to copy criteria.
-	 */
-	public CQLQuery(StoreManager storeMgr, ExecutionContext ec, CQLQuery q) {
-		super(storeMgr, ec);
-		this.cql = q.cql;
-	}
+    /**
+     * Constructs a new query instance having the same criteria as the given query.
+     * @param storeMgr StoreManager for this query
+     * @param ec execution context
+     * @param q The query from which to copy criteria.
+     */
+    public CQLQuery(StoreManager storeMgr, ExecutionContext ec, CQLQuery q)
+    {
+        super(storeMgr, ec);
+        this.cql = q.cql;
+    }
 
-	/**
-	 * Constructor for a JDOQL query where the query is specified using the
-	 * "Single-String" format.
-	 * 
-	 * @param storeMgr
-	 *            StoreManager for this query
-	 * @param ec
-	 *            execution context
-	 * @param query
-	 *            The query string
-	 */
-	public CQLQuery(StoreManager storeMgr, ExecutionContext ec, String query) {
-		super(storeMgr, ec);
-		this.cql = query;
-	}
+    /**
+     * Constructor for a JDOQL query where the query is specified using the "Single-String" format.
+     * @param storeMgr StoreManager for this query
+     * @param ec execution context
+     * @param query The query string
+     */
+    public CQLQuery(StoreManager storeMgr, ExecutionContext ec, String query)
+    {
+        super(storeMgr, ec);
+        this.cql = query;
+    }
 
-	/*
-	 * (non-Javadoc)
-	 * 
-	 * @see org.datanucleus.store.query.AbstractJavaQuery#getSingleStringQuery()
-	 */
-	@Override
-	public String getSingleStringQuery() {
-		return cql;
-	}
+    /*
+     * (non-Javadoc)
+     * @see org.datanucleus.store.query.AbstractJavaQuery#getSingleStringQuery()
+     */
+    @Override
+    public String getSingleStringQuery()
+    {
+        return cql;
+    }
 
-	@Override
-	public void compileGeneric(Map parameterValues) {
-	}
+    @Override
+    public void compileGeneric(Map parameterValues)
+    {
+    }
 
-	@Override
-	protected void compileInternal(Map parameterValues) {
+    @Override
+    protected void compileInternal(Map parameterValues)
+    {
 
-	}
+    }
 
-	@Override
-	protected Object performExecute(Map parameters) {
-		if (type == SELECT) {
-			ManagedConnection mconn = getStoreManager().getConnection(ec);
-			try {
-				List results = new ArrayList();
-				Session session = (Session) mconn.getConnection();
+    @Override
+    protected Object performExecute(Map parameters)
+    {
+        if (type == SELECT)
+        {
+            ManagedConnection mconn = getStoreManager().getConnection(ec);
+            try
+            {
+                List results = new ArrayList();
+                Session session = (Session) mconn.getConnection();
 
-				long startTime = System.currentTimeMillis();
-				if (NucleusLogger.QUERY.isDebugEnabled()) {
-					NucleusLogger.QUERY.debug(Localiser.msg("021046", "CQL",
-							getSingleStringQuery(), null));
-				}
+                long startTime = System.currentTimeMillis();
+                if (NucleusLogger.QUERY.isDebugEnabled())
+                {
+                    NucleusLogger.QUERY.debug(Localiser.msg("021046", "CQL", getSingleStringQuery(), null));
+                }
 
-				Statement stmt = new SimpleStatement(cql);
-				int fetchSize = this.getFetchPlan().getFetchSize();
-				if (0 < fetchSize) {
-					stmt.setFetchSize(fetchSize);
-				}
-				ResultSet rs = session.execute(stmt);
+                Statement stmt = new SimpleStatement(cql);
+                int fetchSize = this.getFetchPlan().getFetchSize();
+                if (0 < fetchSize)
+                {
+                    stmt.setFetchSize(fetchSize);
+                }
+                ResultSet rs = session.execute(stmt);
 
-				// Datanucleus favors usage of byte[] as POJO for blob
-				// dataStoreType
-				// Cassandra datastax driver uses ByteBuffer for blob
-				// dataStoreType
-				TypeConverter typeConverter = storeMgr
-						.getNucleusContext()
-						.getTypeManager()
-						.getTypeConverterForType(byte[].class, ByteBuffer.class);
-				Class resultClazz = this.getResultClass();
+                // Datanucleus favors usage of byte[] as POJO for blob
+                // dataStoreType
+                // Cassandra datastax driver uses ByteBuffer for blob
+                // dataStoreType
+                TypeConverter typeConverter = storeMgr.getNucleusContext().getTypeManager()
+                        .getTypeConverterForType(byte[].class, ByteBuffer.class);
+                Class resultClazz = this.getResultClass();
 
-				ResultClassInfo rci = null;
-				if (null != resultClazz) {
-					rci = CassandraUtils
-							.getResultClassInfoFromColumnDefinitions(
-									resultClazz, rs.getColumnDefinitions());
+                ResultClassInfo rci = null;
+                if (null != resultClazz)
+                {
+                    rci = CassandraUtils.getResultClassInfoFromColumnDefinitions(resultClazz, rs.getColumnDefinitions());
 
-				}
+                }
 
-				CassandraQueryResult queryResult = new CassandraQueryResult(
-						this, rs);
-				queryResult.initialise();
-				Iterator<Object> iter = queryResult.iterator();
-				while (iter.hasNext()) {
-					Row row = (Row) iter.next();
-					Object[] rowResult;
-					if (null != rci) {
-						rowResult = CassandraUtils.getObjectArrayFromRow(row,
-								rs.getColumnDefinitions(),
-								rci.getFieldsMatchingColumnIndexes(),
-								typeConverter, rci.getFields().length);
-						results.add(getResultWithQueryUtils(rowResult, rci));
-					} else {
-						rowResult = CassandraUtils.getObjectArrayFromRow(row,
-								rs.getColumnDefinitions(),
-								new ArrayList<Integer>(), typeConverter, rs
-										.getColumnDefinitions().size());
-						results.add(rowResult);// get raw result as Object[]
-					}
-				}
-				if (NucleusLogger.QUERY.isDebugEnabled()) {
-					NucleusLogger.QUERY.debug(Localiser.msg("021074", "CQL", ""
-							+ (System.currentTimeMillis() - startTime)));
-				}
-				queryResult.close();
+                CassandraQueryResult queryResult = new CassandraQueryResult(this, rs);
+                queryResult.initialise();
+                Iterator<Object> iter = queryResult.iterator();
+                while (iter.hasNext())
+                {
+                    Row row = (Row) iter.next();
+                    Object[] rowResult;
+                    if (null != rci)
+                    {
+                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(),
+                            rci.getFieldsMatchingColumnIndexes(), typeConverter, rci.getFields().length);
+                        results.add(getResultWithQueryUtils(rowResult, rci));
+                    }
+                    else
+                    {
+                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), new ArrayList<Integer>(),
+                            typeConverter, rs.getColumnDefinitions().size());
+                        results.add(rowResult);// get raw result as Object[]
+                    }
+                }
+                if (NucleusLogger.QUERY.isDebugEnabled())
+                {
+                    NucleusLogger.QUERY.debug(Localiser.msg("021074", "CQL", "" + (System.currentTimeMillis() - startTime)));
+                }
+                queryResult.close();
 
-				return results;
-			} finally {
-				mconn.release();
-			}
+                return results;
+            }
+            finally
+            {
+                mconn.release();
+            }
 
-		} else if (type == BULK_DELETE || type == BULK_UPDATE) {
-			// TODO
-			throw new UnsupportedOperationException("Not yet implemented");
-		} else {
-			// TODO
-			throw new UnsupportedOperationException("Not yet implemented");
-		}
+        }
+        else if (type == BULK_DELETE || type == BULK_UPDATE)
+        {
+            // TODO
+            throw new UnsupportedOperationException("Not yet implemented");
+        }
+        else
+        {
+            // TODO
+            throw new UnsupportedOperationException("Not yet implemented");
+        }
 
-	}
+    }
 
-	private Object getResultWithQueryUtils(Object[] result, ResultClassInfo rci) {
-		return QueryUtils.createResultObjectUsingDefaultConstructorAndSetters(
-				resultClass, rci.getFieldNames(), rci.getFields(), result);
-	}
+    private Object getResultWithQueryUtils(Object[] result, ResultClassInfo rci)
+    {
+        return QueryUtils.createResultObjectUsingDefaultConstructorAndSetters(resultClass, rci.getFieldNames(), rci.getFields(), result);
+    }
 
 }
