@@ -17,6 +17,8 @@ Contributors:
  **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import com.datastax.driver.core.ColumnDefinitions;
+import com.datastax.driver.core.DataType;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -51,6 +53,12 @@ import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeMap;
+import org.datanucleus.store.cassandra.pojo.ResultClassInfo;
 
 /**
  * Utility methods for handling Cassandra datastores.
@@ -167,7 +175,8 @@ public class CassandraUtils
         if (cassandraType.equals("blob") && datastoreValue instanceof ByteBuffer)
         {
             // Serialised field
-            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class,
+                ByteBuffer.class);
             return serialConv.toMemberType((ByteBuffer) datastoreValue);
         }
         else if (javaType.isEnum())
@@ -507,7 +516,8 @@ public class CassandraUtils
      * @param ignoreCache Whether to ignore the cache when instantiating this
      * @return The persistable object for this row.
      */
-    public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers, boolean ignoreCache)
+    public static Object getPojoForRowForCandidate(Row row, AbstractClassMetaData cmd, ExecutionContext ec, int[] fpMembers,
+            boolean ignoreCache)
     {
         if (cmd.hasDiscriminatorStrategy())
         {
@@ -535,8 +545,8 @@ public class CassandraUtils
         return pojo;
     }
 
-    private static Object getObjectUsingApplicationIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
-            final int[] fpMembers)
+    private static Object getObjectUsingApplicationIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec,
+            boolean ignoreCache, final int[] fpMembers)
     {
         Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
         final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
@@ -591,8 +601,8 @@ public class CassandraUtils
         return pc;
     }
 
-    private static Object getObjectUsingDatastoreIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec, boolean ignoreCache,
-            final int[] fpMembers)
+    private static Object getObjectUsingDatastoreIdForRow(final Row row, final AbstractClassMetaData cmd, final ExecutionContext ec,
+            boolean ignoreCache, final int[] fpMembers)
     {
         Object idKey = null;
         StoreManager storeMgr = ec.getStoreManager();
@@ -703,5 +713,136 @@ public class CassandraUtils
         str.append(stmt.substring(currentPos));
 
         logger.debug(str.toString());
+    }
+
+    /**
+     * Convenience method to generate a ResultClassInfo which holds members that would be used by
+     * QueryUtils.createResultObjectUsingDefaultConstructorAndSetters method
+     * @param resultClazz Class type of result class.
+     * @param columnDefinitions Cassandra result column definitions.
+     * @return ResultClassPojo
+     */
+    public static ResultClassInfo getResultClassInfoFromColumnDefinitions(final Class resultClazz, final ColumnDefinitions columnDefinitions)
+    {
+
+        Field[] resultClassDeclaredFields = resultClazz.getDeclaredFields();
+        assert null != columnDefinitions;
+        Map<Integer, Field> resultClassFields = new TreeMap<>();
+        Map<Integer, String> resultClassFieldNames = new TreeMap<>();
+        List<Integer> fieldsMatchingColumnIndexes = new ArrayList<>();
+
+        for (Field field : resultClassDeclaredFields)
+        {
+            String fieldNameLower = field.getName().toLowerCase();
+            if (columnDefinitions.contains(fieldNameLower))
+            {
+                int columnIndex = columnDefinitions.getIndexOf(fieldNameLower);
+                resultClassFields.put(columnIndex, field);
+                resultClassFieldNames.put(columnIndex, field.getName());
+                fieldsMatchingColumnIndexes.add(columnIndex);
+
+            }
+            else
+            {
+                // if field name not matching it maybe the column name.
+                Annotation[] annotations = field.getDeclaredAnnotations();
+                for (Annotation annotation : annotations)
+                {
+                    String annotationString = annotation.toString();
+                    if (annotationString.contains("Column"))
+                    {
+                        int startIndex = annotationString.indexOf("name=") + "name=".length();
+                        int columnNameLength = annotationString.substring(startIndex).indexOf(",");
+                        if (-1 < startIndex)
+                        {
+                            assert columnNameLength > 0;
+                            String columnName = annotationString.substring(startIndex, startIndex + columnNameLength);
+                            int columnIndex = columnDefinitions.getIndexOf(columnName);
+                            resultClassFields.put(columnIndex, field);
+                            resultClassFieldNames.put(columnIndex, field.getName());
+                            fieldsMatchingColumnIndexes.add(columnIndex);
+                            break;
+                        }
+
+                    }
+                }
+
+            }
+
+        }
+        return new ResultClassInfo(resultClassFields.values().toArray(new Field[0]), resultClassFieldNames.values().toArray(new String[0]),
+                fieldsMatchingColumnIndexes);
+    }
+
+    /**
+     * Convenience method to get Object[] from Cassandra Row @param row Row returned from Cassandra driver
+     * @param columnDefinitions Cassandra result column definitions.
+     * @param fieldsMatchingColumnIndexes indices of ColumnDefinitions that match to a field of resultClass
+     * @param typeConverter typeConverter required for byte [] ByteBuffer conversion
+     * @param resultRowSize size of Object [] that is returned
+     * @return Object[] of results
+     */
+    public static Object[] getObjectArrayFromRow(Row row, ColumnDefinitions columnDefinitions, List<Integer> fieldsMatchingColumnIndexes,
+            TypeConverter typeConverter, int resultRowSize)
+    {
+
+        Object[] resultRow = new Object[resultRowSize];
+        int i = 0;
+
+        for (ColumnDefinitions.Definition def : columnDefinitions)
+        {
+            if (fieldsMatchingColumnIndexes.isEmpty() || fieldsMatchingColumnIndexes.contains(columnDefinitions.getIndexOf(def.getName())))
+            {
+                DataType colType = def.getType();
+                if (colType == DataType.varchar())
+                {
+                    resultRow[i] = row.getString(i);
+                }
+                else if (colType == DataType.bigint())
+                {
+                    resultRow[i] = row.getLong(i);
+                }
+                else if (colType == DataType.decimal())
+                {
+                    resultRow[i] = row.getDecimal(i);
+                }
+                else if (colType == DataType.cfloat())
+                {
+                    resultRow[i] = row.getFloat(i);
+                }
+                else if (colType == DataType.cdouble())
+                {
+                    resultRow[i] = row.getDouble(i);
+                }
+                else if (colType == DataType.cboolean())
+                {
+                    resultRow[i] = row.getBool(i);
+                }
+                else if (colType == DataType.timestamp())
+                {
+                    resultRow[i] = row.getDate(i);
+                }
+                else if (colType == DataType.varint())
+                {
+                    resultRow[i] = row.getInt(i);
+                }
+                else if (colType == DataType.blob())
+                {
+                    resultRow[i] = typeConverter.toMemberType(row.getBytes(i));
+                }
+                else if (colType == DataType.uuid())
+                {
+                    resultRow[i] = row.getUUID(i);
+                }
+                else
+                {
+                    NucleusLogger.QUERY.warn("Column " + i + " of results is of unsupported type (" + colType + ") : returning null");
+                    resultRow[i] = null;
+                }
+                i++;
+            }
+        }
+        return resultRow;
+
     }
 }
