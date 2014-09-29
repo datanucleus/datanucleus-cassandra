@@ -15,7 +15,6 @@ limitations under the License.
 Contributors:
     ...
  **********************************************************************/
-
 package org.datanucleus.store.cassandra.query;
 
 import com.datastax.driver.core.ResultSet;
@@ -33,8 +32,10 @@ import org.datanucleus.store.query.Query;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.StringUtils;
 
-public class CassandraQueryResult extends AbstractQueryResult implements java.io.Serializable
+public class CassandraQueryResult extends AbstractQueryResult
 {
+    private static final long serialVersionUID = -3428653031644090769L;
+
     /** The ResultSet containing the results. */
     private ResultSet rs;
 
@@ -264,9 +265,6 @@ public class CassandraQueryResult extends AbstractQueryResult implements java.io
         return new QueryResultIterator();
     }
 
-    /**
-     * An Iterator results of a pm.query.execute().iterator()
-     */
     private class QueryResultIterator extends AbstractQueryResultIterator
     {
         /** hold the last element **/
@@ -279,11 +277,11 @@ public class CassandraQueryResult extends AbstractQueryResult implements java.io
             {
                 if (!isOpen())
                 {
-                    // Spec 14.6.7 Calling hasNext() on closed Query will return
-                    // false
+                    // Spec 14.6.7 Calling hasNext() on closed Query will return false
                     return false;
                 }
 
+                // TODO Remove this. If going to throw an exception, throw one that explains the situation
                 assert null != resultObjs;
 
                 if (resultObjsIndex < resultObjs.size())
@@ -302,8 +300,7 @@ public class CassandraQueryResult extends AbstractQueryResult implements java.io
             {
                 if (!isOpen())
                 {
-                    // Spec 14.6.7 Calling next() on closed Query will throw
-                    // NoSuchElementException
+                    // Spec 14.6.7 Calling next() on closed Query will throw NoSuchElementException
                     throw new NoSuchElementException(Localiser.msg("052600"));
                 }
                 int resultObjsSize = resultObjs.size();
@@ -348,7 +345,5 @@ public class CassandraQueryResult extends AbstractQueryResult implements java.io
         {
             throw new UnsupportedOperationException("Not yet implemented");
         }
-
     }
-
 }
