@@ -108,6 +108,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         return set;
     }
 
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.AbstractStoreManager#getNativeQueryLanguage()
+     */
+    @Override
+    public String getNativeQueryLanguage()
+    {
+        return "CQL";
+    }
+
     public SessionStatementProvider getStatementProvider()
     {
         return stmtProvider;
