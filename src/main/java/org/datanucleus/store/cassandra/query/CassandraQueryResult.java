@@ -182,6 +182,7 @@ public class CassandraQueryResult extends AbstractQueryResult
         }
 
         rs = null;
+        resultObjs = null;
     }
 
     /**
@@ -192,6 +193,7 @@ public class CassandraQueryResult extends AbstractQueryResult
     {
         super.close();
         rs = null;
+        resultObjs = null;
     }
 
     /**
@@ -281,10 +283,7 @@ public class CassandraQueryResult extends AbstractQueryResult
                     return false;
                 }
 
-                // TODO Remove this. If going to throw an exception, throw one that explains the situation
-                assert null != resultObjs;
-
-                if (resultObjsIndex < resultObjs.size())
+                if (null != resultObjs && resultObjsIndex < resultObjs.size())
                 {
                     return true;
                 }
