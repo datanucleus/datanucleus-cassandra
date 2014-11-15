@@ -17,7 +17,6 @@ Contributors :
  ***********************************************************************/
 package org.datanucleus.store.cassandra.query;
 
-import org.datanucleus.store.cassandra.pojo.ResultClassInfo;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -35,7 +34,9 @@ import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
+
 import java.nio.ByteBuffer;
+
 import org.datanucleus.query.QueryUtils;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.types.converters.TypeConverter;

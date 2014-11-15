@@ -16,7 +16,7 @@ Contributors:
     ...
  **********************************************************************/
 
-package org.datanucleus.store.cassandra.pojo;
+package org.datanucleus.store.cassandra.query;
 
 import java.lang.reflect.Field;
 import java.util.List;

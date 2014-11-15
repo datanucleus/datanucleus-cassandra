@@ -19,6 +19,7 @@ package org.datanucleus.store.cassandra;
 
 import com.datastax.driver.core.ColumnDefinitions;
 import com.datastax.driver.core.DataType;
+
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -53,12 +54,14 @@ import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.Row;
+
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
-import org.datanucleus.store.cassandra.pojo.ResultClassInfo;
+
+import org.datanucleus.store.cassandra.query.ResultClassInfo;
 
 /**
  * Utility methods for handling Cassandra datastores.
