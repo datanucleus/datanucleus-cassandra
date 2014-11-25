@@ -77,7 +77,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         {
             // Special case of this being a link back to the owner. TODO Repeat this for nested and their
             // owners
-            ObjectProvider[] ownerOps = op.getEmbeddedOwners();
+            ObjectProvider[] ownerOps = ec.getOwnersForEmbeddedObjectProvider(op);
             return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
         }
 

@@ -87,7 +87,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             // their owners
             if (op != null)
             {
-                ObjectProvider[] ownerOPs = op.getEmbeddedOwners();
+                ObjectProvider[] ownerOPs = ec.getOwnersForEmbeddedObjectProvider(op);
                 if (ownerOPs != null && ownerOPs.length == 1 && value != ownerOPs[0].getObject())
                 {
                     // Make sure the owner field is set
