@@ -18,6 +18,7 @@
 
     <properties>
         <dn.core.version>4.0.3</dn.core.version>
+        <dn.core.upper.version>4.0.99</dn.core.upper.version>
         <cassandra.version>2.0.1</cassandra.version>
     </properties>
 
@@ -31,7 +32,7 @@
         <dependency>
             <groupId>org.datanucleus</groupId>
             <artifactId>datanucleus-core</artifactId>
-            <version>[${dn.core.version}, )</version>
+            <version>[${dn.core.version}, ${dn.core.upper.version})</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
