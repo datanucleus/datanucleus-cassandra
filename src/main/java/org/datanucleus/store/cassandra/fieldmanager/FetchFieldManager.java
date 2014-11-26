@@ -435,7 +435,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 if (op != null)
                 {
                     // Wrap if SCO
-                    coll = (Collection) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), coll, false, false, true);
+                    coll = (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), coll, false, false, true);
                 }
                 return coll;
             }
@@ -474,7 +474,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 if (op != null)
                 {
                     // Wrap if SCO
-                    map = (Map) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), map, false, false, true);
+                    map = (Map) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), map, false, false, true);
                 }
                 return map;
             }
@@ -763,7 +763,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (op != null)
             {
                 // Wrap if SCO
-                coll = (Collection) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), coll, false, false, true);
+                coll = (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), coll, false, false, true);
                 if (changeDetected)
                 {
                     op.makeDirty(mmd.getAbsoluteFieldNumber());
@@ -885,7 +885,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (op != null)
             {
                 // Wrap if SCO
-                map = (Map) op.wrapSCOField(mmd.getAbsoluteFieldNumber(), map, false, false, true);
+                map = (Map) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), map, false, false, true);
                 if (changeDetected)
                 {
                     op.makeDirty(mmd.getAbsoluteFieldNumber());
