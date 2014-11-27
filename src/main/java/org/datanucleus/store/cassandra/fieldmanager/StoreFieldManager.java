@@ -398,7 +398,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -470,7 +470,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     idMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), idMap);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasArray())
@@ -548,7 +548,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -578,7 +578,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasArray())
@@ -615,7 +615,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
 
@@ -625,7 +625,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, false, false, true);
+                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
                 return;
             }
         }
