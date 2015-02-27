@@ -694,8 +694,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         catch (NucleusObjectNotFoundException onfe)
         {
-            NucleusLogger.GENERAL
-                    .warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId + " but could not instantiate object with that identity");
+            NucleusLogger.PERSISTENCE.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId + " but could not instantiate object with that identity");
             return null;
         }
     }
@@ -834,6 +833,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Map.Entry entry = entryIter.next();
                 Object key = null;
                 Object val = null;
+                boolean keySet = true;
+                boolean valSet = true;
                 if (mmd.getMap().keyIsPersistent())
                 {
                     // TODO Support serialised key which will be of type ByteBuffer
@@ -846,6 +847,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     {
                         // Object no longer exists. Deleted by user? so ignore
                         changeDetected = true;
+                        keySet = false;
                     }
                 }
                 else
@@ -870,6 +872,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         {
                             // Object no longer exists. Deleted by user? so ignore
                             changeDetected = true;
+                            valSet = false;
                         }
                     }
                 }
@@ -879,7 +882,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     val = entry.getValue();
                 }
 
-                map.put(key, val);
+                if (keySet && valSet)
+                {
+                    map.put(key, val);
+                }
             }
 
             if (op != null)
