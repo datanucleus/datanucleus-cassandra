@@ -18,7 +18,7 @@
 
     <properties>
         <dn.core.version>4.1.0-m1</dn.core.version>
-        <cassandra.version>2.0.1</cassandra.version>
+        <cassandra.version>2.1.4</cassandra.version>
     </properties>
 
     <scm>
