@@ -238,6 +238,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 return null;
             }
 
+            // TODO Support 1-1 storage using "FK" style column(s) for related object
             Object value = row.getString(mapping.getColumn(0).getName());
             return getValueForSingleRelationField(mmd, value, clr);
         }

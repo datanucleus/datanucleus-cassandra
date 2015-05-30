@@ -246,10 +246,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     // Map<NonPC, NonPC>
                     Class keyType = clr.classForName(mmd.getMap().getKeyType());
                     Class valType = clr.classForName(mmd.getMap().getValueType());
-                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr,
-                        null);
-                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false,
-                        typeMgr, null);
+                    String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
+                    String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
                     type = "map<" + cqlKeyType + "," + cqlValType + ">";
                 }
                 else if (mmd.hasArray())
@@ -356,6 +354,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             }
             else if (RelationType.isRelationSingleValued(relType))
             {
+                // TODO Support 1-1 storage using "FK" style column(s) for related object
                 // 1-1/N-1 relation stored as String (or serialised)
                 type = mmd.isSerialized() ? "blob" : "varchar";
             }
@@ -423,8 +422,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             else
             {
                 // TODO Allow for fields declared as Object but with particular persistent implementations
-                NucleusLogger.DATASTORE_SCHEMA
-                        .warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
+                NucleusLogger.DATASTORE_SCHEMA.warn("Member " + mmd.getFullFieldName() + " of type=" + mmd.getTypeName() + " could not be directly mapped for Cassandra. Using varchar column");
                 // Fallback to varchar - maybe BLOB would be better???
                 mapping.getColumn(0).setTypeName("varchar");
             }

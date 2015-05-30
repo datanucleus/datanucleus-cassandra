@@ -346,6 +346,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // TODO Support serialised persistable object
                 throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
             }
+            // TODO Support 1-1 storage using "FK" style column(s) for related object
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
             return;
         }
