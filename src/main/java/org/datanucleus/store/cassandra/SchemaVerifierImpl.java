@@ -19,7 +19,9 @@ package org.datanucleus.store.cassandra;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.List;
+import java.util.Queue;
+import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
