@@ -114,7 +114,7 @@ public class CQLQuery extends AbstractJavaQuery
     @Override
     protected Object performExecute(Map parameters)
     {
-        if (type == SELECT)
+        if (type == QueryType.SELECT)
         {
             ManagedConnection mconn = getStoreManager().getConnection(ec);
             try
@@ -185,7 +185,7 @@ public class CQLQuery extends AbstractJavaQuery
             }
 
         }
-        else if (type == BULK_DELETE || type == BULK_UPDATE)
+        else if (type == QueryType.BULK_DELETE || type == QueryType.BULK_UPDATE)
         {
             // TODO
             throw new UnsupportedOperationException("Not yet implemented");
