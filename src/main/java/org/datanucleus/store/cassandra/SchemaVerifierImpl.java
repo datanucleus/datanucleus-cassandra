@@ -85,6 +85,11 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     // Swap for a converter that has java.util.Date in the datastore
                     // (since that's what Cassandra returns)
                     TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
+                    if (newConv == null)
+                    {
+                        NucleusLogger.DATASTORE.info("Member " + mmd.getFullFieldName() + " required to convert to datastore type of " + datastoreType.getName() +
+                            " but no supported converter for this datastore!");
+                    }
                     return newConv;
                 }
                 else if (java.util.UUID.class.isAssignableFrom(mmd.getType()))
