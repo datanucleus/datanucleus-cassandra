@@ -29,6 +29,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -231,16 +232,27 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         int fieldNumber = mmd.getAbsoluteFieldNumber();
         MemberColumnMapping mapping = getColumnMapping(fieldNumber);
 
+        boolean optional = false;
+        if (Optional.class.isAssignableFrom(mmd.getType()))
+        {
+            if (relationType != RelationType.NONE)
+            {
+                relationType = RelationType.ONE_TO_ONE_UNI;
+            }
+            optional = true;
+        }
+
         if (RelationType.isRelationSingleValued(relationType))
         {
             if (row.isNull(mapping.getColumn(0).getName()))
             {
-                return null;
+                return optional ? Optional.empty() : null;
             }
 
             // TODO Support 1-1 storage using "FK" style column(s) for related object
             Object value = row.getString(mapping.getColumn(0).getName());
-            return getValueForSingleRelationField(mmd, value, clr);
+            Object memberValue = getValueForSingleRelationField(mmd, value, clr);
+            return optional ? Optional.of(memberValue) : memberValue;
         }
         else if (RelationType.isRelationMultiValued(relationType))
         {
@@ -296,21 +308,20 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 if (allNull)
                 {
-                    return null;
+                    return optional ? Optional.empty() : null;
                 }
             }
             else
             {
                 if (row.isNull(mapping.getColumn(0).getName()))
                 {
-                    return null;
+                    return optional ? Optional.empty() : null;
                 }
             }
 
             if (mapping.getTypeConverter() != null && !mmd.isSerialized())
             {
-                // Convert any columns that have a converter defined back to the member type with the
-                // converter
+                // Convert any columns that have a converter defined back to the member type with the converter
                 if (mapping.getNumberOfColumns() > 1)
                 {
                     Object valuesArr = null;
@@ -388,10 +399,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     return mapping.getTypeConverter().toMemberType(valuesArr);
                 }
 
+                // Obtain value using converter
                 return CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
             }
 
-            if (mmd.hasCollection())
+            if (!optional && mmd.hasCollection())
             {
                 // TODO Cater for serialised Collection field
                 Collection cassColl = null;
@@ -440,7 +452,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 return coll;
             }
-            else if (mmd.hasMap())
+            else if (!optional && mmd.hasMap())
             {
                 // TODO Cater for serialised Map field
                 Map map;
@@ -479,7 +491,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 return map;
             }
-            else if (mmd.hasArray())
+            else if (!optional && mmd.hasArray())
             {
                 // TODO Cater for serialised Array field
                 // Class elemCls = clr.classForName(mmd.getArray().getElementType());
@@ -493,155 +505,187 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                  * cassElem : cassColl) { Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem,
                  * elemCassType, elemCls, ec); Array.set(array, i++, elem); } return array;
                  */
+                return null;
             }
-            else if (mmd.isSerialized())
+
+            Class type = mmd.getType();
+            if (optional)
+            {
+                type = clr.classForName(mmd.getCollection().getElementType());
+            }
+
+            Object value = null;
+            if (mmd.isSerialized())
             {
                 // Convert back from ByteBuffer
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                return serialConv.toMemberType(row.getBytes(mapping.getColumn(0).getName()));
+                value = serialConv.toMemberType(row.getBytes(mapping.getColumn(0).getName()));
             }
             // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
-            else if (BigInteger.class.isAssignableFrom(mmd.getType()))
+            else if (BigInteger.class.isAssignableFrom(type))
             {
                 // TODO There is a TypeConverter for this
-                return BigInteger.valueOf(row.getLong(mapping.getColumn(0).getName()));
+                value = BigInteger.valueOf(row.getLong(mapping.getColumn(0).getName()));
             }
-            else if (BigDecimal.class.isAssignableFrom(mmd.getType()))
+            else if (BigDecimal.class.isAssignableFrom(type))
             {
                 // TODO There is a TypeConverter for this
-                return row.getDecimal(mapping.getColumn(0).getName());
+                value = row.getDecimal(mapping.getColumn(0).getName());
             }
-            else if (Byte.class.isAssignableFrom(mmd.getType()))
+            else if (Byte.class.isAssignableFrom(type))
             {
-                return (byte) row.getInt(mapping.getColumn(0).getName());
+                value = (byte) row.getInt(mapping.getColumn(0).getName());
             }
-            else if (Character.class.isAssignableFrom(mmd.getType()))
+            else if (String.class.isAssignableFrom(type))
             {
-                return row.getString(mapping.getColumn(0).getName()).charAt(0);
+                value = row.getString(mapping.getColumn(0).getName());
             }
-            else if (Double.class.isAssignableFrom(mmd.getType()))
+            else if (Character.class.isAssignableFrom(type))
             {
-                return row.getDouble(mapping.getColumn(0).getName());
+                value = row.getString(mapping.getColumn(0).getName()).charAt(0);
             }
-            else if (Float.class.isAssignableFrom(mmd.getType()))
+            else if (Double.class.isAssignableFrom(type))
             {
-                return row.getFloat(mapping.getColumn(0).getName());
+                value = row.getDouble(mapping.getColumn(0).getName());
             }
-            else if (Long.class.isAssignableFrom(mmd.getType()))
+            else if (Float.class.isAssignableFrom(type))
             {
-                return row.getLong(mapping.getColumn(0).getName());
+                value = row.getFloat(mapping.getColumn(0).getName());
             }
-            else if (Integer.class.isAssignableFrom(mmd.getType()))
+            else if (Long.class.isAssignableFrom(type))
             {
-                return row.getInt(mapping.getColumn(0).getName());
+                value = row.getLong(mapping.getColumn(0).getName());
             }
-            else if (Short.class.isAssignableFrom(mmd.getType()))
+            else if (Integer.class.isAssignableFrom(type))
             {
-                return (short) row.getInt(mapping.getColumn(0).getName());
+                value = row.getInt(mapping.getColumn(0).getName());
             }
-            else if (Boolean.class.isAssignableFrom(mmd.getType()))
+            else if (Short.class.isAssignableFrom(type))
             {
-                return row.getBool(mapping.getColumn(0).getName());
+                value = (short) row.getInt(mapping.getColumn(0).getName());
             }
-            else if (Enum.class.isAssignableFrom(mmd.getType()))
+            else if (Boolean.class.isAssignableFrom(type))
+            {
+                value = row.getBool(mapping.getColumn(0).getName());
+            }
+            else if (Enum.class.isAssignableFrom(type))
             {
                 // Persist as ordinal unless user specifies jdbc-type of "varchar"
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    return Enum.valueOf(mmd.getType(), row.getString(mapping.getColumn(0).getName()));
+                    value = Enum.valueOf(type, row.getString(mapping.getColumn(0).getName()));
                 }
-                return mmd.getType().getEnumConstants()[row.getInt(mapping.getColumn(0).getName())];
+                else
+                {
+                    value = type.getEnumConstants()[row.getInt(mapping.getColumn(0).getName())];
+                }
             }
-            else if (java.sql.Date.class.isAssignableFrom(mmd.getType()))
+            else if (java.sql.Date.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                // TODO There is a TypeConverter for this
-                return new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
+                else
+                {
+                    // TODO There is a TypeConverter for this
+                    value = new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
             }
-            else if (java.sql.Time.class.isAssignableFrom(mmd.getType()))
+            else if (java.sql.Time.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                // TODO There is a TypeConverter for this
-                return new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
+                else
+                {
+                    // TODO There is a TypeConverter for this
+                    value = new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
             }
-            else if (java.sql.Timestamp.class.isAssignableFrom(mmd.getType()))
+            else if (java.sql.Timestamp.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                // TODO There is a TypeConverter for this
-                return new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
+                else
+                {
+                    // TODO There is a TypeConverter for this
+                    value = new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
+                }
             }
-            else if (Calendar.class.isAssignableFrom(mmd.getType()))
+            else if (Calendar.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                // TODO Support Calendar with multiple columns and do via TypeConverter
-                Calendar cal = Calendar.getInstance();
-                cal.setTime(row.getDate(mapping.getColumn(0).getName()));
-                return cal;
+                else
+                {
+                    // TODO Support Calendar with multiple columns and do via TypeConverter
+                    Calendar cal = Calendar.getInstance();
+                    cal.setTime(row.getDate(mapping.getColumn(0).getName()));
+                    value = cal;
+                }
             }
-            else if (Date.class.isAssignableFrom(mmd.getType()))
+            else if (Date.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
                 {
-                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                     if (stringConverter != null)
                     {
-                        return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                     }
                 }
-                return row.getDate(mapping.getColumn(0).getName());
+                else
+                {
+                    value = row.getDate(mapping.getColumn(0).getName());
+                }
             }
-            else if (UUID.class.isAssignableFrom(mmd.getType()))
+            else if (UUID.class.isAssignableFrom(type))
             {
                 // uuid is the default type
-                return row.getUUID(mapping.getColumn(0).getName());
+                value = row.getUUID(mapping.getColumn(0).getName());
             }
             else
             {
                 // TODO Support multi-column converters
-                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), String.class);
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
                 if (stringConverter != null)
                 {
-                    return stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
                 }
-                TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(mmd.getType(), Long.class);
-                if (longConverter != null)
+                else
                 {
-                    return longConverter.toMemberType(row.getLong(mapping.getColumn(0).getName()));
+                    TypeConverter longConverter = ec.getTypeManager().getTypeConverterForType(type, Long.class);
+                    if (longConverter != null)
+                    {
+                        value = longConverter.toMemberType(row.getLong(mapping.getColumn(0).getName()));
+                    }
                 }
             }
-        }
 
-        // TODO Support other types
-        NucleusLogger.PERSISTENCE.info("TODO FetchFM field=" + mmd.getFullFieldName() + " not supported currently. Type=" + mmd.getTypeName());
-        return null;
+            return optional ? Optional.of(value) : value;
+        }
     }
 
     protected Object getValueForSingleRelationField(AbstractMemberMetaData mmd, Object value, ClassLoaderResolver clr)
@@ -651,10 +695,16 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             return null;
         }
 
+        Class type = mmd.getType();
+        if (Optional.class.isAssignableFrom(mmd.getType()))
+        {
+            type = clr.classForName(mmd.getCollection().getElementType());
+        }
+
         String persistableId = (String) value;
         try
         {
-            AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
+            AbstractClassMetaData mmdCmd = ec.getMetaDataManager().getMetaDataForClass(type, clr);
             if (mmdCmd != null)
             {
                 return IdentityUtils.getObjectFromPersistableIdentity(persistableId, mmdCmd, ec);

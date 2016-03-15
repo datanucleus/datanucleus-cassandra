@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 
 import org.datanucleus.ClassLoaderResolver;
@@ -321,6 +322,24 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         int fieldNumber = mmd.getAbsoluteFieldNumber();
         MemberColumnMapping mapping = getColumnMapping(fieldNumber);
 
+        if (value instanceof Optional)
+        {
+            if (relationType != RelationType.NONE)
+            {
+                relationType = RelationType.ONE_TO_ONE_UNI;
+            }
+
+            Optional opt = (Optional)value;
+            if (opt.isPresent())
+            {
+                value = opt.get();
+            }
+            else
+            {
+                value = null;
+            }
+        }
+
         if (value == null)
         {
             for (int i = 0; i < mapping.getNumberOfColumns(); i++)
@@ -336,8 +355,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             {
                 if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
                 {
-                    // Related PC object not persistent, but cant do
-                    // cascade-persist so throw exception
+                    // Related PC object not persistent, but cant do cascade-persist so throw exception
                     if (NucleusLogger.PERSISTENCE.isDebugEnabled())
                     {
                         NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
@@ -529,7 +547,18 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
 
             // Member with non-persistable object(s)
-            if (mmd.hasCollection())
+            if (Optional.class.isAssignableFrom(mmd.getType()))
+            {
+                String cassandraType = mapping.getColumn(0).getTypeName();
+                Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+                if (datastoreValue != null)
+                {
+                    columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
+                    SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                    return;
+                }
+            }
+            else if (mmd.hasCollection())
             {
                 Collection coll = (Collection) value;
                 if (coll.isEmpty())
