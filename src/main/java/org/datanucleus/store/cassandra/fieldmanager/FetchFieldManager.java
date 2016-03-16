@@ -405,7 +405,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
             if (!optional && mmd.hasCollection())
             {
-                // TODO Cater for serialised Collection field
+                if (mmd.isSerialized())
+                {
+                    // TODO Cater for serialised Collection field
+                }
+
                 Collection cassColl = null;
                 Class elemCls = clr.classForName(mmd.getCollection().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
@@ -454,7 +458,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (!optional && mmd.hasMap())
             {
-                // TODO Cater for serialised Map field
+                if (mmd.isSerialized())
+                {
+                    // TODO Cater for serialised Map field
+                }
+
                 Map map;
                 try
                 {
@@ -493,12 +501,26 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (!optional && mmd.hasArray())
             {
-                // TODO Cater for serialised Array field
-                // Class elemCls = clr.classForName(mmd.getArray().getElementType());
-                // String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false,
-                // ec.getTypeManager(), null);
-                // Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
+                if (mmd.isSerialized())
+                {
+                    // Convert back from ByteBuffer
+                    TypeConverter serialConv = null;
+                    if (mmd.getType() == byte[].class)
+                    {
+                        serialConv = ec.getTypeManager().getTypeConverterForType(byte[].class, ByteBuffer.class);
+                    }
+                    else
+                    {
+                        serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                    }
+                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    return serialConv.toMemberType(datastoreBuffer);
+                }
+
                 NucleusLogger.DATASTORE_RETRIEVE.warn("Field=" + mmd.getFullFieldName() + " has datastore array; not supported yet");
+                // Class elemCls = clr.classForName(mmd.getArray().getElementType());
+                // String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                // Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
                 /*
                  * List cassColl = row.getList(colName, cassElemCls); Object array =
                  * Array.newInstance(mmd.getType().getComponentType(), cassColl.size()); int i=0; for (Object
@@ -519,7 +541,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 // Convert back from ByteBuffer
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                value = serialConv.toMemberType(row.getBytes(mapping.getColumn(0).getName()));
+                ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                value = serialConv.toMemberType(datastoreBuffer);
             }
             // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
             else if (BigInteger.class.isAssignableFrom(type))
