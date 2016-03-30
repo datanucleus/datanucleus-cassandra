@@ -379,6 +379,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             if (mmd.hasCollection())
             {
+                if (mmd.getCollection().isSerializedElement())
+                {
+                    // TODO Support persistable element
+                    throw new NucleusUserException("Don't currently support serialised collection elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
+                }
+
                 Collection coll = (Collection) value;
                 if ((insert && !mmd.isCascadePersist()) || (!insert && !mmd.isCascadeUpdate()))
                 {
@@ -409,12 +415,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
                         Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
-                        if (mmd.getCollection().isSerializedElement())
-                        {
-                            // TODO Support persistable element
-                            throw new NucleusUserException(
-                                    "Don't currently support serialised collection elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
-                        }
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
                     else
@@ -429,6 +429,12 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
+                if (mmd.getMap().isSerializedKey() || mmd.getMap().isSerializedValue())
+                {
+                    // TODO Support persistable key/value
+                    throw new NucleusUserException("Don't currently support serialised map keys/values at " + mmd.getFullFieldName() + ". Serialise the whole field");
+                }
+
                 // TODO Add check on reachability
                 Map idMap = new HashMap();
 
@@ -456,12 +462,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         Object keyPC = ec.persistObjectInternal(key, op, fieldNumber, -1);
                         Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
-                        if (mmd.getMap().isSerializedKey())
-                        {
-                            // TODO Support persistable key
-                            throw new NucleusUserException(
-                                    "Don't currently support serialised map keys at " + mmd.getFullFieldName() + ". Serialise the whole field");
-                        }
                         key = IdentityUtils.getPersistableIdentityForId(keyID);
                     }
                     else
@@ -475,12 +475,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         {
                             Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
                             Object valID = ec.getApiAdapter().getIdForObject(valPC);
-                            if (mmd.getMap().isSerializedValue())
-                            {
-                                // TODO Support persistable value
-                                throw new NucleusUserException(
-                                        "Don't currently support serialised map values at " + mmd.getFullFieldName() + ". Serialise the whole field");
-                            }
                             val = IdentityUtils.getPersistableIdentityForId(valID);
                         }
                         else
@@ -501,15 +495,15 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasArray())
             {
+                if (mmd.getArray().isSerializedElement())
+                {
+                    // TODO Support Serialised elements
+                    throw new NucleusUserException("Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
+                }
+
                 Collection cassColl = new ArrayList();
                 for (int i = 0; i < Array.getLength(value); i++)
                 {
-                    if (mmd.getArray().isSerializedElement())
-                    {
-                        // TODO Support Serialised elements
-                        throw new NucleusUserException(
-                                "Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
-                    }
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
