@@ -43,6 +43,7 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.JdbcType;
+import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
@@ -312,36 +313,25 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         else
         {
-            // Check for null member
-            if (mapping.getNumberOfColumns() > 1)
-            {
-                boolean allNull = true;
-                for (int i = 0; i < mapping.getNumberOfColumns(); i++)
-                {
-                    if (!row.isNull(mapping.getColumn(i).getName()))
-                    {
-                        allNull = false;
-                    }
-                }
-                if (allNull)
-                {
-                    return optional ? Optional.empty() : null;
-                }
-            }
-            else
-            {
-                if (row.isNull(mapping.getColumn(0).getName()))
-                {
-                    return optional ? Optional.empty() : null;
-                }
-            }
-
-            NucleusLogger.GENERAL.info(">> FetchFM " + mmd.getFullFieldName() + " mapping=" + mapping + " typeConv=" + mapping.getTypeConverter() + " serialised=" + mmd.isSerialized());
             if (mapping.getTypeConverter() != null && !mmd.isSerialized())
             {
                 // Convert any columns that have a converter defined back to the member type with the converter
                 if (mapping.getNumberOfColumns() > 1)
                 {
+                    // Check for null member
+                    boolean allNull = true;
+                    for (int i = 0; i < mapping.getNumberOfColumns(); i++)
+                    {
+                        if (!row.isNull(mapping.getColumn(i).getName()))
+                        {
+                            allNull = false;
+                        }
+                    }
+                    if (allNull)
+                    {
+                        return optional ? Optional.empty() : null;
+                    }
+
                     Object valuesArr = null;
                     Class[] colTypes = ((MultiColumnConverter) mapping.getTypeConverter()).getDatastoreColumnTypes();
                     if (colTypes[0] == int.class)
@@ -417,6 +407,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     return mapping.getTypeConverter().toMemberType(valuesArr);
                 }
 
+                if (row.isNull(mapping.getColumn(0).getName()))
+                {
+                    return optional ? Optional.empty() : null;
+                }
+
                 // Obtain value using converter
                 Object returnValue = CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
                 if (op != null)
@@ -430,25 +425,15 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 if (mmd.isSerialized())
                 {
-                    // TODO Cater for serialised Collection field
-                }
-
-                Collection cassColl = null;
-                Class elemCls = clr.classForName(mmd.getCollection().getElementType());
-                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
-                Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
-                // TODO Cater for type conversion, and update elementCls to the Cassandra type
-                if (Set.class.isAssignableFrom(mmd.getType()))
-                {
-                    cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
-                }
-                else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
-                {
-                    cassColl = row.getList(mapping.getColumn(0).getName(), cassElemCls);
-                }
-                else
-                {
-                    cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
+                    // Collection field was serialised, so convert back from ByteBuffer
+                    TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    if (datastoreBuffer == null)
+                    {
+                        return null;
+                    }
+                    Object returnValue = serialConv.toMemberType(datastoreBuffer);
+                    returnValue = (op!=null) ? (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
                 }
 
                 Collection<Object> coll;
@@ -462,16 +447,52 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     throw new NucleusDataStoreException(e.getMessage(), e);
                 }
 
-                if (cassColl != null)
+                if (!row.isNull(mapping.getColumn(0).getName()))
                 {
-                    Iterator cassCollIter = cassColl.iterator();
-                    while (cassCollIter.hasNext())
+                    TypeConverter elemConv = null;
+                    if (mmd.getElementMetaData() != null && mmd.getElementMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
                     {
-                        Object cassElem = cassCollIter.next();
-                        Object elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem, elemCassType, elemCls, ec);
-                        coll.add(elem);
+                        elemConv = ec.getTypeManager().getTypeConverterForName(mmd.getElementMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                    }
+
+                    Class elemCls = clr.classForName(mmd.getCollection().getElementType());
+                    String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                    Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
+
+                    Collection cassColl = null;
+                    if (Set.class.isAssignableFrom(mmd.getType()))
+                    {
+                        cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
+                    }
+                    else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
+                    {
+                        cassColl = row.getList(mapping.getColumn(0).getName(), cassElemCls);
+                    }
+                    else
+                    {
+                        cassColl = row.getSet(mapping.getColumn(0).getName(), cassElemCls);
+                    }
+
+                    if (cassColl != null)
+                    {
+                        Iterator cassCollIter = cassColl.iterator();
+                        while (cassCollIter.hasNext())
+                        {
+                            Object cassElem = cassCollIter.next();
+                            Object elem = null;
+                            if (elemConv != null)
+                            {
+                                elem = elemConv.toMemberType(cassElem);
+                            }
+                            else
+                            {
+                                elem = CassandraUtils.getJavaValueForDatastoreValue(cassElem, elemCassType, elemCls, ec);
+                            }
+                            coll.add(elem);
+                        }
                     }
                 }
+
                 if (op != null)
                 {
                     // Wrap if SCO
@@ -483,7 +504,15 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 if (mmd.isSerialized())
                 {
-                    // TODO Cater for serialised Map field
+                    // Map field was serialised, so convert back from ByteBuffer
+                    TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    if (datastoreBuffer == null)
+                    {
+                        return null;
+                    }
+                    Object returnValue = serialConv.toMemberType(datastoreBuffer);
+                    returnValue = (op!=null) ? SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
                 }
 
                 Map map;
@@ -497,24 +526,58 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     throw new NucleusDataStoreException(e.getMessage(), e);
                 }
 
-                Class keyCls = clr.classForName(mmd.getMap().getKeyType());
-                String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
-                Class cassKeyCls = CassandraUtils.getJavaTypeForCassandraType(keyCassType);
-                Class valCls = clr.classForName(mmd.getMap().getValueType());
-                String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
-                Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
-                Map cassMap = row.getMap(mapping.getColumn(0).getName(), cassKeyCls, cassValCls);
-                if (cassMap != null)
+                if (!row.isNull(mapping.getColumn(0).getName()))
                 {
-                    Iterator<Map.Entry> cassMapEntryIter = cassMap.entrySet().iterator();
-                    while (cassMapEntryIter.hasNext())
+                    TypeConverter keyConv = null;
+                    if (mmd.getKeyMetaData() != null && mmd.getKeyMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
                     {
-                        Map.Entry cassMapEntry = cassMapEntryIter.next();
-                        Object key = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getKey(), cassKeyCls.getName(), keyCls, ec);
-                        Object val = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getValue(), cassValCls.getName(), valCls, ec);
-                        map.put(key, val);
+                        keyConv = ec.getTypeManager().getTypeConverterForName(mmd.getKeyMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                    }
+                    TypeConverter valConv = null;
+                    if (mmd.getValueMetaData() != null && mmd.getValueMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                    {
+                        valConv = ec.getTypeManager().getTypeConverterForName(mmd.getValueMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                    }
+
+                    Class keyCls = clr.classForName(mmd.getMap().getKeyType());
+                    String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                    Class cassKeyCls = CassandraUtils.getJavaTypeForCassandraType(keyCassType);
+                    Class valCls = clr.classForName(mmd.getMap().getValueType());
+                    String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                    Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
+
+                    Map cassMap = row.getMap(mapping.getColumn(0).getName(), cassKeyCls, cassValCls);
+                    if (cassMap != null)
+                    {
+                        Iterator<Map.Entry> cassMapEntryIter = cassMap.entrySet().iterator();
+                        while (cassMapEntryIter.hasNext())
+                        {
+                            Map.Entry cassMapEntry = cassMapEntryIter.next();
+                            Object key = null;
+                            if (keyConv != null)
+                            {
+                                key = keyConv.toMemberType(cassMapEntry.getKey());
+                            }
+                            else
+                            {
+                                key = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getKey(), cassKeyCls.getName(), keyCls, ec);
+                            }
+
+                            Object val = null;
+                            if (valConv != null)
+                            {
+                                val = valConv.toMemberType(cassMapEntry.getValue());
+                            }
+                            else
+                            {
+                                val = CassandraUtils.getJavaValueForDatastoreValue(cassMapEntry.getValue(), cassValCls.getName(), valCls, ec);
+                            }
+
+                            map.put(key, val);
+                        }
                     }
                 }
+
                 if (op != null)
                 {
                     // Wrap if SCO
@@ -524,6 +587,11 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (!optional && mmd.hasArray())
             {
+                if (row.isNull(mapping.getColumn(0).getName()))
+                {
+                    return null;
+                }
+
                 if (mmd.isSerialized())
                 {
                     // Convert back from ByteBuffer
@@ -551,6 +619,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                  * elemCassType, elemCls, ec); Array.set(array, i++, elem); } return array;
                  */
                 return null;
+            }
+
+            // Check for null member
+            if (row.isNull(mapping.getColumn(0).getName()))
+            {
+                return optional ? Optional.empty() : null;
             }
 
             Class type = mmd.getType();

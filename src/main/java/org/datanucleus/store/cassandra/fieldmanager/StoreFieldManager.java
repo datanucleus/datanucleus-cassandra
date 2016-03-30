@@ -38,6 +38,7 @@ import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.JdbcType;
+import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
@@ -600,13 +601,25 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     cassColl = new HashSet();
                 }
+
+                TypeConverter elemConv = null;
+                if (mmd.getElementMetaData() != null && mmd.getElementMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                {
+                    elemConv = ec.getTypeManager().getTypeConverterForName(mmd.getElementMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                }
+
                 Class elemCls = clr.classForName(mmd.getCollection().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
                     Object element = collIter.next();
-                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
+                    Object datastoreValue = element;
+                    if (elemConv != null)
+                    {
+                        datastoreValue = elemConv.toDatastoreType(element);
+                    }
+                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreValue, elemCassType, false, ec.getTypeManager()));
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 SCOUtils.wrapSCOField(op, fieldNumber, value, true);
@@ -623,6 +636,17 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     return;
                 }
 
+                TypeConverter keyConv = null;
+                if (mmd.getKeyMetaData() != null && mmd.getKeyMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                {
+                    keyConv = ec.getTypeManager().getTypeConverterForName(mmd.getKeyMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                }
+                TypeConverter valConv = null;
+                if (mmd.getValueMetaData() != null && mmd.getValueMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                {
+                    valConv = ec.getTypeManager().getTypeConverterForName(mmd.getValueMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                }
+
                 Iterator<Map.Entry> entryIter = map.entrySet().iterator();
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
                 String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
@@ -631,11 +655,23 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 while (entryIter.hasNext())
                 {
                     Map.Entry entry = entryIter.next();
-                    Object key = entry.getKey();
-                    Object val = entry.getValue();
 
-                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
-                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
+                    Object key = entry.getKey();
+                    Object datastoreKey = key;
+                    if (keyConv != null)
+                    {
+                        datastoreKey = keyConv.toDatastoreType(key);
+                    }
+
+                    Object val = entry.getValue();
+                    Object datastoreVal = val;
+                    if (valConv != null)
+                    {
+                        datastoreVal = valConv.toDatastoreType(val);
+                    }
+
+                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreKey, keyCassType, false, ec.getTypeManager());
+                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreVal, valCassType, false, ec.getTypeManager());
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);

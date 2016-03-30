@@ -30,6 +30,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.IdentityMetaData;
 import org.datanucleus.metadata.JdbcType;
+import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionStrategy;
@@ -182,8 +183,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
     }
 
     /**
-     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it
-     * contains.
+     * Method to verify the member-column mapping and assign the Cassandra type to all Columns that it contains.
      * @param mmd Metadata for the member
      * @param mapping Member-column mapping
      * @param typeMgr Type manager
@@ -225,6 +225,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                 }
                 optional = true;
             }
+
             if (relType == RelationType.NONE)
             {
                 if (mmd.isSerialized())
@@ -238,8 +239,18 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     if (mmd.hasCollection())
                     {
                         Class elementType = clr.classForName(mmd.getCollection().getElementType());
-                        String cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(
-                            elementType, false, typeMgr, null);
+                        String cqlElementType = null;
+                        if (mmd.getElementMetaData() != null && mmd.getElementMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                        {
+                            TypeConverter elemTypeConv = typeMgr.getTypeConverterForName(mmd.getElementMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(elemTypeConv, clr.classForName(mmd.getCollection().getElementType()));
+                            cqlElementType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
+                        }
+                        else
+                        {
+                            cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
+                        }
+
                         if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
                         {
                             type = "list<" + cqlElementType + ">";
@@ -265,16 +276,36 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         // Map<NonPC, NonPC>
                         Class keyType = clr.classForName(mmd.getMap().getKeyType());
                         Class valType = clr.classForName(mmd.getMap().getValueType());
-                        String cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
-                        String cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
+                        String cqlKeyType = null;
+                        if (mmd.getKeyMetaData() != null && mmd.getKeyMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                        {
+                            TypeConverter keyTypeConv = typeMgr.getTypeConverterForName(mmd.getKeyMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(keyTypeConv, clr.classForName(mmd.getMap().getKeyType()));
+                            cqlKeyType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
+                        }
+                        else
+                        {
+                            cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
+                        }
+
+                        String cqlValType = null;
+                        if (mmd.getValueMetaData() != null && mmd.getValueMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
+                        {
+                            TypeConverter valTypeConv = typeMgr.getTypeConverterForName(mmd.getValueMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
+                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(valTypeConv, clr.classForName(mmd.getMap().getValueType()));
+                            cqlValType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
+                        }
+                        else
+                        {
+                            cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
+                        }
                         type = "map<" + cqlKeyType + "," + cqlValType + ">";
                     }
                     else if (mmd.hasArray())
                     {
                         // NonPC[]
                         Class elementType = clr.classForName(mmd.getArray().getElementType());
-                        String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType,
-                            false, typeMgr, null);
+                        String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
                         type = "list<" + cqlElementType + ">";
                     }
                 }
