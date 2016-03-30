@@ -336,6 +336,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
             }
 
+            NucleusLogger.GENERAL.info(">> FetchFM " + mmd.getFullFieldName() + " mapping=" + mapping + " typeConv=" + mapping.getTypeConverter() + " serialised=" + mmd.isSerialized());
             if (mapping.getTypeConverter() != null && !mmd.isSerialized())
             {
                 // Convert any columns that have a converter defined back to the member type with the converter
@@ -417,7 +418,12 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
 
                 // Obtain value using converter
-                return CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
+                Object returnValue = CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
+                if (op != null)
+                {
+                    returnValue = SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true);
+                }
+                return returnValue;
             }
 
             if (!optional && mmd.hasCollection())

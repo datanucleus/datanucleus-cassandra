@@ -257,8 +257,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 {
                     if (!ec.getApiAdapter().isDetached(value) && !ec.getApiAdapter().isPersistent(value))
                     {
-                        // Related PC object not persistent, but cant do
-                        // cascade-persist so throw exception
+                        // Related PC object not persistent, but can't do cascade-persist so throw exception
                         if (NucleusLogger.PERSISTENCE.isDebugEnabled())
                         {
                             NucleusLogger.PERSISTENCE.debug(Localiser.msg("007006", mmd.getFullFieldName()));
@@ -281,8 +280,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd
                                 .getTypeName()))
                         {
-                            // Store a null for any primitive/wrapper/String
-                            // fields
+                            // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
                             colEmbMmds.add(embMmd);
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
