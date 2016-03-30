@@ -105,6 +105,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
         cassandraTypeByJavaType.put(Locale.class.getName(), "varchar");
         cassandraTypeByJavaType.put(UUID.class.getName(), "uuid");
+        cassandraTypeByJavaType.put(ByteBuffer.class.getName(), "blob");
 
         datastoreTypeByCassandraType.put("timestamp", Date.class);
         datastoreTypeByCassandraType.put("boolean", Boolean.class);
@@ -178,8 +179,7 @@ public class CassandraUtils
         if (cassandraType.equals("blob") && datastoreValue instanceof ByteBuffer)
         {
             // Serialised field
-            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class,
-                ByteBuffer.class);
+            TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
             return serialConv.toMemberType((ByteBuffer) datastoreValue);
         }
         else if (javaType.isEnum())
