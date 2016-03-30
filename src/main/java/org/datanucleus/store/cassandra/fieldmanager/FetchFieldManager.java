@@ -249,6 +249,23 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 return optional ? Optional.empty() : null;
             }
 
+            if (mmd.isSerialized())
+            {
+                // Convert back from ByteBuffer
+                TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                Object value = serialConv.toMemberType(datastoreBuffer);
+
+                // Make sure it has an ObjectProvider
+                ObjectProvider pcOP = ec.findObjectProvider(value);
+                if (pcOP == null || ec.getApiAdapter().getExecutionContext(value) == null)
+                {
+                    ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
+                }
+
+                return value;
+            }
+
             // TODO Support 1-1 storage using "FK" style column(s) for related object
             Object value = row.getString(mapping.getColumn(0).getName());
             Object memberValue = getValueForSingleRelationField(mmd, value, clr);

@@ -17,8 +17,10 @@ Contributors:
  **********************************************************************/
 package org.datanucleus.store.cassandra.fieldmanager;
 
+import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,6 +48,7 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.SCOUtils;
+import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
@@ -364,13 +367,42 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 }
             }
 
+            if (mmd.isSerialized() && value instanceof Serializable)
+            {
+                // Assign an ObjectProvider to the serialised object if none present
+                ObjectProvider pcOP = ec.findObjectProvider(value);
+                if (pcOP == null || ec.getApiAdapter().getExecutionContext(value) == null)
+                {
+                    pcOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
+                }
+
+                if (pcOP != null)
+                {
+                    pcOP.setStoringPC();
+                }
+
+                // Convert to ByteBuffer and use that
+                TypeConverter serialConv;
+                if (value instanceof byte[])
+                {
+                    serialConv = ec.getTypeManager().getTypeConverterForType(byte[].class, ByteBuffer.class);
+                }
+                else
+                {
+                    serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
+                }
+                Object serValue = serialConv.toDatastoreType(value);
+                columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), serValue);
+
+                if (pcOP != null)
+                {
+                    pcOP.unsetStoringPC();
+                }
+                return;
+            }
+
             Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
-            if (mmd.isSerialized())
-            {
-                // TODO Support serialised persistable object
-                throw new NucleusUserException("Don't currently support serialised PC fields at " + mmd.getFullFieldName() + ". Dont serialise it");
-            }
             // TODO Support 1-1 storage using "FK" style column(s) for related object
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
             return;
