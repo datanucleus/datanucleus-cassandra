@@ -106,6 +106,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         set.add(StoreManager.OPTION_ORM);
         set.add(StoreManager.OPTION_ORM_EMBEDDED_PC);
         set.add(StoreManager.OPTION_ORM_SERIALISED_PC);
+        set.add(StoreManager.OPTION_DATASTORE_TIME_STORES_MILLISECS);
         return set;
     }
 
