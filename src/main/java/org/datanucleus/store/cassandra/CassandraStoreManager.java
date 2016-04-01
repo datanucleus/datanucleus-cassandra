@@ -17,6 +17,7 @@ Contributors:
  **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.awt.image.BufferedImage;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -66,6 +67,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public CassandraStoreManager(ClassLoaderResolver clr, PersistenceNucleusContext nucleusCtx, Map<String, Object> props)
     {
         super("cassandra", clr, nucleusCtx, props);
+
+        // Override BufferedReader default converter to use ByteBuffer
+        nucleusCtx.getTypeManager().setDefaultTypeConverterForType(BufferedImage.class, "dn.bufferedimage-bytebuffer");
 
         // Set up naming factory to match Cassandra capabilities
         getNamingFactory().setReservedKeywords(StringUtils.convertCommaSeparatedStringToSet(RESERVED_WORDS));
