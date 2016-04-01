@@ -627,8 +627,6 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             }
             else if (mmd.hasMap())
             {
-                Map cassMap = new HashMap();
-
                 Map map = (Map) value;
                 if (map.isEmpty())
                 {
@@ -652,6 +650,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
                 Class valCls = clr.classForName(mmd.getMap().getValueType());
                 String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+
+                Map cassMap = new HashMap();
                 while (entryIter.hasNext())
                 {
                     Map.Entry entry = entryIter.next();
