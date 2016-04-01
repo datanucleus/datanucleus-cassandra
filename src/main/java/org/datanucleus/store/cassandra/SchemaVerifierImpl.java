@@ -83,20 +83,18 @@ public class SchemaVerifierImpl implements SchemaVerifier
             {
                 if (java.util.Date.class.isAssignableFrom(datastoreType) && datastoreType != java.util.Date.class)
                 {
-                    // Swap for a converter that has java.util.Date in the datastore
-                    // (since that's what Cassandra returns)
+                    // Swap for a converter that has java.util.Date in the datastore (since that's what Cassandra returns)
                     TypeConverter newConv = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(mmd.getType(), java.util.Date.class);
                     if (newConv == null)
                     {
-                        NucleusLogger.DATASTORE.info("Member " + mmd.getFullFieldName() + " required to convert to datastore type of " + datastoreType.getName() +
+                        NucleusLogger.DATASTORE.warn("Member " + mmd.getFullFieldName() + " required to convert to datastore type of " + datastoreType.getName() +
                             " but no supported converter for this datastore!");
                     }
                     return newConv;
                 }
                 else if (java.util.UUID.class.isAssignableFrom(mmd.getType()))
                 {
-                    // UUID : by default this will get a TypeConverter<UUID,String> assigned, so unset unless
-                    // explicitly requested
+                    // UUID : by default this will get a TypeConverter<UUID,String> assigned, so unset unless explicitly requested
                     ColumnMetaData[] colmds = mmd.getColumnMetaData();
                     boolean jdbcTypeSpecified = false;
                     if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcTypeName()))
@@ -105,8 +103,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     }
                     if (!jdbcTypeSpecified)
                     {
-                        // We don't want a TypeConverter for UUID except when requested, so unset the default
-                        // TypeConverter
+                        // We don't want a TypeConverter for UUID except when requested, so unset the default TypeConverter
                         return null;
                     }
                 }
@@ -230,8 +227,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             {
                 if (mmd.isSerialized())
                 {
-                    // Could check if type is Serializable but user may have
-                    // Object field that stores Serializable objects
+                    // Could check if type is Serializable but user may have Object field that stores Serializable objects
                     type = "blob";
                 }
                 else if (!optional && mmd.hasContainer())
@@ -368,8 +364,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (Enum.class.isAssignableFrom(mmd.getType()))
                         {
-                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified
-                            // above)
+                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified above)
                             type = "int";
                         }
                         else
