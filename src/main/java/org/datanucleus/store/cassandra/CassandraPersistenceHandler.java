@@ -221,20 +221,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             BoundStatement boundStmt = stmt.bind(stmtValues);
             session.execute(boundStmt); // TODO Make use of ResultSet?
 
+            // TODO Handle PK id attributed in datastore (IDENTITY value generation) - retrieve value and set it on the object
             if (ec.getStatistics() != null)
             {
                 ec.getStatistics().incrementNumWrites();
+                ec.getStatistics().incrementInsertCount();
             }
-            // TODO Handle PK id attributed in datastore (IDENTITY value generation) - retrieve value and set
-            // it on the object
-
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
                 NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.ExecutionTime", (System.currentTimeMillis() - startTime)));
-            }
-            if (ec.getStatistics() != null)
-            {
-                ec.getStatistics().incrementInsertCount();
             }
         }
         catch (DriverException e)
