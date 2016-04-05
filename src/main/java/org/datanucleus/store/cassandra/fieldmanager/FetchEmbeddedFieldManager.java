@@ -75,8 +75,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         EmbeddedMetaData embmd = mmds.get(0).getEmbeddedMetaData();
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
-            // Special case of this being a link back to the owner. TODO Repeat this for nested and their
-            // owners
+            // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
             ObjectProvider[] ownerOps = ec.getOwnersForEmbeddedObjectProvider(op);
             return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
         }
