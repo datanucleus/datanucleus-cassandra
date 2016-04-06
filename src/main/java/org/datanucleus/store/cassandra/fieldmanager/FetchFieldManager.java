@@ -43,7 +43,6 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.JdbcType;
-import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.state.ObjectProvider;
@@ -449,11 +448,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
                 if (!row.isNull(mapping.getColumn(0).getName()))
                 {
-                    TypeConverter elemConv = null;
-                    if (mmd.getElementMetaData() != null && mmd.getElementMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
-                    {
-                        elemConv = ec.getTypeManager().getTypeConverterForName(mmd.getElementMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                    }
+                    TypeConverter elemConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_COLLECTION_ELEMENT);
 
                     Class elemCls = clr.classForName(mmd.getCollection().getElementType());
                     String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
@@ -528,16 +523,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
                 if (!row.isNull(mapping.getColumn(0).getName()))
                 {
-                    TypeConverter keyConv = null;
-                    if (mmd.getKeyMetaData() != null && mmd.getKeyMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
-                    {
-                        keyConv = ec.getTypeManager().getTypeConverterForName(mmd.getKeyMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                    }
-                    TypeConverter valConv = null;
-                    if (mmd.getValueMetaData() != null && mmd.getValueMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
-                    {
-                        valConv = ec.getTypeManager().getTypeConverterForName(mmd.getValueMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                    }
+                    TypeConverter keyConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_MAP_KEY);
+                    TypeConverter valConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_MAP_VALUE);
 
                     Class keyCls = clr.classForName(mmd.getMap().getKeyType());
                     String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
