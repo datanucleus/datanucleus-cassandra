@@ -111,6 +111,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         set.add(StoreManager.OPTION_ORM_EMBEDDED_PC);
         set.add(StoreManager.OPTION_ORM_SERIALISED_PC);
         set.add(StoreManager.OPTION_DATASTORE_TIME_STORES_MILLISECS);
+        set.add(StoreManager.OPTION_QUERY_JDOQL_BULK_DELETE);
+        set.add(StoreManager.OPTION_QUERY_JPQL_BULK_DELETE);
         return set;
     }
 
