@@ -301,6 +301,11 @@ public class JPQLQuery extends AbstractJPQLQuery
                 // TODO Support BULK UPDATE
                 throw new NucleusException("Bulk Update is not yet supported");
             }
+            else if (type == QueryType.BULK_INSERT)
+            {
+                // TODO Support BULK INSERT
+                throw new NucleusException("Bulk Insert is not yet supported");
+            }
 
             if (results instanceof QueryResult)
             {
