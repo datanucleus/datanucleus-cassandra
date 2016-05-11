@@ -53,6 +53,7 @@ import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
@@ -634,7 +635,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 // WHERE clause
                 stmtBuilder.append(table.getName()).append(" WHERE ");
-                List<Column> pkCols = getPrimaryKeyColumns(cmd, table);
+                List<Column> pkCols = getPrimaryKeyColumns(cmd, table, ec.getClassLoaderResolver());
                 int pkColNo = 0;
                 for (Column pkCol : pkCols)
                 {
@@ -648,6 +649,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
 
                 deleteStmt = stmtBuilder.toString();
+                NucleusLogger.GENERAL.info(">> deleteStmt=" + deleteStmt);
 
                 // Cache the statement
                 if (deleteStatementByClassName == null)
@@ -657,7 +659,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
             }
 
-            Object[] pkVals = getPkValuesForStatement(op, table);
+            Object[] pkVals = getPkValuesForStatement(op, table, ec.getClassLoaderResolver());
             CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
             SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
             PreparedStatement stmt = stmtProvider.prepare(deleteStmt, session);
@@ -838,7 +840,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
                 stmtBuilder.append(table.getName()).append(" WHERE ");
 
-                List<Column> pkCols = getPrimaryKeyColumns(cmd, table);
+                List<Column> pkCols = getPrimaryKeyColumns(cmd, table, clr);
                 int pkColNo = 0;
                 for (Column pkCol : pkCols)
                 {
@@ -851,7 +853,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkColNo++;
                 }
 
-                Object[] pkVals = getPkValuesForStatement(op, table);
+                Object[] pkVals = getPkValuesForStatement(op, table, clr);
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session) mconn.getConnection();
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
@@ -998,7 +1000,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     // ("SELECT KEY1(,KEY2) FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
                     StringBuilder stmtBuilder = new StringBuilder("SELECT ");
 
-                    List<Column> pkCols = getPrimaryKeyColumns(cmd, table);
+                    List<Column> pkCols = getPrimaryKeyColumns(cmd, table, ec.getClassLoaderResolver());
                     int pkColNo = 0;
                     for (Column pkCol : pkCols)
                     {
@@ -1040,7 +1042,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     locateStatementByClassName.put(cmd.getFullClassName(), locateStmt);
                 }
 
-                Object[] pkVals = getPkValuesForStatement(op, table);
+                Object[] pkVals = getPkValuesForStatement(op, table, ec.getClassLoaderResolver());
                 CassandraUtils.logCqlStatement(locateStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
                 Session session = (Session) mconn.getConnection();
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
@@ -1075,7 +1077,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         return null;
     }
 
-    protected String getVersionStatement(AbstractClassMetaData cmd, Table table)
+    protected String getVersionStatement(AbstractClassMetaData cmd, Table table, ClassLoaderResolver clr)
     {
         String verStmt = null;
         if (getVersionStatementByClassName != null)
@@ -1106,7 +1108,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             stmtBuilder.append(table.getName()).append(" WHERE ");
-            List<Column> pkCols = getPrimaryKeyColumns(cmd, table);
+            List<Column> pkCols = getPrimaryKeyColumns(cmd, table, clr);
             int pkColNo = 0;
             for (Column pkCol : pkCols)
             {
@@ -1135,43 +1137,68 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * Convenience method to extract the pk values to input into an LOCATE/UPDATE/DELETE/FETCH statement
      * @param op ObjectProvider we are interested in
      * @param table The table
+     * @param clr ClassLoader resolver
      * @return The pk values
      */
-    protected Object[] getPkValuesForStatement(ObjectProvider op, Table table)
+    protected Object[] getPkValuesForStatement(ObjectProvider op, Table table, ClassLoaderResolver clr)
     {
         AbstractClassMetaData cmd = op.getClassMetaData();
         ExecutionContext ec = op.getExecutionContext();
-        Object[] pkVals = null;
+        List pkVals = new ArrayList();
         if (cmd.getIdentityType() == IdentityType.APPLICATION)
         {
             int[] pkFieldNums = cmd.getPKMemberPositions();
-            pkVals = new Object[pkFieldNums.length];
             for (int i = 0; i < pkFieldNums.length; i++)
             {
                 AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
-                // TODO Cater for embedded id
-                if (RelationType.isRelationSingleValued(relType))
+                RelationType relType = pkMmd.getRelationType(clr);
+                Object fieldVal = op.provideField(pkFieldNums[i]);
+                if (relType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, pkMmd, relType, null))
                 {
-                    Object pc = op.provideField(pkFieldNums[i]);
-                    pkVals[i] = IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter().getIdForObject(pc));
+                    // Embedded : allow 1 level of embedded field for PK
+                    List<AbstractMemberMetaData> embMmds = new ArrayList();
+                    embMmds.add(pkMmd);
+
+                    ObjectProvider embOP = ec.findObjectProvider(fieldVal);
+                    AbstractClassMetaData embCmd = storeMgr.getMetaDataManager().getMetaDataForClass(pkMmd.getType(), clr);
+                    int[] memberPositions = embCmd.getAllMemberPositions();
+                    for (int j=0;j<memberPositions.length;j++)
+                    {
+                        AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[j]);
+                        if (embMmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
+                        {
+                            // Don't need column if not persistent
+                            continue;
+                        }
+
+                        Object embFieldVal = embOP.provideField(memberPositions[j]);
+                        pkVals.add(embFieldVal); // TODO Cater for field mapped to multiple columns
+                    }
                 }
                 else
                 {
-                    String cassandraType = table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getTypeName();
-                    pkVals[i] = CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager());
+                    if (RelationType.isRelationSingleValued(relType))
+                    {
+                        pkVals.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter().getIdForObject(fieldVal)));
+                    }
+                    else
+                    {
+                        String cassandraType = table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getTypeName();
+                        // TODO Cater for field mapped to multiple columns
+                        pkVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(fieldVal, cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                    }
                 }
             }
         }
         else if (cmd.getIdentityType() == IdentityType.DATASTORE)
         {
-            pkVals = new Object[]{IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId())};
+            pkVals.add(IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId()));
         }
 
-        return pkVals;
+        return pkVals.toArray();
     }
 
-    protected List<Column> getPrimaryKeyColumns(AbstractClassMetaData cmd, Table table)
+    protected List<Column> getPrimaryKeyColumns(AbstractClassMetaData cmd, Table table, ClassLoaderResolver clr)
     {
         List<Column> pkCols = new ArrayList();
         if (cmd.getIdentityType() == IdentityType.APPLICATION)
@@ -1180,12 +1207,43 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             for (int i = 0; i < pkFieldNums.length; i++)
             {
                 AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
-                // TODO Cater for embedded id
-                MemberColumnMapping mapping = table.getMemberColumnMappingForMember(pkMmd);
-                Column[] cols = mapping.getColumns();
-                for (Column col : cols)
+                RelationType relType = pkMmd.getRelationType(clr);
+                if (relType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, pkMmd, relType, null))
                 {
-                    pkCols.add(col);
+                    // Embedded : allow 1 level of embedded field for PK
+                    List<AbstractMemberMetaData> embMmds = new ArrayList();
+                    embMmds.add(pkMmd);
+
+                    AbstractClassMetaData embCmd = storeMgr.getMetaDataManager().getMetaDataForClass(pkMmd.getType(), clr);
+                    int[] memberPositions = embCmd.getAllMemberPositions();
+                    for (int j=0;j<memberPositions.length;j++)
+                    {
+                        AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(memberPositions[j]);
+                        if (embMmd.getPersistenceModifier() != FieldPersistenceModifier.PERSISTENT)
+                        {
+                            // Don't need column if not persistent
+                            continue;
+                        }
+
+                        embMmds.add(embMmd);
+                        MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(embMmds);
+                        embMmds.remove(embMmds.size()-1);
+
+                        Column[] cols = mapping.getColumns();
+                        for (Column col : cols)
+                        {
+                            pkCols.add(col);
+                        }
+                    }
+                }
+                else
+                {
+                    MemberColumnMapping mapping = table.getMemberColumnMappingForMember(pkMmd);
+                    Column[] cols = mapping.getColumns();
+                    for (Column col : cols)
+                    {
+                        pkCols.add(col);
+                    }
                 }
             }
         }
@@ -1193,6 +1251,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         {
             pkCols.add(table.getDatastoreIdColumn());
         }
+        NucleusLogger.GENERAL.info(">> pkCols=" + StringUtils.collectionToString(pkCols));
         return pkCols;
     }
 
@@ -1200,8 +1259,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
     {
         AbstractClassMetaData cmd = op.getClassMetaData();
 
-        Object[] pkVals = getPkValuesForStatement(op, table);
-        String getVersStmt = getVersionStatement(cmd, table);
+        Object[] pkVals = getPkValuesForStatement(op, table, op.getExecutionContext().getClassLoaderResolver());
+        String getVersStmt = getVersionStatement(cmd, table, op.getExecutionContext().getClassLoaderResolver());
         CassandraUtils.logCqlStatement(getVersStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
         SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
         PreparedStatement stmt = stmtProvider.prepare(getVersStmt, session);
