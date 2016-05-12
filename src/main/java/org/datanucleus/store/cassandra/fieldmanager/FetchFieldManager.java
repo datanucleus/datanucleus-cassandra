@@ -284,6 +284,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
                     value = row.getList(mapping.getColumn(0).getName(), elementCls);
+                    // TODO Check if this has OrderBy and reorder the elements based on that criteria
                 }
                 else
                 {
