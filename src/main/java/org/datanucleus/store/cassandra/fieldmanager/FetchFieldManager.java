@@ -45,6 +45,7 @@ import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
+import org.datanucleus.query.QueryUtils;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.fieldmanager.AbstractFetchFieldManager;
@@ -284,7 +285,6 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 else if (List.class.isAssignableFrom(mmd.getType()) || mmd.getOrderMetaData() != null)
                 {
                     value = row.getList(mapping.getColumn(0).getName(), elementCls);
-                    // TODO Check if this has OrderBy and reorder the elements based on that criteria
                 }
                 else
                 {
@@ -878,8 +878,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (elemCmd == null)
             {
                 // Try any listed implementations
-                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr,
-                    ec.getMetaDataManager());
+                String[] implNames = MetaDataUtils.getInstance().getImplementationNamesForReferenceField(mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr, ec.getMetaDataManager());
                 if (implNames != null && implNames.length > 0)
                 {
                     // Just use first implementation TODO What if the impls have different id type?
@@ -915,6 +914,18 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         // Object no longer exists. Deleted by user? so ignore
                         changeDetected = true;
                     }
+                }
+            }
+
+            if (coll instanceof List && mmd.getOrderMetaData() != null && mmd.getOrderMetaData().getOrdering() != null && !mmd.getOrderMetaData().getOrdering().equals("#PK"))
+            {
+                // Reorder the collection as per the ordering clause
+                Collection newColl = QueryUtils.orderCandidates((List)coll, clr.classForName(mmd.getCollection().getElementType()), mmd.getOrderMetaData().getOrdering(), ec, clr);
+                if (newColl.getClass() != coll.getClass())
+                {
+                    // Type has changed, so just reuse the input
+                    coll.clear();
+                    coll.addAll(newColl);
                 }
             }
 
