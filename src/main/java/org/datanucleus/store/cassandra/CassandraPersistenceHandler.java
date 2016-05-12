@@ -1156,11 +1156,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 if (relType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, pkMmd, relType, null))
                 {
                     // Embedded : allow 1 level of embedded field for PK
-                    List<AbstractMemberMetaData> embMmds = new ArrayList();
-                    embMmds.add(pkMmd);
-
                     ObjectProvider embOP = ec.findObjectProvider(fieldVal);
-                    AbstractClassMetaData embCmd = storeMgr.getMetaDataManager().getMetaDataForClass(pkMmd.getType(), clr);
+                    AbstractClassMetaData embCmd = embOP.getClassMetaData();
                     int[] memberPositions = embCmd.getAllMemberPositions();
                     for (int j=0;j<memberPositions.length;j++)
                     {
