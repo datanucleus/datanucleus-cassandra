@@ -53,7 +53,6 @@ import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
@@ -649,7 +648,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 }
 
                 deleteStmt = stmtBuilder.toString();
-                NucleusLogger.GENERAL.info(">> deleteStmt=" + deleteStmt);
 
                 // Cache the statement
                 if (deleteStatementByClassName == null)
@@ -1248,7 +1246,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         {
             pkCols.add(table.getDatastoreIdColumn());
         }
-        NucleusLogger.GENERAL.info(">> pkCols=" + StringUtils.collectionToString(pkCols));
+
         return pkCols;
     }
 
