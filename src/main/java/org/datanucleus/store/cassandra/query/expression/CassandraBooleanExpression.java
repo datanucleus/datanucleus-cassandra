@@ -19,6 +19,7 @@ package org.datanucleus.store.cassandra.query.expression;
 
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.query.expression.Expression;
+import org.datanucleus.util.NucleusLogger;
 
 /**
  * Representation of a boolean expression in Cassandra queries, and contains the CQL that it maps to.
@@ -81,6 +82,11 @@ public class CassandraBooleanExpression extends CassandraExpression
                 throw new NucleusException("Cannot create CassandraBooleanExpression with right argument of type " + rightExpr.getClass().getName());
             }
 
+            if (op == Expression.OP_NOTEQ)
+            {
+                // TODO In CQL there is no "NOT" operator!
+                NucleusLogger.QUERY.warn("CQL has no NOT operator! so you need to change your query");
+            }
             cql = leftCql + op.toString() + rightCql;
         }
         else if (op == Expression.OP_AND || op == Expression.OP_OR)
@@ -91,8 +97,7 @@ public class CassandraBooleanExpression extends CassandraExpression
             }
             else
             {
-                throw new NucleusException("Cannot create CassandraBooleanExpression with left=" + leftExpr.getClass().getName() + " right=" + rightExpr
-                        .getClass().getName());
+                throw new NucleusException("Cannot create CassandraBooleanExpression with left=" + leftExpr.getClass().getName() + " right=" + rightExpr.getClass().getName());
             }
         }
         else
