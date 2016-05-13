@@ -30,6 +30,7 @@ import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.exceptions.NucleusOptimisticException;
+import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -99,7 +100,26 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
             }
             Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
-            // TODO Check for existence? since an INSERT of an existing object in Cassandra is an UPSERT (overwriting the existent object)
+            boolean enforceUniquenessInApp = storeMgr.getBooleanProperty(CassandraStoreManager.PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION);
+            if (enforceUniquenessInApp)
+            {
+                NucleusLogger.DATASTORE_PERSIST.info("User requesting to enforce uniqueness of object identity in their application, so not checking for existence");
+            }
+            else
+            {
+                // Check for existence of this object identity in the datastore
+                if (cmd.getIdentityType() == IdentityType.APPLICATION || cmd.getIdentityType() == IdentityType.DATASTORE)
+                {
+                    try
+                    {
+                        locateObject(op);
+                        throw new NucleusUserException(Localiser.msg("Cassandra.Insert.ObjectWithIdAlreadyExists", op.getObjectAsPrintable(), op.getInternalObjectId()));
+                    }
+                    catch (NucleusObjectNotFoundException onfe)
+                    {
+                    }
+                }
+            }
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())

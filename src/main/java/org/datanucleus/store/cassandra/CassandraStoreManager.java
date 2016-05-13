@@ -47,6 +47,8 @@ import com.datastax.driver.core.Session;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
+    public static final String PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION = "datanucleus.cassandra.enforceUniquenessInApplication";
+
     static
     {
         Localiser.registerBundle("org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());

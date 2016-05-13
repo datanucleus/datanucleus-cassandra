@@ -766,12 +766,9 @@ public class CassandraUtils
                             fieldsMatchingColumnIndexes.add(columnIndex);
                             break;
                         }
-
                     }
                 }
-
             }
-
         }
         return new ResultClassInfo(resultClassFields.values().toArray(new Field[0]), resultClassFieldNames.values().toArray(new String[0]),
                 fieldsMatchingColumnIndexes);
@@ -846,6 +843,5 @@ public class CassandraUtils
             }
         }
         return resultRow;
-
     }
 }
