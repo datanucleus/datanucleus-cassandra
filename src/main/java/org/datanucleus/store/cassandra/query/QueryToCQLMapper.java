@@ -460,7 +460,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                             }
                             return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
-
+                        else if (RelationType.isRelationSingleValued(relationType))
+                        {
+                            MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
+                            return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
+                        }
                         // TODO Cater for relations?
                     }
                 }
