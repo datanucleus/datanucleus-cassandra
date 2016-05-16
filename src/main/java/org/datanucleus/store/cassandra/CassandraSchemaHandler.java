@@ -31,7 +31,6 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
-import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
@@ -493,7 +492,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                     }
                 }
-                if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+                if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
                 {
                     // TODO Add index on multitenancy discriminator
                 }
@@ -630,8 +629,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         constraintStmts.add(indexStmt);
                     }
                 }
-                if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd
-                        .getValueForExtension("multitenancy-disable")))
+                if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
                 {
                     Column column = table.getMultitenancyColumn();
                     String idxName = cmd.getName() + "_TENANCY_IDX";

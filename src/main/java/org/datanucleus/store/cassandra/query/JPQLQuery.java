@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.datanucleus.ExecutionContext;
-import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.ClassMetaData;
@@ -394,9 +393,9 @@ public class JPQLQuery extends AbstractJPQLQuery
             stmtBuilder.append(table.getSchemaName()).append('.').append(table.getName());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
-                String multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
+                String multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec, cmd);
                 stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getName()).append("='").append(multitenancyValue).append("'");
             }
 

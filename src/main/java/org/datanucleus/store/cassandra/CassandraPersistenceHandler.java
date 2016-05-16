@@ -26,7 +26,6 @@ import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
-import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.exceptions.NucleusOptimisticException;
@@ -161,7 +160,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
              * {
              */
             // Create the insert statement ("INSERT INTO <schema>.<table> (COL1,COL2,...) VALUES(?,?,...)")
-            insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName);
+            insertStmt = getInsertStatementForClass(cmd, table, columnValuesByName, ec);
 
             // Cache the statement
             if (insertStatementByClassName == null)
@@ -187,10 +186,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
 
             Object multitenancyValue = null;
-            if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+            if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
                 // Multitenancy discriminator
-                multitenancyValue = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID);
+                multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec, cmd);
             }
 
             int numValues = columnValuesByName.size();
@@ -278,7 +277,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * @param colValuesByName Map of column values keyed by the column name
      * @return The INSERT statement
      */
-    protected String getInsertStatementForClass(AbstractClassMetaData cmd, Table table, Map<String, Object> colValuesByName)
+    protected String getInsertStatementForClass(AbstractClassMetaData cmd, Table table, Map<String, Object> colValuesByName, ExecutionContext ec)
     {
         StringBuilder insertStmtBuilder = new StringBuilder("INSERT INTO ");
         String schemaName = table.getSchemaName();
@@ -338,7 +337,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             numParams++;
         }
 
-        if (storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_TENANT_ID) != null && !"true".equalsIgnoreCase(cmd.getValueForExtension("multitenancy-disable")))
+        if (ec.getNucleusContext().isClassMultiTenant(cmd))
         {
             // Multi-tenancy discriminator
             if (numParams > 0)
