@@ -1085,13 +1085,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
 
         KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
-        NucleusLogger.GENERAL.info(">> checkTableExistence schema=" + schemaName + " table=" + tableName + " ks=" + ks);
         if (ks == null)
         {
             return false;
         }
         TableMetadata table = ks.getTable(tableName);
-        NucleusLogger.GENERAL.info(">> checkTableExistence schema=" + schemaName + " table=" + tableName + " ts=" + ks);
         return table != null;
 /*
         StringBuilder stmtBuilder = new StringBuilder(
@@ -1113,7 +1111,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             throw new NucleusUserException("Schema must be specified in order to check its existence");
         }
         KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
-        NucleusLogger.GENERAL.info(">> checkSchemaExistence schema=" + schemaName + " ks=" + ks);
         return ks != null;
 /*        StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
         NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
@@ -1150,8 +1147,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             String colName = colmd.getName();
             DataType dt = colmd.getType();
-            NucleusLogger.GENERAL.info(">> table=" + tableName + " col=" + colName + " type=" + dt.getName().name());
-            ColumnDetails col = new ColumnDetails(colName, null, dt.getName().name()); // TODO Get index name?
+            String typeName = dt.toString();
+            typeName = StringUtils.replaceAll(typeName, "text", "varchar");
+            typeName = StringUtils.replaceAll(typeName, ", ", ",");
+            ColumnDetails col = new ColumnDetails(colName, null, typeName); // TODO Get index name?
             cols.put(colName, col);
         }
         return cols;
