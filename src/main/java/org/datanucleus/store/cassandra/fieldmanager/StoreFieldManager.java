@@ -475,13 +475,13 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (!mmd.getMap().keyIsPersistent())
                 {
                     Class keyCls = clr.classForName(mmd.getMap().getKeyType());
-                    keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                    keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_KEY, clr);
                 }
                 String valCassType = null;
                 if (!mmd.getMap().valueIsPersistent())
                 {
                     Class valCls = clr.classForName(mmd.getMap().getValueType());
-                    valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                    valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_VALUE, clr);
                 }
                 while (entryIter.hasNext())
                 {
@@ -497,7 +497,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager());
+                        key = CassandraUtils.getDatastoreValueForNonPersistableValue(key, keyCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_MAP_KEY);
                     }
 
                     if (mmd.getMap().valueIsPersistent())
@@ -515,7 +515,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                     else
                     {
-                        val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager());
+                        val = CassandraUtils.getDatastoreValueForNonPersistableValue(val, valCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_MAP_VALUE);
                     }
 
                     idMap.put(key, val);
@@ -575,7 +575,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (Optional.class.isAssignableFrom(mmd.getType()))
             {
                 String cassandraType = mapping.getColumn(0).getTypeName();
-                Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+                Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager(), mmd, FieldRole.ROLE_FIELD);
                 if (datastoreValue != null)
                 {
                     columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
@@ -605,7 +605,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 TypeConverter elemConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_COLLECTION_ELEMENT);
 
                 Class elemCls = clr.classForName(mmd.getCollection().getElementType());
-                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr);
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
                 {
@@ -615,7 +615,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         datastoreValue = elemConv.toDatastoreType(element);
                     }
-                    cassColl.add(CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreValue, elemCassType, false, ec.getTypeManager()));
+                    datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreValue, elemCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_COLLECTION_ELEMENT);
+                    cassColl.add(datastoreValue);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
                 SCOUtils.wrapSCOField(op, fieldNumber, value, true);
@@ -635,9 +636,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                 Iterator<Map.Entry> entryIter = map.entrySet().iterator();
                 Class keyCls = clr.classForName(mmd.getMap().getKeyType());
-                String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_KEY, clr);
                 Class valCls = clr.classForName(mmd.getMap().getValueType());
-                String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_VALUE, clr);
 
                 Map cassMap = new HashMap();
                 while (entryIter.hasNext())
@@ -658,8 +659,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                         datastoreVal = valConv.toDatastoreType(val);
                     }
 
-                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreKey, keyCassType, false, ec.getTypeManager());
-                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreVal, valCassType, false, ec.getTypeManager());
+                    key = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreKey, keyCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_MAP_KEY);
+                    val = CassandraUtils.getDatastoreValueForNonPersistableValue(datastoreVal, valCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_MAP_VALUE);
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
@@ -677,26 +678,25 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (mmd.isSerialized())
                 {
                     String cassandraType = mapping.getColumn(0).getTypeName();
-                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+                    Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager(), mmd, FieldRole.ROLE_FIELD);
                     columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), datastoreValue);
                     return;
                 }
 
                 Collection cassArr = new ArrayList();
                 Class elemCls = clr.classForName(mmd.getArray().getElementType());
-                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_ARRAY_ELEMENT, clr);
                 for (int i = 0; i < Array.getLength(value); i++)
                 {
                     if (mmd.getArray().isSerializedElement())
                     {
                         // TODO Support Serialised elements
-                        throw new NucleusUserException(
-                                "Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
+                        throw new NucleusUserException("Don't currently support serialised array elements at " + mmd.getFullFieldName() + ". Serialise the whole field");
                     }
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
-                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager()));
+                        cassArr.add(CassandraUtils.getDatastoreValueForNonPersistableValue(element, elemCassType, false, ec.getTypeManager(), mmd, FieldRole.ROLE_ARRAY_ELEMENT));
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
@@ -706,7 +706,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
             // TODO What if there are multiple columns?
             String cassandraType = mapping.getColumn(0).getTypeName();
-            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager());
+            Object datastoreValue = CassandraUtils.getDatastoreValueForNonPersistableValue(value, cassandraType, mmd.isSerialized(), ec.getTypeManager(), mmd, FieldRole.ROLE_FIELD);
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);

@@ -28,6 +28,7 @@ import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ColumnMetaData;
+import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityMetaData;
 import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaData;
@@ -45,6 +46,7 @@ import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.store.types.converters.TypeConverterHelper;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
+import org.datanucleus.util.TypeConversionHelper;
 
 /**
  * Implementation of a schema verifier for Cassandra. This class provides a way for the Cassandra plugin to
@@ -244,7 +246,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else
                         {
-                            cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
+                            cqlElementType = mmd.getCollection().isSerializedElement() ? "blob" : 
+                                CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null, mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr);
                         }
 
                         if (List.class.isAssignableFrom(mmd.getType()) || Queue.class.isAssignableFrom(mmd.getType()))
@@ -281,7 +284,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else
                         {
-                            cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null);
+                            cqlKeyType = mmd.getMap().isSerializedKey() ? "blob" : 
+                                CassandraUtils.getCassandraTypeForNonPersistableType(keyType, false, typeMgr, null, mmd, FieldRole.ROLE_MAP_KEY, clr);
                         }
 
                         String cqlValType = null;
@@ -293,7 +297,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else
                         {
-                            cqlValType = mmd.getMap().isSerializedValue() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null);
+                            cqlValType = mmd.getMap().isSerializedValue() ? "blob" : 
+                                CassandraUtils.getCassandraTypeForNonPersistableType(valType, false, typeMgr, null, mmd, FieldRole.ROLE_MAP_VALUE, clr);
                         }
                         type = "map<" + cqlKeyType + "," + cqlValType + ">";
                     }
@@ -301,7 +306,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                     {
                         // NonPC[]
                         Class elementType = clr.classForName(mmd.getArray().getElementType());
-                        String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null);
+                        String cqlElementType = mmd.getArray().isSerializedElement() ? "blob" : 
+                            CassandraUtils.getCassandraTypeForNonPersistableType(elementType, false, typeMgr, null, mmd, FieldRole.ROLE_ARRAY_ELEMENT, clr);
                         type = "list<" + cqlElementType + ">";
                     }
                 }
@@ -364,8 +370,8 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (Enum.class.isAssignableFrom(mmd.getType()))
                         {
-                            // Default to persisting the Enum.ordinal (can use Enum.name if varchar specified above)
-                            type = "int";
+                            JdbcType jdbcType = TypeConversionHelper.getJdbcTypeForEnum(mmd, FieldRole.ROLE_FIELD, clr);
+                            type = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? "int" : "varchar";
                         }
                         else
                         {

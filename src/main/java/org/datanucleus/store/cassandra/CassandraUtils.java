@@ -34,13 +34,17 @@ import java.util.Map;
 import java.util.TimeZone;
 import java.util.UUID;
 
+import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.FetchPlan;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
+import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityType;
+import org.datanucleus.metadata.JdbcType;
+import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.FieldValues;
@@ -52,6 +56,7 @@ import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.TypeConversionHelper;
 
 import com.datastax.driver.core.Row;
 
@@ -286,15 +291,19 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to return the Cassandra type that we would store the provided type as. Note that
-     * this does not support container (Collection, Map) types just single value types.
+     * Convenience method to return the Cassandra type that we would store the provided type as. 
+     * Note that this does not support container (Collection, Map) types just single value types.
      * @param type The java type
      * @param serialised Whether it should be serialised
      * @param typeMgr The type manager
      * @param jdbcType Any jdbc-type that has been specified to take into account
+     * @param mmd The field/property that this is for
+     * @param role The role of the field that this value represents (i.e whole field, collection element, map key, etc)
+     * @param clr ClassLoader resolver
      * @return The Cassandra type
      */
-    public static String getCassandraTypeForNonPersistableType(Class type, boolean serialised, TypeManager typeMgr, String jdbcType)
+    public static String getCassandraTypeForNonPersistableType(Class type, boolean serialised, TypeManager typeMgr, String jdbcType, AbstractMemberMetaData mmd, FieldRole role,
+            ClassLoaderResolver clr)
     {
         String cTypeName = cassandraTypeByJavaType.get(type.getName());
         if (cTypeName != null)
@@ -307,11 +316,20 @@ public class CassandraUtils
         }
         else if (Enum.class.isAssignableFrom(type))
         {
-            if (jdbcType != null && jdbcType.equalsIgnoreCase("varchar"))
+            if (jdbcType != null)
             {
-                return "varchar";
+                if (jdbcType.equalsIgnoreCase("varchar"))
+                {
+                    return "varchar";
+                }
+                return "int";
             }
-            return "int";
+            JdbcType enumJdbcType = TypeConversionHelper.getJdbcTypeForEnum(mmd, role, clr);
+            if (MetaDataUtils.isJdbcTypeNumeric(enumJdbcType))
+            {
+                return "int";
+            }
+            return "varchar";
         }
 
         // No direct mapping, so find a converter
@@ -345,9 +363,11 @@ public class CassandraUtils
      * @param datastoreType Cassandra column type
      * @param serialised Whether the value is to be stored serialised
      * @param typeMgr Type Manager
+     * @param mmd The field/property that this is for
+     * @param role The role of the field that this value represents (i.e whole field, collection element, map key, etc)
      * @return The value to be stored
      */
-    public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr)
+    public static Object getDatastoreValueForNonPersistableValue(Object value, String datastoreType, boolean serialised, TypeManager typeMgr, AbstractMemberMetaData mmd, FieldRole role)
     {
         // TODO Support TypeManager autoApply type converter
         if (value == null)
@@ -418,12 +438,12 @@ public class CassandraUtils
         }
         else if (value instanceof Enum)
         {
-            // Persist as ordinal unless user specifies jdbc-type of "varchar"
-            if (datastoreType.equals("varchar"))
+            Object datastoreValue = TypeConversionHelper.getStoredValueFromEnum(mmd, role, (Enum)value);
+            if (datastoreValue instanceof Number)
             {
-                return ((Enum) value).name();
+                return ((Number)datastoreValue).intValue();
             }
-            return ((Enum) value).ordinal();
+            return datastoreValue;
         }
         else if (value instanceof Calendar)
         {

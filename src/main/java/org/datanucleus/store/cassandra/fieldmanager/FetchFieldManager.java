@@ -57,6 +57,7 @@ import org.datanucleus.store.types.SCOUtils;
 import org.datanucleus.store.types.converters.MultiColumnConverter;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
+import org.datanucleus.util.TypeConversionHelper;
 
 import com.datastax.driver.core.Row;
 
@@ -452,7 +453,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter elemConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_COLLECTION_ELEMENT);
 
                     Class elemCls = clr.classForName(mmd.getCollection().getElementType());
-                    String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null);
+                    String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr);
                     Class cassElemCls = CassandraUtils.getJavaTypeForCassandraType(elemCassType);
 
                     Collection cassColl = null;
@@ -528,10 +529,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     TypeConverter valConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_MAP_VALUE);
 
                     Class keyCls = clr.classForName(mmd.getMap().getKeyType());
-                    String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null);
+                    String keyCassType = CassandraUtils.getCassandraTypeForNonPersistableType(keyCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_KEY, clr);
                     Class cassKeyCls = CassandraUtils.getJavaTypeForCassandraType(keyCassType);
                     Class valCls = clr.classForName(mmd.getMap().getValueType());
-                    String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null);
+                    String valCassType = CassandraUtils.getCassandraTypeForNonPersistableType(valCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_MAP_VALUE, clr);
                     Class cassValCls = CassandraUtils.getJavaTypeForCassandraType(valCassType);
 
                     Map cassMap = row.getMap(mapping.getColumn(0).getName(), cassKeyCls, cassValCls);
@@ -678,15 +679,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (Enum.class.isAssignableFrom(type))
             {
-                // Persist as ordinal unless user specifies jdbc-type of "varchar"
-                if (mapping.getColumn(0).getTypeName().equals("varchar"))
-                {
-                    value = Enum.valueOf(type, row.getString(mapping.getColumn(0).getName()));
-                }
-                else
-                {
-                    value = type.getEnumConstants()[row.getInt(mapping.getColumn(0).getName())];
-                }
+                JdbcType jdbcType = TypeConversionHelper.getJdbcTypeForEnum(mmd, FieldRole.ROLE_FIELD, clr);
+                Object datastoreValue = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? row.getInt(mapping.getColumn(0).getName()) : row.getString(mapping.getColumn(0).getName());
+                value = TypeConversionHelper.getEnumForStoredValue(mmd, FieldRole.ROLE_FIELD, datastoreValue, clr);
             }
             else if (java.sql.Date.class.isAssignableFrom(type))
             {

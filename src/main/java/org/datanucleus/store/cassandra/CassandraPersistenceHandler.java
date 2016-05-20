@@ -36,6 +36,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.DiscriminatorStrategy;
 import org.datanucleus.metadata.FieldPersistenceModifier;
+import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
@@ -551,7 +552,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     else
                     {
                         String cassandraType = pkCol.getTypeName();
-                        setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                        setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, ec.getTypeManager(),
+                            pkMmd, FieldRole.ROLE_FIELD));
                     }
                 }
             }
@@ -560,7 +562,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 stmtBuilder.append(table.getDatastoreIdColumn().getName());
                 stmtBuilder.append("=?");
                 Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
-                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, storeMgr.getNucleusContext().getTypeManager()));
+                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, ec.getTypeManager(), null, FieldRole.ROLE_FIELD));
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
@@ -1197,7 +1199,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         String cassandraType = table.getMemberColumnMappingForMember(pkMmd).getColumn(0).getTypeName();
                         // TODO Cater for field mapped to multiple columns
-                        pkVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(fieldVal, cassandraType, false, storeMgr.getNucleusContext().getTypeManager()));
+                        pkVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(fieldVal, cassandraType, false, storeMgr.getNucleusContext().getTypeManager(), 
+                            pkMmd, FieldRole.ROLE_FIELD));
                     }
                 }
             }
