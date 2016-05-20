@@ -104,7 +104,7 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(BigInteger.class.getName(), "bigint");
         cassandraTypeByJavaType.put(Date.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Time.class.getName(), "timestamp");
-        cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "timestamp");
+        cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "timestamp"); // Use "date"?
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
@@ -161,7 +161,7 @@ public class CassandraUtils
         }
         else if (column.getTypeName().equals("timestamp"))
         {
-            return typeConv.toMemberType(row.getDate(column.getName()));
+            return typeConv.toMemberType(row.getTimestamp(column.getName()));
         }
         else if (column.getTypeName().equals("blob"))
         {
@@ -790,8 +790,7 @@ public class CassandraUtils
                 }
             }
         }
-        return new ResultClassInfo(resultClassFields.values().toArray(new Field[0]), resultClassFieldNames.values().toArray(new String[0]),
-                fieldsMatchingColumnIndexes);
+        return new ResultClassInfo(resultClassFields.values().toArray(new Field[0]), resultClassFieldNames.values().toArray(new String[0]), fieldsMatchingColumnIndexes);
     }
 
     /**
@@ -840,7 +839,7 @@ public class CassandraUtils
                 }
                 else if (colType == DataType.timestamp())
                 {
-                    resultRow[i] = row.getDate(i);
+                    resultRow[i] = row.getTimestamp(i);
                 }
                 else if (colType == DataType.varint())
                 {

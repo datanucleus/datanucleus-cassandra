@@ -53,10 +53,11 @@ import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
+import com.datastax.driver.core.ColumnMetadata;
+import com.datastax.driver.core.DataType;
+import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.TableMetadata;
 
 /**
  * Handler for schema management with Cassandra. Supports the following metadata extensions
@@ -1082,6 +1083,17 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its existence");
         }
+
+        KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
+        NucleusLogger.GENERAL.info(">> checkTableExistence schema=" + schemaName + " table=" + tableName + " ks=" + ks);
+        if (ks == null)
+        {
+            return false;
+        }
+        TableMetadata table = ks.getTable(tableName);
+        NucleusLogger.GENERAL.info(">> checkTableExistence schema=" + schemaName + " table=" + tableName + " ts=" + ks);
+        return table != null;
+/*
         StringBuilder stmtBuilder = new StringBuilder(
                 "SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableExistence", tableName, stmtBuilder.toString()));
@@ -1091,7 +1103,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             return true;
         }
-        return false;
+        return false;*/
     }
 
     public static boolean checkSchemaExistence(Session session, SessionStatementProvider stmtProvider, String schemaName)
@@ -1100,7 +1112,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             throw new NucleusUserException("Schema must be specified in order to check its existence");
         }
-        StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
+        KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
+        NucleusLogger.GENERAL.info(">> checkSchemaExistence schema=" + schemaName + " ks=" + ks);
+        return ks != null;
+/*        StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
         NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
@@ -1108,7 +1123,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             return true;
         }
-        return false;
+        return false;*/
     }
 
     /**
@@ -1126,12 +1141,26 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             throw new NucleusUserException("Schema must be specified for table=" + tableName + " in order to check its structure");
         }
+
+        Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
+        KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
+        TableMetadata table = ks.getTable(tableName);
+        List<ColumnMetadata> colmds = table.getColumns();
+        for (ColumnMetadata colmd : colmds)
+        {
+            String colName = colmd.getName();
+            DataType dt = colmd.getType();
+            NucleusLogger.GENERAL.info(">> table=" + tableName + " col=" + colName + " type=" + dt.getName().name());
+            ColumnDetails col = new ColumnDetails(colName, null, dt.getName().name()); // TODO Get index name?
+            cols.put(colName, col);
+        }
+        return cols;
+/*
         StringBuilder stmtBuilder = new StringBuilder(
                 "SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
         NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableStructure", tableName, stmtBuilder.toString()));
         PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
         ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
-        Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
         Iterator<Row> iter = rs.iterator();
         while (iter.hasNext())
         {
@@ -1175,7 +1204,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             ColumnDetails col = new ColumnDetails(colName, row.getString("index_name"), typeName);
             cols.put(colName, col);
         }
-        return cols;
+        return cols;*/
     }
 
     public static class ColumnDetails

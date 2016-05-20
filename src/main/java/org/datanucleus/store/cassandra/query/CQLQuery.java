@@ -42,8 +42,7 @@ import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.types.converters.TypeConverter;
 
 /**
- * CQL query for Cassandra. Allows the user to execute a CQL query and return the results in the form
- * "List&lt;Object[]&gt;".
+ * CQL query for Cassandra. Allows the user to execute a CQL query and return the results in the form "List&lt;Object[]&gt;".
  */
 public class CQLQuery extends AbstractJavaQuery
 {
@@ -128,7 +127,8 @@ public class CQLQuery extends AbstractJavaQuery
                     NucleusLogger.QUERY.debug(Localiser.msg("021046", "CQL", getSingleStringQuery(), null));
                 }
 
-                Statement stmt = new SimpleStatement(cql);
+                Statement stmt = new SimpleStatement(cql); // Datastax 2.1/3.0
+//                Statement stmt = session.newSimpleStatement(cql); // Datastax 2.2!
                 int fetchSize = this.getFetchPlan().getFetchSize();
                 if (0 < fetchSize)
                 {
@@ -136,19 +136,14 @@ public class CQLQuery extends AbstractJavaQuery
                 }
                 ResultSet rs = session.execute(stmt);
 
-                // Datanucleus favors usage of byte[] as POJO for blob
-                // dataStoreType
-                // Cassandra datastax driver uses ByteBuffer for blob
-                // dataStoreType
-                TypeConverter typeConverter = storeMgr.getNucleusContext().getTypeManager()
-                        .getTypeConverterForType(byte[].class, ByteBuffer.class);
+                // Datanucleus favours usage of byte[] as POJO for blob dataStoreType, Cassandra datastax driver uses ByteBuffer for blob dataStoreType
+                TypeConverter typeConverter = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(byte[].class, ByteBuffer.class);
                 Class resultClazz = this.getResultClass();
 
                 ResultClassInfo rci = null;
-                if (null != resultClazz)
+                if (resultClazz != null)
                 {
                     rci = CassandraUtils.getResultClassInfoFromColumnDefinitions(resultClazz, rs.getColumnDefinitions());
-
                 }
 
                 CassandraQueryResult queryResult = new CassandraQueryResult(this, rs);
@@ -160,14 +155,12 @@ public class CQLQuery extends AbstractJavaQuery
                     Object[] rowResult;
                     if (null != rci)
                     {
-                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(),
-                            rci.getFieldsMatchingColumnIndexes(), typeConverter, rci.getFields().length);
+                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), rci.getFieldsMatchingColumnIndexes(), typeConverter, rci.getFields().length);
                         results.add(getResultWithQueryUtils(rowResult, rci));
                     }
                     else
                     {
-                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), new ArrayList<Integer>(),
-                            typeConverter, rs.getColumnDefinitions().size());
+                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), new ArrayList<Integer>(), typeConverter, rs.getColumnDefinitions().size());
                         results.add(rowResult);// get raw result as Object[]
                     }
                 }
@@ -183,7 +176,6 @@ public class CQLQuery extends AbstractJavaQuery
             {
                 mconn.release();
             }
-
         }
         else if (type == QueryType.BULK_DELETE || type == QueryType.BULK_UPDATE)
         {
@@ -195,12 +187,10 @@ public class CQLQuery extends AbstractJavaQuery
             // TODO
             throw new UnsupportedOperationException("Not yet implemented");
         }
-
     }
 
     private Object getResultWithQueryUtils(Object[] result, ResultClassInfo rci)
     {
         return QueryUtils.createResultObjectUsingDefaultConstructorAndSetters(resultClass, rci.getFieldNames(), rci.getFields(), result);
     }
-
 }

@@ -373,7 +373,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         }
                         else if (col.getTypeName().equals("timestamp"))
                         {
-                            Array.set(valuesArr, i, row.getDate(col.getName()));
+                            Array.set(valuesArr, i, row.getTimestamp(col.getName()));
                         }
                         else if (col.getTypeName().equals("decimal"))
                         {
@@ -696,7 +696,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 else
                 {
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Date(row.getDate(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Date(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
                 }
             }
             else if (java.sql.Time.class.isAssignableFrom(type))
@@ -712,7 +712,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 else
                 {
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Time(row.getDate(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Time(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
                 }
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(type))
@@ -728,7 +728,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 else
                 {
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Timestamp(row.getDate(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Timestamp(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
                 }
             }
             else if (Calendar.class.isAssignableFrom(type))
@@ -745,7 +745,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // TODO Support Calendar with multiple columns and do via TypeConverter
                     Calendar cal = Calendar.getInstance();
-                    cal.setTime(row.getDate(mapping.getColumn(0).getName()));
+                    cal.setTime(row.getTimestamp(mapping.getColumn(0).getName()));
                     value = cal;
                 }
             }
@@ -761,7 +761,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else
                 {
-                    value = row.getDate(mapping.getColumn(0).getName());
+                    value = new java.util.Date(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
                 }
             }
             else if (UUID.class.isAssignableFrom(type))
