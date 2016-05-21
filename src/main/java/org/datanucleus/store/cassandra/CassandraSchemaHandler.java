@@ -22,6 +22,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -55,6 +56,7 @@ import org.datanucleus.util.StringUtils;
 
 import com.datastax.driver.core.ColumnMetadata;
 import com.datastax.driver.core.DataType;
+import com.datastax.driver.core.IndexMetadata;
 import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.TableMetadata;
@@ -383,8 +385,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForClassWithMultipleColumns",
-                                    theCmd.getFullClassName()));
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForClassWithMultipleColumns", theCmd.getFullClassName()));
                             }
                             else
                             {
@@ -417,16 +418,16 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     IndexMetaData idxmd = mapping.getMemberMetaData().getIndexMetaData();
                     if (idxmd != null)
                     {
-                        String[] colNames = idxmd.getColumnNames();
-                        if (colNames.length > 1)
+                        Column[] cols = mapping.getColumns();
+                        if (cols != null)
                         {
-                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", mapping.getMemberMetaData().getFullFieldName()));
-                        }
-                        else
-                        {
-                            if (mapping.getNumberOfColumns() == 1)
+                            if (cols.length > 1)
                             {
-                                Column column = mapping.getColumn(0);
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexForMemberWithMultipleColumns", mapping.getMemberMetaData().getFullFieldName()));
+                            }
+                            else if (cols.length == 1)
+                            {
+                                Column column = cols[0];
                                 ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
                                 String idxName = namingFactory.getConstraintName(cmd.getName(), mapping.getMemberMetaData(), idxmd);
                                 if (colDetails == null)
@@ -437,7 +438,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 }
                                 else
                                 {
-                                    if (!idxName.equals(colDetails.indexName))
+                                    if (!idxName.equalsIgnoreCase(colDetails.indexName))
                                     {
                                         NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
                                     }
@@ -1091,17 +1092,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         TableMetadata table = ks.getTable(tableName);
         return table != null;
-/*
-        StringBuilder stmtBuilder = new StringBuilder(
-                "SELECT columnfamily_name FROM System.schema_columnfamilies WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableExistence", tableName, stmtBuilder.toString()));
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
-        if (!rs.isExhausted())
-        {
-            return true;
-        }
-        return false;*/
     }
 
     public static boolean checkSchemaExistence(Session session, SessionStatementProvider stmtProvider, String schemaName)
@@ -1112,15 +1102,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         }
         KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
         return ks != null;
-/*        StringBuilder stmtBuilder = new StringBuilder("SELECT keyspace_name FROM system.schema_keyspaces WHERE keyspace_name=?;");
-        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckSchemaExistence", schemaName, stmtBuilder.toString()));
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase()));
-        if (!rs.isExhausted())
-        {
-            return true;
-        }
-        return false;*/
     }
 
     /**
@@ -1143,67 +1124,36 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         KeyspaceMetadata ks = session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
         TableMetadata table = ks.getTable(tableName);
         List<ColumnMetadata> colmds = table.getColumns();
-        for (ColumnMetadata colmd : colmds)
+        if (colmds != null)
         {
-            String colName = colmd.getName();
-            DataType dt = colmd.getType();
-            String typeName = dt.toString();
-            typeName = StringUtils.replaceAll(typeName, "text", "varchar");
-            typeName = StringUtils.replaceAll(typeName, ", ", ",");
-            ColumnDetails col = new ColumnDetails(colName, null, typeName); // TODO Get index name?
-            cols.put(colName, col);
+            // Populate ColumnDetails for the columns present
+            for (ColumnMetadata colmd : colmds)
+            {
+                String colName = colmd.getName();
+                DataType dt = colmd.getType();
+                String typeName = dt.toString();
+                typeName = StringUtils.replaceAll(typeName, "text", "varchar"); // Put all "text" as "varchar" since using that internally
+                typeName = StringUtils.replaceAll(typeName, ", ", ","); // Omit space from any multi-dimension specifications e.g "map<type1, type2>"
+                ColumnDetails col = new ColumnDetails(colName, null, typeName); // TODO Get index name?
+                cols.put(colName, col);
+            }
+        }
+
+        // Append any index information. TODO Note that the return from this method ignores class-level indexes.
+        Collection<IndexMetadata> idxmds = table.getIndexes();
+        if (idxmds != null)
+        {
+            for (IndexMetadata idxmd : idxmds)
+            {
+                String idxTarget = idxmd.getTarget();
+                ColumnDetails colDetails = cols.get(idxTarget);
+                if (colDetails != null)
+                {
+                    colDetails.indexName = idxmd.getName();
+                }
+            }
         }
         return cols;
-/*
-        StringBuilder stmtBuilder = new StringBuilder(
-                "SELECT column_name, index_name, validator FROM system.schema_columns WHERE keyspace_name=? AND columnfamily_name=?");
-        NucleusLogger.DATASTORE_SCHEMA.debug(Localiser.msg("Cassandra.Schema.CheckTableStructure", tableName, stmtBuilder.toString()));
-        PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-        ResultSet rs = session.execute(stmt.bind(schemaName.toLowerCase(), tableName.toLowerCase()));
-        Iterator<Row> iter = rs.iterator();
-        while (iter.hasNext())
-        {
-            Row row = iter.next();
-            String typeName = null;
-            String validator = row.getString("validator");
-            if (validator.indexOf("LongType") >= 0)
-            {
-                typeName = "bigint";
-            }
-            else if (validator.indexOf("IntegerType") >= 0 || validator.indexOf("Int32Type") >= 0)
-            {
-                typeName = "int";
-            }
-            else if (validator.indexOf("DoubleType") >= 0)
-            {
-                typeName = "double";
-            }
-            else if (validator.indexOf("DecimalType") >= 0)
-            {
-                typeName = "decimal";
-            }
-            else if (validator.indexOf("FloatType") >= 0)
-            {
-                typeName = "float";
-            }
-            else if (validator.indexOf("BooleanType") >= 0)
-            {
-                typeName = "boolean";
-            }
-            else if (validator.indexOf("DateType") >= 0)
-            {
-                typeName = "timestamp";
-            }
-            else if (validator.indexOf("UTF8") >= 0)
-            {
-                typeName = "varchar";
-            }
-            // TODO Include other types
-            String colName = row.getString("column_name");
-            ColumnDetails col = new ColumnDetails(colName, row.getString("index_name"), typeName);
-            cols.put(colName, col);
-        }
-        return cols;*/
     }
 
     public static class ColumnDetails
