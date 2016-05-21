@@ -203,9 +203,8 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
         try
         {
             Session session = (Session) mconn.getConnection();
-            SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
 
-            if (CassandraSchemaHandler.checkTableExistence(session, stmtProvider, getSchemaName(), tableName))
+            if (CassandraSchemaHandler.getTableMetadata(session, getSchemaName(), tableName) != null)
             {
                 // Already exists
                 repositoryExists = true;
