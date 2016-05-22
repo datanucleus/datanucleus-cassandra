@@ -23,11 +23,9 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
@@ -63,10 +61,8 @@ import com.datastax.driver.core.TableMetadata;
 /**
  * Handler for schema management with Cassandra. Supports the following metadata extensions
  * <ul>
- * <li>ClassMetaData extension "cassandra.createTable.options" specifies any OPTIONS for a CREATE TABLE
- * statement (comma-separated value if wanting multiple options)</li>
- * <li>IndexMetaData extension "cassandra.createIndex.using" specifies any USING clause for a CREATE INDEX
- * statement</li>
+ * <li>ClassMetaData extension "cassandra.createTable.options" specifies any OPTIONS for a CREATE TABLE statement (comma-separated value if wanting multiple options)</li>
+ * <li>IndexMetaData extension "cassandra.createIndex.using" specifies any USING clause for a CREATE INDEX statement</li>
  * </ul>
  */
 public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
@@ -366,8 +362,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
             if (isAutoCreateConstraints())
             {
-                Map<String, ColumnDetails> tableStructure = getColumnDetailsForTable(tmd);
-
                 // Class-level indexes
                 NamingFactory namingFactory = storeMgr.getNamingFactory();
                 AbstractClassMetaData theCmd = cmd;
@@ -386,19 +380,27 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                ColumnDetails colDetails = tableStructure.get(colNames[0]);
                                 String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
-                                if (colDetails == null)
+                                ColumnMetadata dbColMd = getColumnMetadataForColumnName(tmd, colNames[0]);
+                                if (dbColMd == null)
                                 {
-                                    // Add index
+                                    // Column will have been added above, so add the index
                                     String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
                                 {
-                                    if (!idxName.equals(colDetails.indexName))
+                                    IndexMetadata dbIdxMdForCol = getIndexMetadataForColumn(tmd, colNames[0]);
+                                    if (dbIdxMdForCol == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                        // Index doesn't yet exist
+                                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
+                                        constraintStmts.add(indexStmt);
+                                    }
+                                    else if (!idxName.equals(dbIdxMdForCol.getName()))
+                                    {
+                                        // Index has wrong name!
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMdForCol.getName()));
                                     }
                                 }
                             }
@@ -425,19 +427,27 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             else if (cols.length == 1)
                             {
                                 Column column = cols[0];
-                                ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
+                                ColumnMetadata dbColMd = getColumnMetadataForColumn(tmd, column);
                                 String idxName = namingFactory.getConstraintName(cmd.getName(), mapping.getMemberMetaData(), idxmd);
-                                if (colDetails == null)
+                                if (dbColMd == null)
                                 {
-                                    // Add index
+                                    // Column will have been added above, so add the index
                                     String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), idxmd);
                                     constraintStmts.add(indexStmt);
                                 }
                                 else
                                 {
-                                    if (!idxName.equalsIgnoreCase(colDetails.indexName))
+                                    IndexMetadata dbIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                                    if (dbIdxMd == null)
                                     {
-                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                        // Index doesn't yet exist
+                                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), idxmd);
+                                        constraintStmts.add(indexStmt);
+                                    }
+                                    else if (!idxName.equalsIgnoreCase(dbIdxMd.getName()))
+                                    {
+                                        // Index has wrong name!
+                                        NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
                                     }
                                 }
                             }
@@ -451,42 +461,57 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     if (vermd.getIndexMetaData() != null)
                     {
                         Column column = table.getVersionColumn();
-                        ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                        if (colDetails == null)
+                        ColumnMetadata dbVerColMd = getColumnMetadataForColumn(tmd, column);
+                        String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
+                        if (dbVerColMd == null)
                         {
-                            String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
                             String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
                         {
-                            String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
-                            if (!idxName.equals(colDetails.indexName))
+                            IndexMetadata dbVerIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                            if (dbVerIdxMd == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                // Index doesn't yet exist
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
+                                constraintStmts.add(indexStmt);
+                            }
+                            else if (!idxName.equals(dbVerIdxMd.getName()))
+                            {
+                                // Index has wrong name!
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbVerIdxMd.getName()));
                             }
                         }
                     }
                 }
+
                 if (cmd.hasDiscriminatorStrategy())
                 {
                     DiscriminatorMetaData dismd = cmd.getDiscriminatorMetaData();
                     if (dismd.getIndexMetaData() != null)
                     {
                         Column column = table.getDiscriminatorColumn();
-                        ColumnDetails colDetails = getColumnDetailsForColumn(column, tableStructure);
-                        if (colDetails == null)
+                        ColumnMetadata dbDiscColMd = getColumnMetadataForColumn(tmd, column);
+                        String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
+                        if (dbDiscColMd == null)
                         {
-                            String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
                             String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
                             constraintStmts.add(indexStmt);
                         }
                         else
                         {
-                            String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
-                            if (!idxName.equals(colDetails.indexName))
+                            IndexMetadata dbDiscIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                            if (dbDiscIdxMd == null)
                             {
-                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                // Index doesn't yet exist
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
+                                constraintStmts.add(indexStmt);
+                            }
+                            else if (!idxName.equals(dbDiscIdxMd.getName()))
+                            {
+                                // Index has wrong name!
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbDiscIdxMd.getName()));
                             }
                         }
                     }
@@ -974,7 +999,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     }
 
                     // Check class-level indexes
-                    Map<String, ColumnDetails> tableStructure = getColumnDetailsForTable(tmd);
                     AbstractClassMetaData theCmd = cmd;
                     while (theCmd != null)
                     {
@@ -987,17 +1011,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String[] colNames = idxmd.getColumnNames();
                                 if (colNames.length == 1)
                                 {
-                                    ColumnDetails colDetails = tableStructure.get(colNames[0].toLowerCase());
+                                    ColumnMetadata dbColMd = getColumnMetadataForColumnName(tmd, colNames[0].toLowerCase());
+                                    IndexMetadata dbIdxMd = getIndexMetadataForColumn(tmd, colNames[0].toLowerCase());
                                     String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
-                                    if (colDetails == null || colDetails.indexName == null)
+                                    if (dbColMd == null || dbIdxMd == null)
                                     {
                                         NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colNames[0]));
                                     }
                                     else
                                     {
-                                        if (!idxName.equals(colDetails.indexName))
+                                        if (!idxName.equals(dbIdxMd.getName()))
                                         {
-                                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
                                         }
                                     }
                                 }
@@ -1015,17 +1040,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         if (idxmd != null)
                         {
                             String colName = namingFactory.getColumnName(mmd, ColumnType.COLUMN);
-                            ColumnDetails colDetails = tableStructure.get(colName.toLowerCase());
+                            ColumnMetadata dbColMd = getColumnMetadataForColumnName(tmd, colName.toLowerCase());
+                            IndexMetadata dbIdxMd = getIndexMetadataForColumn(tmd, colName.toLowerCase());
                             String idxName = namingFactory.getConstraintName(null, mmd, idxmd);
-                            if (colDetails == null || colDetails.indexName == null)
+                            if (dbColMd == null || dbIdxMd == null)
                             {
                                 NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colName));
                             }
                             else
                             {
-                                if (!idxName.equals(colDetails.indexName))
+                                if (!idxName.equals(dbIdxMd.getName()))
                                 {
-                                    NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, colDetails.indexName));
+                                    NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
                                 }
                             }
                         }
@@ -1101,6 +1127,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
     protected ColumnMetadata getColumnMetadataForColumn(TableMetadata tmd, Column col)
     {
         String colName = col.getName();
+        return getColumnMetadataForColumnName(tmd, colName);
+    }
+
+    protected ColumnMetadata getColumnMetadataForColumnName(TableMetadata tmd, String colName)
+    {
         if (colName.startsWith("\""))
         {
             // Remove any quotes if the identifier is quoted since table structure will not have quotes
@@ -1109,76 +1140,20 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return tmd.getColumn(colName);
     }
 
-    /**
-     * Method to return the datastore structure for the specified table name in the specified schema. 
-     * The returned structure is a map of column details, keyed by the column name.
-     * TODO Drop this and use IndexMetadata directly in calling methods
-     * @param session The session
-     * @param schemaName Name of the schema
-     * @param tableName Name of the table
-     * @return The table structure map
-     */
-    public Map<String, ColumnDetails> getColumnDetailsForTable(TableMetadata tmd)
+    protected IndexMetadata getIndexMetadataForColumn(TableMetadata tmd, String colName)
     {
-        if (tmd == null)
-        {
-            throw new NucleusUserException("TableMetadata must be specified in order to check table structure");
-        }
-
-        Map<String, ColumnDetails> cols = new HashMap<String, ColumnDetails>();
-        List<ColumnMetadata> colmds = tmd.getColumns();
-        if (colmds != null)
-        {
-            // Populate ColumnDetails for the columns present
-            for (ColumnMetadata colmd : colmds)
-            {
-                String colName = colmd.getName();
-                ColumnDetails col = new ColumnDetails(colName, null, getTypeNameForColumn(colmd));
-                cols.put(colName, col);
-            }
-        }
-
-        // Append any index information. TODO Note that the return from this method ignores class-level indexes.
         Collection<IndexMetadata> idxmds = tmd.getIndexes();
         if (idxmds != null)
         {
             for (IndexMetadata idxmd : idxmds)
             {
-                String idxTarget = idxmd.getTarget();
-                ColumnDetails colDetails = cols.get(idxTarget);
-                if (colDetails != null)
+                String dbIdxTarget = idxmd.getTarget();
+                if (dbIdxTarget != null && dbIdxTarget.equals(colName))
                 {
-                    colDetails.indexName = idxmd.getName();
+                    return idxmd;
                 }
             }
         }
-        return cols;
-    }
-
-    public static class ColumnDetails
-    {
-        String name;
-
-        String indexName;
-
-        String typeName;
-
-        public ColumnDetails(String name, String idxName, String typeName)
-        {
-            this.name = name;
-            this.indexName = idxName;
-            this.typeName = typeName;
-        }
-    }
-
-    private ColumnDetails getColumnDetailsForColumn(Column col, Map<String, ColumnDetails> tableStructure)
-    {
-        String colName = col.getName();
-        if (colName.startsWith("\""))
-        {
-            // Remove any quotes if the identifier is quoted since table structure will not have quotes
-            colName = colName.substring(1, colName.length() - 1);
-        }
-        return tableStructure.get(colName);
+        return null;
     }
 }
