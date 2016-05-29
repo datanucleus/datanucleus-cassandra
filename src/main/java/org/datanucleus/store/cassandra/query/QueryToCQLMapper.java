@@ -279,7 +279,6 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                         DyadicExpression updateExpr = (DyadicExpression)updateExprs[i];
                         Expression leftExpr = updateExpr.getLeft();
                         Expression rightExpr = updateExpr.getRight();
-                        NucleusLogger.GENERAL.info(">> compileUpdate left=" + leftExpr + " right=" + rightExpr);
 
                         CassandraExpression left = null;
                         if (updateExpr.getLeft() instanceof PrimaryExpression)
@@ -292,7 +291,6 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                         {
                             throw new NucleusException("Dont currently support update clause containing left expression of type " + leftExpr);
                         }
-                        NucleusLogger.GENERAL.info(">> compileUpdate leftCql=" + left);
 
                         if (left != null)
                         {
