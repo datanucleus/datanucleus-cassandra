@@ -352,7 +352,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         insertStmtBuilder.append(") ");
 
         // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.insert.using')
-        String[] options = cmd.getValuesForExtension("cassandra.insert.using");
+        String[] options = cmd.getValuesForExtension(CassandraStoreManager.EXTENSION_CASSANDRA_INSERT_USING);
         if (options != null && options.length > 0)
         {
             insertStmtBuilder.append("USING ");
@@ -467,7 +467,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             stmtBuilder.append(table.getName());
 
             // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.update.using')
-            String[] options = cmd.getValuesForExtension("cassandra.update.using");
+            String[] options = cmd.getValuesForExtension(CassandraStoreManager.EXTENSION_CASSANDRA_UPDATE_USING);
             if (options != null && options.length > 0)
             {
                 stmtBuilder.append(" USING ");
@@ -635,9 +635,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     stmtBuilder.append(schemaName).append('.');
                 }
 
-                // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with
-                // key='cassandra.delete.using')
-                String[] options = cmd.getValuesForExtension("cassandra.delete.using");
+                // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.delete.using')
+                String[] options = cmd.getValuesForExtension(CassandraStoreManager.EXTENSION_CASSANDRA_DELETE_USING);
                 if (options != null && options.length > 0)
                 {
                     stmtBuilder.append(" USING ");

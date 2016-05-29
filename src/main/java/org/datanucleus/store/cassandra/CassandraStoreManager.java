@@ -49,6 +49,13 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 {
     public static final String PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION = "datanucleus.cassandra.enforceUniquenessInApplication";
 
+    /** Comma separated USING clause for INSERTS. */
+    public static final String EXTENSION_CASSANDRA_INSERT_USING = "cassandra.insert.using"; // TODO Make this "datanucleus."
+    /** Comma separated USING clause for UPDATES. */
+    public static final String EXTENSION_CASSANDRA_UPDATE_USING = "cassandra.update.using"; // TODO Make this "datanucleus."
+    /** Comma separated USING clause for DELETES. */
+    public static final String EXTENSION_CASSANDRA_DELETE_USING = "cassandra.delete.using"; // TODO Make this "datanucleus."
+
     static
     {
         Localiser.registerBundle("org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
@@ -114,7 +121,9 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         set.add(StoreManager.OPTION_ORM_SERIALISED_PC);
         set.add(StoreManager.OPTION_DATASTORE_TIME_STORES_MILLISECS);
         set.add(StoreManager.OPTION_QUERY_JDOQL_BULK_DELETE);
+//        set.add(StoreManager.OPTION_QUERY_JDOQL_BULK_UPDATE);
         set.add(StoreManager.OPTION_QUERY_JPQL_BULK_DELETE);
+//        set.add(StoreManager.OPTION_QUERY_JPQL_BULK_UPDATE);
         return set;
     }
 

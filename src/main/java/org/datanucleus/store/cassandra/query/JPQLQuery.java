@@ -228,8 +228,17 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
 
             boolean filterInMemory = (filter != null);
+            if (filter == null || datastoreCompilation.isFilterComplete())
+            {
+                filterInMemory = false;
+            }
             Boolean orderInMemory = (ordering != null);
+            if (ordering == null || datastoreCompilation.isOrderComplete())
+            {
+                orderInMemory = false;
+            }
             Boolean rangeInMemory = (range != null);
+
             List candidates = null;
             if (candidateCollection != null)
             {
@@ -241,8 +250,14 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
             else
             {
-                if (filter != null && datastoreCompilation.isFilterComplete())
+                if (filterInMemory || (filter == null && (type == QueryType.BULK_UPDATE || type == QueryType.BULK_DELETE)))
                 {
+                    // Bulk update/delete without a filter cannot be done in datastore, or filter not evaluatable in datastore : get candidates
+                    candidates = getCandidatesForQuery(session);
+                }
+                else
+                {
+                    // Try to execute in the datastore, for the candidate + subclasses
                     candidates = new ArrayList();
                     Set<String> classNamesQueryable = datastoreCompilation.getClassNames();
                     for (String className : classNamesQueryable)
@@ -250,7 +265,6 @@ public class JPQLQuery extends AbstractJPQLQuery
                         String cql = datastoreCompilation.getCQLForClass(className);
                         AbstractClassMetaData cmd = ec.getMetaDataManager().getMetaDataForClass(className, clr);
 
-                        // Execute the SELECT
                         CassandraUtils.logCqlStatement(cql, null, NucleusLogger.DATASTORE_NATIVE);
                         ResultSet rs = session.execute(cql);
 
@@ -259,19 +273,20 @@ public class JPQLQuery extends AbstractJPQLQuery
                         while (iter.hasNext())
                         {
                             Row row = iter.next();
-                            candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(),
-                                getIgnoreCache()));
+                            if (type == QueryType.BULK_UPDATE)
+                            {
+                                // TODO Handle this, do we count to get number of rows affected by an update?
+                            }
+                            else
+                            {
+                                candidates.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
+                            }
                         }
                     }
-                    filterInMemory = false;
-                }
-                else
-                {
-                    // Filter not evaluatable in datastore so get candidates
-                    candidates = getCandidatesForQuery(session);
                 }
             }
 
+            // Apply in-memory evaluator to the candidates if required
             Collection results = candidates;
             if (filterInMemory || result != null || resultClass != null || rangeInMemory || orderInMemory)
             {
@@ -287,7 +302,7 @@ public class JPQLQuery extends AbstractJPQLQuery
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(Localiser.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(Localiser.msg("021074", "JPQL", "" + (System.currentTimeMillis() - startTime)));
             }
 
             if (type == QueryType.BULK_DELETE)
@@ -297,7 +312,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
             else if (type == QueryType.BULK_UPDATE)
             {
-                // TODO Support BULK UPDATE
+                // TODO Support BULK UPDATE and return number of affected objects
                 throw new NucleusException("Bulk Update is not yet supported");
             }
             else if (type == QueryType.BULK_INSERT)
@@ -408,8 +423,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             while (iter.hasNext())
             {
                 Row row = iter.next();
-                candidateObjs.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(),
-                    getIgnoreCache()));
+                candidateObjs.add(CassandraUtils.getPojoForRowForCandidate(row, cmd, ec, getFetchPlan().getFetchPlanForClass(cmd).getMemberNumbers(), getIgnoreCache()));
             }
         }
 
@@ -443,7 +457,7 @@ public class JPQLQuery extends AbstractJPQLQuery
                 continue;
             }
 
-            // TODO Remove this and when class is registered, use listener to manage it
+            // TODO Remove this when class is registered, use listener to manage it
             storeMgr.manageClasses(clr, cmd.getFullClassName());
 
             Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
@@ -457,6 +471,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             datastoreCompilation.setFilterComplete(mapper.isFilterComplete());
             datastoreCompilation.setResultComplete(mapper.isResultComplete());
             datastoreCompilation.setOrderComplete(mapper.isOrderComplete());
+            datastoreCompilation.setUpdateComplete(mapper.isUpdateComplete());
             datastoreCompilation.setCQLForClass(cmd.getFullClassName(), mapper.getCQL());
             datastoreCompilation.setPrecompilable(mapper.isPrecompilable());
         }

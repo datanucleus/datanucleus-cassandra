@@ -32,6 +32,8 @@ public class CassandraQueryCompilation
 
     boolean orderComplete = true;
 
+    boolean updateComplete = true;
+
     Map<String, String> cqlByClass = new HashMap<String, String>();
 
     boolean precompilable = true;
@@ -78,6 +80,16 @@ public class CassandraQueryCompilation
     public void setOrderComplete(boolean complete)
     {
         this.orderComplete = complete;
+    }
+
+    public boolean isUpdateComplete()
+    {
+        return updateComplete;
+    }
+
+    public void setUpdateComplete(boolean complete)
+    {
+        this.updateComplete = complete;
     }
 
     public void setCQLForClass(String className, String cql)

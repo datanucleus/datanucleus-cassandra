@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
@@ -34,6 +35,7 @@ import org.datanucleus.metadata.RelationType;
 import org.datanucleus.query.compiler.CompilationComponent;
 import org.datanucleus.query.compiler.QueryCompilation;
 import org.datanucleus.query.evaluator.AbstractExpressionEvaluator;
+import org.datanucleus.query.expression.DyadicExpression;
 import org.datanucleus.query.expression.Expression;
 import org.datanucleus.query.expression.Literal;
 import org.datanucleus.query.expression.OrderExpression;
@@ -44,6 +46,7 @@ import org.datanucleus.store.cassandra.query.expression.CassandraExpression;
 import org.datanucleus.store.cassandra.query.expression.CassandraFieldExpression;
 import org.datanucleus.store.cassandra.query.expression.CassandraLiteral;
 import org.datanucleus.store.query.Query;
+import org.datanucleus.store.query.Query.QueryType;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
@@ -84,6 +87,9 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     /** Whether the order clause is completely evaluatable in the datastore. */
     boolean orderComplete = true;
 
+    /** Whether the UPDATE clause is completely evaluatable in the datastore. */
+    boolean updateComplete = true;
+
     boolean precompilable = true;
 
     /** Stack of expressions, used during compilation process. */
@@ -122,6 +128,11 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         return orderComplete;
     }
 
+    public boolean isUpdateComplete()
+    {
+        return updateComplete;
+    }
+
     public boolean isPrecompilable()
     {
         return precompilable;
@@ -130,31 +141,52 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     public void compile()
     {
         String filterCql = compileFilter();
-        String resultCQL = compileResult();
-        compileGrouping();
-        compileHaving();
-        String orderCQL = compileOrdering();
         // TODO Compile range also since CQL has "LIMIT n" (but no offset)
 
         // Build CQL for this query
         StringBuilder str = new StringBuilder();
-        str.append("SELECT ");
-        if (resultCQL != null)
+        if (query.getType() == QueryType.BULK_UPDATE)
         {
-            str.append(resultCQL);
+            str.append("UPDATE ");
+            if (table.getSchemaName() != null)
+            {
+                str.append(table.getSchemaName()).append('.').append(table.getName());
+            }
+            else
+            {
+                str.append(table.getName());
+            }
+            // TODO Add "using"
+            String updateCQL = compileUpdate();
+            str.append(" ").append(updateCQL);
+        }
+        else if (query.getType() == QueryType.BULK_DELETE)
+        {
+            str.append("DELETE FROM ");
+            if (table.getSchemaName() != null)
+            {
+                str.append(table.getSchemaName()).append('.').append(table.getName());
+            }
+            else
+            {
+                str.append(table.getName());
+            }
+            // TODO Add "using"
         }
         else
         {
-            str.append("*");
-        }
+            str.append("SELECT ");
+            String resultCQL = compileResult();
+            str.append(resultCQL != null ? resultCQL : "*");
 
-        if (table.getSchemaName() != null)
-        {
-            str.append(" FROM ").append(table.getSchemaName()).append('.').append(table.getName());
-        }
-        else
-        {
-            str.append(" FROM ").append(table.getName());
+            if (table.getSchemaName() != null)
+            {
+                str.append(" FROM ").append(table.getSchemaName()).append('.').append(table.getName());
+            }
+            else
+            {
+                str.append(" FROM ").append(table.getName());
+            }
         }
 
         if (filterCql != null)
@@ -162,12 +194,16 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
             str.append(" WHERE ").append(filterCql);
         }
 
+        // TODO Support grouping, having
+        compileGrouping();
+        compileHaving();
+
+        String orderCQL = compileOrdering();
         if (orderCQL != null)
         {
             str.append(" ORDER BY ").append(orderCQL);
         }
 
-        // TODO Support grouping, having
         cql = str.toString();
     }
 
@@ -213,6 +249,99 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         if (compilation.getExprResult() != null)
         {
             // TODO Implement this
+        }
+        return null;
+    }
+
+    /**
+     * Method to compile the UPDATE clause of the query.
+     * @return The CQL for the update
+     */
+    protected String compileUpdate()
+    {
+        if (compilation.getExprUpdate() != null)
+        {
+            try
+            {
+                compileComponent = CompilationComponent.UPDATE;
+
+                try
+                {
+                    StringBuffer updateStr = new StringBuffer("SET ");
+                    Expression[] updateExprs = compilation.getExprUpdate();
+                    for (int i=0;i<updateExprs.length;i++)
+                    {
+                        if (i > 0)
+                        {
+                            updateStr.append(',');
+                        }
+                        // "field = value"
+                        DyadicExpression updateExpr = (DyadicExpression)updateExprs[i];
+                        Expression leftExpr = updateExpr.getLeft();
+                        Expression rightExpr = updateExpr.getRight();
+                        NucleusLogger.GENERAL.info(">> compileUpdate left=" + leftExpr + " right=" + rightExpr);
+
+                        CassandraExpression left = null;
+                        if (updateExpr.getLeft() instanceof PrimaryExpression)
+                        {
+                            processPrimaryExpression((PrimaryExpression)leftExpr);
+                            left = stack.pop();
+                            // TODO Check for validity, what if in different inheritance table?
+                        }
+                        else
+                        {
+                            throw new NucleusException("Dont currently support update clause containing left expression of type " + leftExpr);
+                        }
+                        NucleusLogger.GENERAL.info(">> compileUpdate leftCql=" + left);
+
+                        if (left != null)
+                        {
+                            // Right-side can be Literal, or Parameter, or PrimaryExpression
+                            CassandraExpression right = null;
+                            if (rightExpr instanceof Literal)
+                            {
+                                processLiteral((Literal) rightExpr);
+                                right = stack.pop();
+                            }
+                            else if (rightExpr instanceof ParameterExpression)
+                            {
+                                processParameterExpression((ParameterExpression) rightExpr);
+                                right = stack.pop();
+                            }
+                            else if (rightExpr instanceof PrimaryExpression)
+                            {
+                                processPrimaryExpression((PrimaryExpression) rightExpr);
+                                right = stack.pop();
+                            }
+                            else
+                            {
+                                throw new NucleusException("Dont currently support update clause containing right expression of type " + rightExpr);
+                            }
+
+                            if (right != null)
+                            {
+                                CassandraBooleanExpression assignExpr = new CassandraBooleanExpression(left, right, Expression.OP_EQ);
+                                updateStr.append(assignExpr.getCQL());
+                            }
+                        }
+                    }
+
+                    return updateStr.toString();
+                }
+                catch (NucleusException ne)
+                {
+                    // Impossible to compile all to run in the datastore, so just exit
+                    if (NucleusLogger.QUERY.isDebugEnabled())
+                    {
+                        NucleusLogger.QUERY.debug("Compilation of UPDATE clause to be evaluated completely in-datastore was impossible : " + ne.getMessage());
+                    }
+                    updateComplete = false;
+                }
+            }
+            finally
+            {
+                compileComponent = null;
+            }
         }
         return null;
     }
@@ -453,7 +582,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                         {
                             // TODO Support multi-column mappings
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
-                            if (mmd.getIndexMetaData() == null)
+                            if (compileComponent == CompilationComponent.FILTER && mmd.getIndexMetaData() == null)
                             {
                                 throw new NucleusUserException(
                                         "Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + " yet this is not indexed. Must be indexed to evaluate in datastore");
