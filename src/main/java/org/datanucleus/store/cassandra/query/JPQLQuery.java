@@ -246,6 +246,14 @@ public class JPQLQuery extends AbstractJPQLQuery
             }
             else if (evaluateInMemory())
             {
+                if (filter != null)
+                {
+                    filterInMemory = true;
+                }
+                if (ordering != null)
+                {
+                    orderInMemory = true;
+                }
                 candidates = getCandidatesForQuery(session);
             }
             else

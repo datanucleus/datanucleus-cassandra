@@ -242,6 +242,14 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             }
             else if (evaluateInMemory())
             {
+                if (filter != null)
+                {
+                    filterInMemory = true;
+                }
+                if (ordering != null)
+                {
+                    orderInMemory = true;
+                }
                 candidates = getCandidatesForQuery(session);
             }
             else
