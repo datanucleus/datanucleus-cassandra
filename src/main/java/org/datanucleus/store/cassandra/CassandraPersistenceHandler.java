@@ -264,18 +264,16 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
     /**
      * Method to create the INSERT statement for an object of the specified class. Will add all columns for
-     * the class and all superclasses, plus any surrogate datastore-id, version, discriminator. Will have the
-     * form
-     * 
+     * the class and all superclasses, plus any surrogate datastore-id, version, discriminator. Will have the form
      * <pre>
      * INSERT INTO {schema}.{table} (COL1,COL2,...) VALUES(?,?,...)
      * </pre>
-     * 
      * All columns are included and if the field is null then at insert CQL will delete the associated cell
      * for the null column.
      * @param cmd Metadata for the class
      * @param table Table used for persistence
      * @param colValuesByName Map of column values keyed by the column name
+     * @param ec ExecutionContext
      * @return The INSERT statement
      */
     protected String getInsertStatementForClass(AbstractClassMetaData cmd, Table table, Map<String, Object> colValuesByName, ExecutionContext ec)

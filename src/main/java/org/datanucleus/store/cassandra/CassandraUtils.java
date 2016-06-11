@@ -794,7 +794,8 @@ public class CassandraUtils
     }
 
     /**
-     * Convenience method to get Object[] from Cassandra Row @param row Row returned from Cassandra driver
+     * Convenience method to get Object[] from Cassandra Row.
+     * @param row Row returned from Cassandra driver
      * @param columnDefinitions Cassandra result column definitions.
      * @param fieldsMatchingColumnIndexes indices of ColumnDefinitions that match to a field of resultClass
      * @param typeConverter typeConverter required for byte [] ByteBuffer conversion
