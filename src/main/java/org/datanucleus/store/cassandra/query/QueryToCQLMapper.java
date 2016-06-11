@@ -382,15 +382,14 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                 for (int i = 0; i < orderingExpr.length; i++)
                 {
                     OrderExpression orderExpr = (OrderExpression) orderingExpr[i];
-                    CassandraFieldExpression orderMongoExpr = (CassandraFieldExpression) orderExpr.getLeft().evaluate(this);
+                    CassandraFieldExpression orderCassExpr = (CassandraFieldExpression) orderExpr.getLeft().evaluate(this);
                     String orderDir = orderExpr.getSortOrder();
                     int direction = ((orderDir == null || orderDir.equals("ascending")) ? 1 : -1);
-                    NucleusLogger.QUERY.debug(">> TODO Need to process " + orderExpr);
                     if (orderStr.length() > 0)
                     {
                         orderStr.append(',');
                     }
-                    orderStr.append(orderMongoExpr.getColumnName()).append(" ");
+                    orderStr.append(orderCassExpr.getColumnName()).append(" ");
                     orderStr.append(direction == 1 ? "ASC" : "DESC");
                 }
             }
