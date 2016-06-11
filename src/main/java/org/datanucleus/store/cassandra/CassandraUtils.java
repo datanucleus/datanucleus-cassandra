@@ -795,17 +795,15 @@ public class CassandraUtils
 
     /**
      * Convenience method to get Object[] from Cassandra Row.
+     * @param typeMgr TypeManager
      * @param row Row returned from Cassandra driver
      * @param columnDefinitions Cassandra result column definitions.
      * @param fieldsMatchingColumnIndexes indices of ColumnDefinitions that match to a field of resultClass
-     * @param typeConverter typeConverter required for byte [] ByteBuffer conversion
      * @param resultRowSize size of Object [] that is returned
      * @return Object[] of results
      */
-    public static Object[] getObjectArrayFromRow(Row row, ColumnDefinitions columnDefinitions, List<Integer> fieldsMatchingColumnIndexes,
-            TypeConverter typeConverter, int resultRowSize)
+    public static Object[] getObjectArrayFromRow(TypeManager typeMgr, Row row, ColumnDefinitions columnDefinitions, List<Integer> fieldsMatchingColumnIndexes, int resultRowSize)
     {
-
         Object[] resultRow = new Object[resultRowSize];
         int i = 0;
 
@@ -848,6 +846,7 @@ public class CassandraUtils
                 }
                 else if (colType == DataType.blob())
                 {
+                    TypeConverter typeConverter = typeMgr.getTypeConverterForType(byte[].class, ByteBuffer.class);
                     resultRow[i] = typeConverter.toMemberType(row.getBytes(i));
                 }
                 else if (colType == DataType.uuid())

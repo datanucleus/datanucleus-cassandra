@@ -35,11 +35,9 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
 
-import java.nio.ByteBuffer;
-
 import org.datanucleus.query.QueryUtils;
 import org.datanucleus.store.cassandra.CassandraUtils;
-import org.datanucleus.store.types.converters.TypeConverter;
+import org.datanucleus.store.types.TypeManager;
 
 /**
  * CQL query for Cassandra. Allows the user to execute a CQL query and return the results in the form "List&lt;Object[]&gt;".
@@ -136,31 +134,26 @@ public class CQLQuery extends AbstractJavaQuery
                 }
                 ResultSet rs = session.execute(stmt);
 
-                // Datanucleus favours usage of byte[] as POJO for blob dataStoreType, Cassandra datastax driver uses ByteBuffer for blob dataStoreType
-                TypeConverter typeConverter = storeMgr.getNucleusContext().getTypeManager().getTypeConverterForType(byte[].class, ByteBuffer.class);
-                Class resultClazz = this.getResultClass();
-
-                ResultClassInfo rci = null;
-                if (resultClazz != null)
-                {
-                    rci = CassandraUtils.getResultClassInfoFromColumnDefinitions(resultClazz, rs.getColumnDefinitions());
-                }
+                Class resultCls = this.getResultClass();
+                ResultClassInfo rci = (resultCls != null) ? CassandraUtils.getResultClassInfoFromColumnDefinitions(resultCls, rs.getColumnDefinitions()) : null;
 
                 CassandraQueryResult queryResult = new CassandraQueryResult(this, rs);
                 queryResult.initialise();
+
+                TypeManager typeMgr = storeMgr.getNucleusContext().getTypeManager();
                 Iterator<Object> iter = queryResult.iterator();
                 while (iter.hasNext())
                 {
                     Row row = (Row) iter.next();
-                    Object[] rowResult;
-                    if (null != rci)
+                    if (rci != null)
                     {
-                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), rci.getFieldsMatchingColumnIndexes(), typeConverter, rci.getFields().length);
-                        results.add(getResultWithQueryUtils(rowResult, rci));
+                        Object[] rowResult = CassandraUtils.getObjectArrayFromRow(typeMgr, row, rs.getColumnDefinitions(), rci.getFieldsMatchingColumnIndexes(), rci.getFields().length);
+                        Object rcResult = QueryUtils.createResultObjectUsingDefaultConstructorAndSetters(resultClass, rci.getFieldNames(), rci.getFields(), rowResult);
+                        results.add(rcResult);
                     }
                     else
                     {
-                        rowResult = CassandraUtils.getObjectArrayFromRow(row, rs.getColumnDefinitions(), new ArrayList<Integer>(), typeConverter, rs.getColumnDefinitions().size());
+                        Object[] rowResult = CassandraUtils.getObjectArrayFromRow(typeMgr, row, rs.getColumnDefinitions(), new ArrayList<Integer>(), rs.getColumnDefinitions().size());
                         results.add(rowResult);// get raw result as Object[]
                     }
                 }
@@ -187,10 +180,5 @@ public class CQLQuery extends AbstractJavaQuery
             // TODO
             throw new UnsupportedOperationException("Not yet implemented");
         }
-    }
-
-    private Object getResultWithQueryUtils(Object[] result, ResultClassInfo rci)
-    {
-        return QueryUtils.createResultObjectUsingDefaultConstructorAndSetters(resultClass, rci.getFieldNames(), rci.getFields(), result);
     }
 }
