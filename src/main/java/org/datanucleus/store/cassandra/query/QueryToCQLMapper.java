@@ -436,6 +436,8 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     {
         CassandraExpression right = stack.pop();
         CassandraExpression left = stack.pop();
+        NucleusLogger.GENERAL.info(">> processEq left=" + StringUtils.toJVMIDString(left) + left + 
+            " right=" + StringUtils.toJVMIDString(right) + " " + right);
         CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
         stack.push(boolExpr);
         return boolExpr;
@@ -530,6 +532,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     protected CassandraExpression getExpressionForPrimary(PrimaryExpression primExpr)
     {
         List<String> tuples = primExpr.getTuples();
+        NucleusLogger.GENERAL.info(">> getExprForPrim " + primExpr);
         if (tuples == null || tuples.isEmpty())
         {
             return null;
@@ -553,6 +556,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                 if (mmd != null)
                 {
                     RelationType relationType = mmd.getRelationType(ec.getClassLoaderResolver());
+                    NucleusLogger.GENERAL.info(">> getExprForPrim name=" + name + " mmd=" + mmd.getFullFieldName() + " relType=" + relationType);
                     if (relationType == RelationType.NONE)
                     {
                         if (iter.hasNext())
@@ -577,21 +581,33 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                     {
                         if (relationType == RelationType.NONE)
                         {
+                            if (iter.hasNext())
+                            {
+                                NucleusLogger.GENERAL.info("Query involves primaryExpression through field " + mmd.getFullFieldName() + 
+                                        " yet CQL cannot join to related tables so handling in-memory");
+                                return null;
+                            }
                             // TODO Support multi-column mappings
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
                             if (compileComponent == CompilationComponent.FILTER && mmd.getIndexMetaData() == null)
                             {
-                                throw new NucleusUserException(
-                                        "Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent + " yet this is not indexed. Must be indexed to evaluate in datastore");
+                                throw new NucleusUserException("Attempt to refer to " + mmd.getFullFieldName() + " in " + compileComponent +
+                                    " yet this is not indexed. Must be indexed to evaluate in datastore");
                             }
                             return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
                         else if (RelationType.isRelationSingleValued(relationType))
                         {
                             MemberColumnMapping mapping = table.getMemberColumnMappingForMember(mmd);
+                            if (iter.hasNext())
+                            {
+                                NucleusLogger.GENERAL.info("Query involves primaryExpression through relation " + mmd.getFullFieldName() + 
+                                    " yet CQL cannot join to related tables so handling in-memory");
+                                return null;
+                            }
                             return new CassandraFieldExpression(mapping.getColumn(0).getName(), mmd);
                         }
-                        // TODO Cater for relations?
+                        // TODO Cater for other relations?
                     }
                 }
             }
