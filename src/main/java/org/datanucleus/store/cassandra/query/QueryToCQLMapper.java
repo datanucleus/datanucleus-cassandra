@@ -267,7 +267,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
 
                 try
                 {
-                    StringBuffer updateStr = new StringBuffer("SET ");
+                    StringBuilder updateStr = new StringBuilder("SET ");
                     Expression[] updateExprs = compilation.getExprUpdate();
                     for (int i=0;i<updateExprs.length;i++)
                     {
