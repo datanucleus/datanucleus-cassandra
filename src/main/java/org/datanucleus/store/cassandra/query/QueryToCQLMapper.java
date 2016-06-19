@@ -34,7 +34,7 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.query.compiler.CompilationComponent;
 import org.datanucleus.query.compiler.QueryCompilation;
-import org.datanucleus.query.evaluator.AbstractExpressionEvaluator;
+import org.datanucleus.query.expression.AbstractExpressionEvaluator;
 import org.datanucleus.query.expression.DyadicExpression;
 import org.datanucleus.query.expression.Expression;
 import org.datanucleus.query.expression.Literal;
