@@ -29,6 +29,7 @@ import org.datanucleus.store.cassandra.SessionStatementProvider;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.valuegenerator.AbstractDatastoreGenerator;
 import org.datanucleus.store.valuegenerator.ValueGenerationBlock;
+import org.datanucleus.store.valuegenerator.ValueGenerator;
 import org.datanucleus.util.NucleusLogger;
 
 import com.datastax.driver.core.PreparedStatement;
@@ -58,38 +59,38 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
     {
         super(name, props);
 
-        if (properties.getProperty("sequence-name") != null)
+        if (properties.getProperty(ValueGenerator.PROPERTY_SEQUENCE_NAME) != null)
         {
             // Specified sequence-name so use that
-            key = properties.getProperty("sequence-name");
+            key = properties.getProperty(ValueGenerator.PROPERTY_SEQUENCE_NAME);
         }
-        else if (properties.containsKey("field-name"))
+        else if (properties.containsKey(ValueGenerator.PROPERTY_FIELD_NAME))
         {
             // Use field name
-            key = properties.getProperty("field-name");
+            key = properties.getProperty(ValueGenerator.PROPERTY_FIELD_NAME);
         }
         else
         {
             // Use root class name (for this inheritance tree) in the sequence table as the sequence name
-            key = properties.getProperty("root-class-name");
+            key = properties.getProperty(ValueGenerator.PROPERTY_ROOT_CLASS_NAME);
         }
 
-        if (properties.getProperty("sequence-table-name") != null)
+        if (properties.containsKey(ValueGenerator.PROPERTY_SEQUENCETABLE_TABLE))
         {
-            tableName = properties.getProperty("sequence-table-name");
+            tableName = properties.getProperty(ValueGenerator.PROPERTY_SEQUENCETABLE_TABLE);
         }
-        if (properties.getProperty("sequence-name-column-name") != null)
+        if (properties.getProperty(ValueGenerator.PROPERTY_SEQUENCETABLE_NAME_COLUMN) != null)
         {
-            keyColName = properties.getProperty("sequence-name-column-name");
+            keyColName = properties.getProperty(ValueGenerator.PROPERTY_SEQUENCETABLE_NAME_COLUMN);
         }
-        if (properties.getProperty("sequence-nextval-column-name") != null)
+        if (properties.getProperty(ValueGenerator.PROPERTY_SEQUENCETABLE_NEXTVAL_COLUMN) != null)
         {
-            valColName = properties.getProperty("sequence-nextval-column-name");
+            valColName = properties.getProperty(ValueGenerator.PROPERTY_SEQUENCETABLE_NEXTVAL_COLUMN);
         }
 
-        if (properties.containsKey("key-cache-size"))
+        if (properties.containsKey(ValueGenerator.PROPERTY_KEY_CACHE_SIZE))
         {
-            allocationSize = Integer.valueOf(properties.getProperty("key-cache-size"));
+            allocationSize = Integer.valueOf(properties.getProperty(ValueGenerator.PROPERTY_KEY_CACHE_SIZE));
         }
         else
         {
@@ -121,8 +122,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
             Session session = (Session) mconn.getConnection();
 
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
-            stmtBuilder.append(valColName).append(" FROM ").append(getSchemaName()).append('.').append(tableName).append(" WHERE ").append(keyColName)
-                    .append("=?");
+            stmtBuilder.append(valColName).append(" FROM ").append(getSchemaName()).append('.').append(tableName).append(" WHERE ").append(keyColName).append("=?");
             NucleusLogger.VALUEGENERATION.debug("Getting current value for increment strategy for key=" + key + " : " + stmtBuilder.toString());
             SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
             PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
@@ -130,17 +130,15 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
             if (rs.isExhausted())
             {
                 long initialValue = 0;
-                if (properties.containsKey("key-initial-value"))
+                if (properties.containsKey(ValueGenerator.PROPERTY_KEY_INITIAL_VALUE))
                 {
-                    initialValue = Long.valueOf(properties.getProperty("key-initial-value"));
+                    initialValue = Long.valueOf(properties.getProperty(ValueGenerator.PROPERTY_KEY_INITIAL_VALUE));
                 }
 
                 // No existing values, so add new row, starting at end of this first block
                 stmtBuilder = new StringBuilder("INSERT INTO ");
-                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName)
-                        .append(") VALUES(?,?)");
-                NucleusLogger.VALUEGENERATION
-                        .debug("Setting value for increment strategy for key=" + key + " val=" + (initialValue + size + 1) + " : " + stmtBuilder.toString());
+                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName).append(") VALUES(?,?)");
+                NucleusLogger.VALUEGENERATION.debug("Setting value for increment strategy for key=" + key + " val=" + (initialValue + size + 1) + " : " + stmtBuilder.toString());
                 stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
                 session.execute(stmt.bind(key, (initialValue + size + 1)));
 
@@ -156,10 +154,8 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 
                 // Update value allowing for this block
                 stmtBuilder = new StringBuilder("INSERT INTO ");
-                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName)
-                        .append(") VALUES(?,?)");
-                NucleusLogger.VALUEGENERATION.debug("Setting next value for increment strategy for key=" + key + " val=" + (val + size) + " : " + stmtBuilder
-                        .toString());
+                stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(").append(keyColName).append(',').append(valColName).append(") VALUES(?,?)");
+                NucleusLogger.VALUEGENERATION.debug("Setting next value for increment strategy for key=" + key + " val=" + (val + size) + " : " + stmtBuilder.toString());
                 stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
                 session.execute(stmt.bind(key, (val + size)));
 
@@ -184,7 +180,7 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
             return schemaName;
         }
 
-        schemaName = properties.getProperty("schema-name");
+        schemaName = properties.getProperty(ValueGenerator.PROPERTY_SCHEMA_NAME);
         if (schemaName == null)
         {
             schemaName = storeMgr.getStringProperty(PropertyNames.PROPERTY_MAPPING_SCHEMA);
