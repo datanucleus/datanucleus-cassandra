@@ -166,7 +166,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Cache the statement
             if (insertStatementByClassName == null)
             {
-                insertStatementByClassName = new HashMap<String, String>();
+                insertStatementByClassName = new HashMap<>();
             }
             insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
             /* } */
@@ -668,7 +668,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Cache the statement
                 if (deleteStatementByClassName == null)
                 {
-                    deleteStatementByClassName = new HashMap<String, String>();
+                    deleteStatementByClassName = new HashMap<>();
                 }
                 deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
             }
@@ -756,9 +756,9 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         relationType, null))
                     {
                         // Embedded PC, so add columns for all fields (and nested fields)
-                        List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                        List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                         embMmds.add(mmd);
-                        List<String> embColNames = new ArrayList<String>();
+                        List<String> embColNames = new ArrayList<>();
                         getColumnNamesForEmbeddedMember(table, embMmds, embColNames, ec);
                         for (String embColName : embColNames)
                         {
@@ -788,7 +788,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     if (nonpersistableFields == null)
                     {
-                        nonpersistableFields = new HashSet<Integer>();
+                        nonpersistableFields = new HashSet<>();
                     }
                     nonpersistableFields.add(fieldNumbers[i]);
                 }
@@ -957,13 +957,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 relationType, mmds.get(mmds.size() - 1)))
             {
                 // Nested embedded
-                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+                List<AbstractMemberMetaData> embMmds = new ArrayList<>(mmds);
                 embMmds.add(embMmd);
                 getColumnNamesForEmbeddedMember(table, embMmds, colNames, ec);
                 continue;
             }
 
-            List<AbstractMemberMetaData> colMmds = new ArrayList<AbstractMemberMetaData>(mmds);
+            List<AbstractMemberMetaData> colMmds = new ArrayList<>(mmds);
             colMmds.add(embMmd);
             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colMmds);
             if (mapping == null)
@@ -1051,7 +1051,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     // Cache the statement
                     if (locateStatementByClassName == null)
                     {
-                        locateStatementByClassName = new HashMap<String, String>();
+                        locateStatementByClassName = new HashMap<>();
                     }
                     locateStatementByClassName.put(cmd.getFullClassName(), locateStmt);
                 }
@@ -1140,7 +1140,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             // Cache the statement
             if (getVersionStatementByClassName == null)
             {
-                getVersionStatementByClassName = new HashMap<String, String>();
+                getVersionStatementByClassName = new HashMap<>();
             }
             getVersionStatementByClassName.put(cmd.getFullClassName(), verStmt);
         }
@@ -1212,7 +1212,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
     protected List<Column> getPrimaryKeyColumns(AbstractClassMetaData cmd, Table table, ClassLoaderResolver clr)
     {
-        List<Column> pkCols = new ArrayList();
+        List<Column> pkCols = new ArrayList<>();
         if (cmd.getIdentityType() == IdentityType.APPLICATION)
         {
             int[] pkFieldNums = cmd.getPKMemberPositions();

@@ -77,9 +77,9 @@ public class CassandraUtils
     {
     }
 
-    static Map<String, String> cassandraTypeByJavaType = new HashMap<String, String>();
+    static Map<String, String> cassandraTypeByJavaType = new HashMap<>();
 
-    static Map<String, Class> datastoreTypeByCassandraType = new HashMap<String, Class>();
+    static Map<String, Class> datastoreTypeByCassandraType = new HashMap<>();
 
     static
     {
@@ -747,9 +747,8 @@ public class CassandraUtils
      */
     public static ResultClassInfo getResultClassInfoFromColumnDefinitions(final Class resultClazz, final ColumnDefinitions columnDefinitions)
     {
-
         Field[] resultClassDeclaredFields = resultClazz.getDeclaredFields();
-        assert null != columnDefinitions;
+        assert null != columnDefinitions; // TODO Remove this and throw exception
         Map<Integer, Field> resultClassFields = new TreeMap<>();
         Map<Integer, String> resultClassFieldNames = new TreeMap<>();
         List<Integer> fieldsMatchingColumnIndexes = new ArrayList<>();

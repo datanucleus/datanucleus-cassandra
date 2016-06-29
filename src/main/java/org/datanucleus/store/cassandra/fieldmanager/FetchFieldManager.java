@@ -210,7 +210,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             if (RelationType.isRelationSingleValued(relationType))
             {
                 // TODO Null detection
-                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                 ObjectProvider embOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);

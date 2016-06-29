@@ -64,7 +64,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 {
     protected Table table;
 
-    protected Map<String, Object> columnValueByName = new HashMap<String, Object>();
+    protected Map<String, Object> columnValueByName = new HashMap<>();
 
     public StoreFieldManager(ExecutionContext ec, AbstractClassMetaData cmd, boolean insert, Table table)
     {
@@ -270,7 +270,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 // TODO Support discriminator on embedded object
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
                 int[] embMmdPosns = embCmd.getAllMemberPositions();
-                List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>();
+                List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                 embMmds.add(mmd);
                 if (value == null)
                 {
@@ -282,7 +282,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                                 .getTypeName()))
                         {
                             // Store a null for any primitive/wrapper/String fields
-                            List<AbstractMemberMetaData> colEmbMmds = new ArrayList<AbstractMemberMetaData>(embMmds);
+                            List<AbstractMemberMetaData> colEmbMmds = new ArrayList<>(embMmds);
                             colEmbMmds.add(embMmd);
                             MemberColumnMapping mapping = table.getMemberColumnMappingForEmbeddedMember(colEmbMmds);
                             for (int j = 0; j < mapping.getNumberOfColumns(); j++)
@@ -436,7 +436,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
 
-                Collection<String> cassColl = (value instanceof List || value instanceof Queue ? new ArrayList<String>() : new HashSet<String>());
+                Collection<String> cassColl = (value instanceof List || value instanceof Queue ? new ArrayList<>() : new HashSet<>());
 
                 Iterator collIter = coll.iterator();
                 while (collIter.hasNext())
