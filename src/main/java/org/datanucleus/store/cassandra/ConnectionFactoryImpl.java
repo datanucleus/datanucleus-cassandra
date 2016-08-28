@@ -43,13 +43,12 @@ import com.datastax.driver.core.SocketOptions;
 
 /**
  * Connection factory for Cassandra datastores. Accepts a URL of the form
- * 
  * <pre>
  * cassandra:[host1:port[,host2[,host3]]]
  * </pre>
  * 
- * Defaults to a server of "127.0.0.1" if no host/port specified Defaults to a single Session per PMF/EMF, but
- * can be overridden using "datanucleus.cassandra.sessionPerManager".
+ * Defaults to a server of "127.0.0.1" if no host/port specified. 
+ * Defaults to a single Session per PMF/EMF, but can be overridden using "datanucleus.cassandra.sessionPerManager".
  */
 public class ConnectionFactoryImpl extends AbstractConnectionFactory
 {
@@ -309,8 +308,9 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - close Session");
                 ((Session) conn).close();
             }
-            conn = null;
             xaRes = null;
+
+            super.close();
         }
 
         public XAResource getXAResource()
