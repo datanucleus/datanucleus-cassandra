@@ -33,8 +33,6 @@ import org.datanucleus.exceptions.NucleusUserException;
 import org.datanucleus.identity.IdentityUtils;
 import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
-import org.datanucleus.metadata.DiscriminatorMetaData;
-import org.datanucleus.metadata.DiscriminatorStrategy;
 import org.datanucleus.metadata.FieldPersistenceModifier;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityType;
@@ -171,20 +169,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             insertStatementByClassName.put(cmd.getFullClassName(), insertStmt);
             /* } */
 
-            Object discrimValue = null;
-            if (cmd.hasDiscriminatorStrategy())
-            {
-                // Process the discriminator value, saving the value for the INSERT
-                DiscriminatorMetaData discmd = cmd.getDiscriminatorMetaData();
-                if (cmd.getDiscriminatorStrategy() == DiscriminatorStrategy.CLASS_NAME)
-                {
-                    discrimValue = cmd.getFullClassName();
-                }
-                else
-                {
-                    discrimValue = discmd.getValue();
-                }
-            }
+            Object discrimValue = cmd.getDiscriminatorValue();
 
             Object multitenancyValue = null;
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
