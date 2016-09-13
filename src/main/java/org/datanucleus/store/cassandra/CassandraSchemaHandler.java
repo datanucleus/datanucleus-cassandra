@@ -74,12 +74,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
     }
 
     /**
-     * Method to create a schema (keyspace) in Cassandra. Accepts properties with names "replication",
-     * "durable_writes" (case sensitive).
+     * Method to create a database (keyspace) in Cassandra. Accepts properties with names "replication", "durable_writes" (case sensitive).
+     * @param catalogName Unused
      * @param schemaName Name of the schema
      * @param props Any properties defining the new keyspace
      */
-    public void createSchema(String schemaName, Properties props, Object connection)
+    public void createDatabase(String catalogName, String schemaName, Properties props, Object connection)
     {
         Session session = (Session) connection;
         ManagedConnection mconn = null;
@@ -665,12 +665,13 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
     }
 
     /**
-     * Method to drop a schema (keyspace) in Cassandra.
+     * Method to drop a database (keyspace) in Cassandra.
+     * @param catalogName Unused
      * @param schemaName Name of the schema (keyspace).
      * @param props Any properties controlling deletion
      * @param connection Connection to use (null implies this will obtain its own connection)
      */
-    public void deleteSchema(String schemaName, Properties props, Object connection)
+    public void deleteDatabase(String catalogName, String schemaName, Properties props, Object connection)
     {
         Session session = (Session) connection;
         ManagedConnection mconn = null;

@@ -198,19 +198,19 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         schemaHandler.createSchemaForClasses(clsNameSet, null, session);
     }
 
-    public void createSchema(String schemaName, Properties props)
+    public void createDatabase(String catalogName, String schemaName, Properties props)
     {
-        schemaHandler.createSchema(schemaName, props, null);
+        schemaHandler.createDatabase(catalogName, schemaName, props, null);
+    }
+
+    public void deleteDatabase(String catalogName, String schemaName, Properties props)
+    {
+        schemaHandler.deleteDatabase(catalogName, schemaName, props, null);
     }
 
     public void createSchemaForClasses(Set<String> classNames, Properties props)
     {
         schemaHandler.createSchemaForClasses(classNames, props, null);
-    }
-
-    public void deleteSchema(String schemaName, Properties props)
-    {
-        schemaHandler.deleteSchema(schemaName, props, null);
     }
 
     public void deleteSchemaForClasses(Set<String> classNames, Properties props)
