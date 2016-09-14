@@ -367,12 +367,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 AbstractClassMetaData theCmd = cmd;
                 while (theCmd != null)
                 {
-                    IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                    List<IndexMetaData> clsIdxMds = theCmd.getIndexMetaData();
                     if (clsIdxMds != null)
                     {
-                        for (int i = 0; i < clsIdxMds.length; i++)
+                        int i = 0;
+                        for (IndexMetaData idxmd : clsIdxMds)
                         {
-                            IndexMetaData idxmd = clsIdxMds[i];
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
@@ -380,7 +380,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
+                                String idxName = namingFactory.getConstraintName(theCmd, idxmd, i++);
                                 ColumnMetadata dbColMd = getColumnMetadataForColumnName(tmd, colNames[0]);
                                 if (dbColMd == null)
                                 {
@@ -589,12 +589,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 AbstractClassMetaData theCmd = cmd;
                 while (theCmd != null)
                 {
-                    IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                    List<IndexMetaData> clsIdxMds = theCmd.getIndexMetaData();
                     if (clsIdxMds != null)
                     {
-                        for (int i = 0; i < clsIdxMds.length; i++)
+                        int i = 0;
+                        for (IndexMetaData idxmd : clsIdxMds)
                         {
-                            IndexMetaData idxmd = clsIdxMds[i];
                             String[] colNames = idxmd.getColumnNames();
                             if (colNames.length > 1)
                             {
@@ -603,7 +603,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
+                                String idxName = namingFactory.getConstraintName(theCmd, idxmd, i++);
                                 String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
                                 constraintStmts.add(indexStmt);
                             }
@@ -781,14 +781,14 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             AbstractClassMetaData theCmd = cmd;
                             while (theCmd != null)
                             {
-                                IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                                List<IndexMetaData> clsIdxMds = theCmd.getIndexMetaData();
                                 if (clsIdxMds != null)
                                 {
-                                    for (int i = 0; i < clsIdxMds.length; i++)
+                                    int i = 0;
+                                    for (IndexMetaData idxmd : clsIdxMds)
                                     {
-                                        IndexMetaData idxmd = clsIdxMds[i];
                                         StringBuilder stmtBuilder = new StringBuilder("DROP INDEX ");
-                                        String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
+                                        String idxName = namingFactory.getConstraintName(theCmd, idxmd, i++);
 
                                         if (ddlFileWriter == null)
                                         {
@@ -1003,18 +1003,18 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     AbstractClassMetaData theCmd = cmd;
                     while (theCmd != null)
                     {
-                        IndexMetaData[] clsIdxMds = theCmd.getIndexMetaData();
+                        List<IndexMetaData> clsIdxMds = theCmd.getIndexMetaData();
                         if (clsIdxMds != null)
                         {
-                            for (int i = 0; i < clsIdxMds.length; i++)
+                            int i = 0;
+                            for (IndexMetaData idxmd : clsIdxMds)
                             {
-                                IndexMetaData idxmd = clsIdxMds[i];
                                 String[] colNames = idxmd.getColumnNames();
                                 if (colNames.length == 1)
                                 {
                                     ColumnMetadata dbColMd = getColumnMetadataForColumnName(tmd, colNames[0].toLowerCase());
                                     IndexMetadata dbIdxMd = getIndexMetadataForColumn(tmd, colNames[0].toLowerCase());
-                                    String idxName = namingFactory.getConstraintName(theCmd, idxmd, i);
+                                    String idxName = namingFactory.getConstraintName(theCmd, idxmd, i++);
                                     if (dbColMd == null || dbIdxMd == null)
                                     {
                                         NucleusLogger.DATASTORE_SCHEMA.error(Localiser.msg("Cassandra.Schema.TableIndexMissingForColumn", tableName, colNames[0]));
