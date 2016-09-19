@@ -43,7 +43,6 @@ import org.datanucleus.store.schema.table.SchemaVerifier;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.MultiColumnConverter;
 import org.datanucleus.store.types.converters.TypeConverter;
-import org.datanucleus.store.types.converters.TypeConverterHelper;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 import org.datanucleus.util.TypeConversionHelper;
@@ -80,7 +79,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
     {
         if (conv != null && !(conv instanceof MultiColumnConverter))
         {
-            Class datastoreType = TypeConverterHelper.getDatastoreTypeForTypeConverter(conv, mmd.getType());
+            Class datastoreType = storeMgr.getNucleusContext().getTypeManager().getDatastoreTypeForTypeConverter(conv, mmd.getType());
             if (datastoreType != null)
             {
                 if (java.util.Date.class.isAssignableFrom(datastoreType) && datastoreType != java.util.Date.class)
@@ -206,7 +205,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
             }
             else
             {
-                Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(mapping.getTypeConverter(), mmd.getType());
+                Class datastoreJavaType = typeMgr.getDatastoreTypeForTypeConverter(mapping.getTypeConverter(), mmd.getType());
                 type = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
                 mapping.getColumn(0).setTypeName(type);
             }
@@ -241,7 +240,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         if (mmd.getElementMetaData() != null && mmd.getElementMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
                         {
                             TypeConverter elemTypeConv = typeMgr.getTypeConverterForName(mmd.getElementMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(elemTypeConv, clr.classForName(mmd.getCollection().getElementType()));
+                            Class datastoreJavaType = typeMgr.getDatastoreTypeForTypeConverter(elemTypeConv, clr.classForName(mmd.getCollection().getElementType()));
                             cqlElementType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
                         }
                         else
@@ -279,7 +278,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         if (mmd.getKeyMetaData() != null && mmd.getKeyMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
                         {
                             TypeConverter keyTypeConv = typeMgr.getTypeConverterForName(mmd.getKeyMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(keyTypeConv, clr.classForName(mmd.getMap().getKeyType()));
+                            Class datastoreJavaType = typeMgr.getDatastoreTypeForTypeConverter(keyTypeConv, clr.classForName(mmd.getMap().getKeyType()));
                             cqlKeyType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
                         }
                         else
@@ -292,7 +291,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         if (mmd.getValueMetaData() != null && mmd.getValueMetaData().hasExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME))
                         {
                             TypeConverter valTypeConv = typeMgr.getTypeConverterForName(mmd.getValueMetaData().getValueForExtension(MetaData.EXTENSION_MEMBER_TYPE_CONVERTER_NAME));
-                            Class datastoreJavaType = TypeConverterHelper.getDatastoreTypeForTypeConverter(valTypeConv, clr.classForName(mmd.getMap().getValueType()));
+                            Class datastoreJavaType = typeMgr.getDatastoreTypeForTypeConverter(valTypeConv, clr.classForName(mmd.getMap().getValueType()));
                             cqlValType = CassandraUtils.getCassandraTypeForDatastoreType(datastoreJavaType.getName());
                         }
                         else
