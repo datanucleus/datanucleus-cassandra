@@ -26,8 +26,10 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.datanucleus.ClassLoaderResolver;
+import org.datanucleus.ExecutionContext;
 import org.datanucleus.PersistenceNucleusContext;
 import org.datanucleus.PropertyNames;
+import org.datanucleus.identity.SCOID;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
@@ -199,6 +201,41 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
 
         // Create schema for classes
         schemaHandler.createSchemaForClasses(clsNameSet, null, session);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.AbstractStoreManager#getClassNameForObjectID(java.lang.Object, org.datanucleus.ClassLoaderResolver, org.datanucleus.ExecutionContext)
+     */
+    @Override
+    public String getClassNameForObjectID(Object id, ClassLoaderResolver clr, ExecutionContext ec)
+    {
+        if (id == null)
+        {
+            // User stupidity
+            return null;
+        }
+        else if (id instanceof SCOID)
+        {
+            // Object is a SCOID
+            return ((SCOID) id).getSCOClass();
+        }
+
+        // Find overall root class possible for this id
+        String rootClassName = super.getClassNameForObjectID(id, clr, ec);
+        if (rootClassName != null)
+        {
+            // User could have passed in a superclass of the real class, so consult the datastore for the precise table/class
+            String[] subclasses = getMetaDataManager().getSubclassesForClass(rootClassName, true);
+            if (subclasses == null || subclasses.length == 0)
+            {
+                // No subclasses so no need to go to the datastore
+                return rootClassName;
+            }
+
+            // TODO Check the datastore for this id
+            return rootClassName;
+        }
+        return null;
     }
 
     public void createDatabase(String catalogName, String schemaName, Properties props)
