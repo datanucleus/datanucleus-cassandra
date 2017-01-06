@@ -47,6 +47,7 @@ import org.datanucleus.store.schema.naming.NamingFactory;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
+import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
@@ -460,7 +461,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                     if (vermd.getIndexMetaData() != null)
                     {
-                        Column column = table.getVersionColumn();
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.VERSION);
                         ColumnMetadata dbVerColMd = getColumnMetadataForColumn(tmd, column);
                         String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
                         if (dbVerColMd == null)
@@ -491,7 +492,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     DiscriminatorMetaData dismd = cmd.getDiscriminatorMetaData();
                     if (dismd.getIndexMetaData() != null)
                     {
-                        Column column = table.getDiscriminatorColumn();
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.DISCRIMINATOR);
                         ColumnMetadata dbDiscColMd = getColumnMetadataForColumn(tmd, column);
                         String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
                         if (dbDiscColMd == null)
@@ -636,7 +637,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                     if (vermd.getIndexMetaData() != null)
                     {
-                        Column column = table.getVersionColumn();
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.VERSION);
                         String idxName = namingFactory.getConstraintName(cmd, vermd.getIndexMetaData(), ColumnType.VERSION_COLUMN);
                         String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
@@ -647,7 +648,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     DiscriminatorMetaData dismd = cmd.getDiscriminatorMetaData();
                     if (dismd.getIndexMetaData() != null)
                     {
-                        Column column = table.getDiscriminatorColumn();
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.DISCRIMINATOR);
                         String idxName = namingFactory.getConstraintName(cmd, dismd.getIndexMetaData(), ColumnType.DISCRIMINATOR_COLUMN);
                         String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
                         constraintStmts.add(indexStmt);
@@ -655,7 +656,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
                 if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
                 {
-                    Column column = table.getMultitenancyColumn();
+                    Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
                     String idxName = cmd.getName() + "_TENANCY_IDX";
                     String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                     constraintStmts.add(indexStmt);

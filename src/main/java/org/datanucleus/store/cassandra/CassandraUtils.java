@@ -51,6 +51,7 @@ import org.datanucleus.store.FieldValues;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.table.Column;
+import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
 import org.datanucleus.store.types.converters.TypeConverter;
@@ -609,13 +610,13 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                if (table.getVersionColumn().getTypeName().equals("int"))
+                if (table.getSurrogateColumn(SurrogateColumnType.VERSION).getTypeName().equals("int"))
                 {
-                    version = row.getInt(table.getVersionColumn().getName());
+                    version = row.getInt(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
                 else
                 {
-                    version = row.getLong(table.getVersionColumn().getName());
+                    version = row.getLong(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
             }
             op.setVersion(version);
@@ -636,7 +637,7 @@ public class CassandraUtils
         }
         else
         {
-            Column col = table.getDatastoreIdColumn();
+            Column col = table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID);
             if (col.getTypeName().equals("varchar"))
             {
                 idKey = row.getString(col.getName());
@@ -684,13 +685,13 @@ public class CassandraUtils
             else
             {
                 // Get the surrogate version from the datastore
-                if (table.getVersionColumn().getTypeName().equals("int"))
+                if (table.getSurrogateColumn(SurrogateColumnType.VERSION).getTypeName().equals("int"))
                 {
-                    version = row.getInt(table.getVersionColumn().getName());
+                    version = row.getInt(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
                 else
                 {
-                    version = row.getLong(table.getVersionColumn().getName());
+                    version = row.getLong(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
             }
             op.setVersion(version);

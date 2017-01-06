@@ -49,6 +49,7 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.fieldmanager.DeleteFieldManager;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
+import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
@@ -291,7 +292,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getDatastoreIdColumn().getName());
+            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID).getName());
             numParams++;
         }
 
@@ -305,7 +306,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 {
                     insertStmtBuilder.append(',');
                 }
-                insertStmtBuilder.append(table.getVersionColumn().getName());
+                insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 numParams++;
             }
         }
@@ -317,7 +318,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getDiscriminatorColumn().getName());
+            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.DISCRIMINATOR).getName());
             numParams++;
         }
 
@@ -328,7 +329,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getMultitenancyColumn().getName());
+            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName());
             numParams++;
         }
 
@@ -505,7 +506,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 else
                 {
                     // Update the stored surrogate value
-                    stmtBuilder.append(",").append(table.getVersionColumn().getName()).append("=?");
+                    stmtBuilder.append(",").append(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName()).append("=?");
                     Object verVal = op.getTransactionalVersion();
                     setVals.add(verVal);
                 }
@@ -542,10 +543,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             }
             else if (cmd.getIdentityType() == IdentityType.DATASTORE)
             {
-                stmtBuilder.append(table.getDatastoreIdColumn().getName());
+                stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID).getName());
                 stmtBuilder.append("=?");
                 Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
-                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getDatastoreIdColumn().getTypeName(), false, ec.getTypeManager(), null, FieldRole.ROLE_FIELD));
+                setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID).getTypeName(), false, ec.getTypeManager(), null, FieldRole.ROLE_FIELD));
             }
 
             CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
@@ -814,7 +815,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         stmtBuilder.append(',');
                     }
-                    stmtBuilder.append(table.getVersionColumn().getName());
+                    stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                     first = false;
                 }
             }
@@ -894,7 +895,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     else
                     {
                         // Surrogate version
-                        Column verCol = table.getVersionColumn();
+                        Column verCol = table.getSurrogateColumn(SurrogateColumnType.VERSION);
                         Object datastoreVersion = verCol.getTypeName().equals("int") ? row.getInt(verCol.getName()) : row.getLong(verCol.getName());
                         op.setVersion(datastoreVersion);
                     }
@@ -1091,7 +1092,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
             if (vermd.getFieldName() == null)
             {
-                col = table.getVersionColumn();
+                col = table.getSurrogateColumn(SurrogateColumnType.VERSION);
             }
             else
             {
@@ -1246,7 +1247,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
         else if (cmd.getIdentityType() == IdentityType.DATASTORE)
         {
-            pkCols.add(table.getDatastoreIdColumn());
+            pkCols.add(table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID));
         }
 
         return pkCols;
@@ -1273,7 +1274,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         if (vermd.getFieldName() == null)
         {
             // Surrogate version
-            verColName = table.getVersionColumn().getName();
+            verColName = table.getSurrogateColumn(SurrogateColumnType.VERSION).getName();
         }
         else
         {

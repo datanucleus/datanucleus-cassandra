@@ -42,6 +42,7 @@ import org.datanucleus.store.query.AbstractJDOQLQuery;
 import org.datanucleus.store.query.AbstractQueryResult;
 import org.datanucleus.store.query.QueryManager;
 import org.datanucleus.store.query.QueryResult;
+import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
@@ -415,7 +416,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
                 String multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec, cmd);
-                stmtBuilder.append(" WHERE ").append(table.getMultitenancyColumn().getName()).append("='").append(multitenancyValue).append("'");
+                stmtBuilder.append(" WHERE ").append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
             }
 
             // Execute the SELECT
