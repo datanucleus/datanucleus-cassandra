@@ -42,7 +42,6 @@ import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreManager;
-import org.datanucleus.store.VersionHelper;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -131,7 +130,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (vermd != null)
             {
                 // Process the version value, setting it on the object, and saving the value for the INSERT
-                versionValue = VersionHelper.getNextVersion(vermd.getVersionStrategy(), null);
+                versionValue = ec.getNextVersion(vermd.getVersionStrategy(), null);
                 if (vermd.getFieldName() != null)
                 {
                     // Version is stored in a member, so update the member too
@@ -428,7 +427,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     performOptimisticCheck(op, session, table, vermd, currentVersion);
                 }
 
-                Object nextVersion = VersionHelper.getNextVersion(vermd.getVersionStrategy(), currentVersion);
+                Object nextVersion = ec.getNextVersion(vermd.getVersionStrategy(), currentVersion);
                 op.setTransactionalVersion(nextVersion);
                 if (vermd.getFieldName() != null)
                 {
