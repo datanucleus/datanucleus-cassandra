@@ -130,7 +130,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (vermd != null)
             {
                 // Process the version value, setting it on the object, and saving the value for the INSERT
-                versionValue = ec.getNextVersion(vermd.getVersionStrategy(), null);
+                versionValue = ec.getNextVersion(vermd, null);
                 if (vermd.getFieldName() != null)
                 {
                     // Version is stored in a member, so update the member too
@@ -427,7 +427,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     performOptimisticCheck(op, session, table, vermd, currentVersion);
                 }
 
-                Object nextVersion = ec.getNextVersion(vermd.getVersionStrategy(), currentVersion);
+                Object nextVersion = ec.getNextVersion(vermd, currentVersion);
                 op.setTransactionalVersion(nextVersion);
                 if (vermd.getFieldName() != null)
                 {
