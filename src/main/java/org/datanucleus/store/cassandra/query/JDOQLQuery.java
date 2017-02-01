@@ -413,10 +413,20 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             stmtBuilder.append(table.getSchemaName()).append('.').append(table.getName());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
 
+            boolean addedWhere = false;
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
+                // Multi-tenancy column
+                stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
                 String multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec, cmd);
-                stmtBuilder.append(" WHERE ").append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
+                stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
+            }
+
+            if (table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE) != null)
+            {
+                // Soft-delete column
+                stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
+                stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE).getName()).append("='").append(Boolean.FALSE).append("'");
             }
 
             // Execute the SELECT

@@ -36,6 +36,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.FieldPersistenceModifier;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityType;
+import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
@@ -218,6 +219,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtValues[pos++] = multitenancyValue;
             }
+            if (cmd.hasExtension(MetaData.EXTENSION_CLASS_SOFTDELETE))
+            {
+                stmtValues[pos++] = Boolean.FALSE;
+            }
 
             CassandraUtils.logCqlStatement(insertStmt, stmtValues, NucleusLogger.DATASTORE_NATIVE);
             SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
@@ -329,6 +334,17 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 insertStmtBuilder.append(',');
             }
             insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName());
+            numParams++;
+        }
+
+        if (cmd.hasExtension(MetaData.EXTENSION_CLASS_SOFTDELETE))
+        {
+            // Soft-delete column
+            if (numParams > 0)
+            {
+                insertStmtBuilder.append(',');
+            }
+            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE).getName());
             numParams++;
         }
 
@@ -598,6 +614,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 Object currentVersion = op.getTransactionalVersion();
                 performOptimisticCheck(op, session, table, vermd, currentVersion);
             }
+
+            // TODO Cater for Soft-delete
 
             // Invoke any cascade deletion
             op.loadUnloadedFields();
