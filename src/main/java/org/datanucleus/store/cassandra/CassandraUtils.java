@@ -48,7 +48,6 @@ import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.FieldValues;
-import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.SurrogateColumnType;
@@ -594,11 +593,11 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
+        ObjectProvider op = ec.findObjectProvider(pc);
 
         if (cmd.isVersioned())
         {
             // Set the version on the retrieved object
-            ObjectProvider op = ec.findObjectProvider(pc);
             Object version = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
             if (vermd.getFieldName() != null)
@@ -622,6 +621,9 @@ public class CassandraUtils
             op.setVersion(version);
         }
 
+        // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
+        op.replaceAllLoadedSCOFieldsWithWrappers();
+
         return pc;
     }
 
@@ -629,9 +631,8 @@ public class CassandraUtils
             boolean ignoreCache, final int[] fpMembers)
     {
         Object idKey = null;
-        StoreManager storeMgr = ec.getStoreManager();
         Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
-        if (storeMgr.isStrategyDatastoreAttributed(cmd, -1))
+        if (ec.getStoreManager().isStrategyDatastoreAttributed(cmd, -1))
         {
             // TODO Support this?
         }
@@ -647,9 +648,9 @@ public class CassandraUtils
                 idKey = row.getLong(col.getName());
             }
         }
-
-        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table);
         Object id = ec.getNucleusContext().getIdentityManager().getDatastoreId(cmd.getFullClassName(), idKey);
+
+        final FetchFieldManager fm = new FetchFieldManager(ec, row, cmd, table); // TODO Use the constructor taking op, so we can wrap all SCOs
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(id, new FieldValues()
         {
@@ -669,11 +670,11 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
+        ObjectProvider op = ec.findObjectProvider(pc);
 
         if (cmd.isVersioned())
         {
             // Set the version on the retrieved object
-            ObjectProvider op = ec.findObjectProvider(pc);
             Object version = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
             if (vermd.getFieldName() != null)
@@ -696,6 +697,10 @@ public class CassandraUtils
             }
             op.setVersion(version);
         }
+
+        // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
+        op.replaceAllLoadedSCOFieldsWithWrappers();
+
         return pc;
     }
 
