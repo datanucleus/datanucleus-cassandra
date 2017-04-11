@@ -153,6 +153,10 @@ public class SchemaVerifierImpl implements SchemaVerifier
         {
             mapping.getColumn(0).setTypeName("varchar");
         }
+        else if (mapping.getColumn(0).getColumnType() == ColumnType.SOFTDELETE_COLUMN)
+        {
+            mapping.getColumn(0).setTypeName("boolean");
+        }
     }
 
     /*
