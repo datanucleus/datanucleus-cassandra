@@ -19,7 +19,8 @@ package org.datanucleus.store.cassandra;
 
 import java.util.Map;
 
-import org.datanucleus.util.SoftValueMap;
+import org.datanucleus.util.ConcurrentReferenceHashMap;
+import org.datanucleus.util.ConcurrentReferenceHashMap.ReferenceType;
 
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
@@ -29,7 +30,7 @@ import com.datastax.driver.core.Session;
  */
 public class SessionStatementProvider
 {
-    Map<String, PreparedStatement> preparedStatementCache = new SoftValueMap();
+    Map<String, PreparedStatement> preparedStatementCache = new ConcurrentReferenceHashMap<>(1, ReferenceType.STRONG, ReferenceType.SOFT);
 
     public SessionStatementProvider()
     {
