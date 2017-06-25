@@ -592,18 +592,8 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     return;
                 }
 
-                Collection cassColl = null;
-                if (value instanceof List || value instanceof Queue)
-                {
-                    cassColl = new ArrayList();
-                }
-                else
-                {
-                    cassColl = new HashSet();
-                }
-
+                Collection cassColl = (value instanceof List || value instanceof Queue) ? new ArrayList() : new HashSet();
                 TypeConverter elemConv = mapping.getTypeConverterForComponent(FieldRole.ROLE_COLLECTION_ELEMENT);
-
                 Class elemCls = clr.classForName(mmd.getCollection().getElementType());
                 String elemCassType = CassandraUtils.getCassandraTypeForNonPersistableType(elemCls, false, ec.getTypeManager(), null, mmd, FieldRole.ROLE_COLLECTION_ELEMENT, clr);
                 Iterator collIter = coll.iterator();
