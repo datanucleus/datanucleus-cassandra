@@ -72,7 +72,7 @@ public class CQLQuery extends AbstractJavaQuery
     public CQLQuery(StoreManager storeMgr, ExecutionContext ec, CQLQuery q)
     {
         super(storeMgr, ec);
-        this.cql = q.cql;
+        this.cql = q != null ? q.cql : null;
     }
 
     /**

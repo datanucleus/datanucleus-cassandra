@@ -214,7 +214,7 @@ public class CassandraQueryResult extends AbstractQueryResult
     @Override
     public boolean equals(Object o)
     {
-        if (null == o || (o instanceof CassandraQueryResult))
+        if (null == o || !(o instanceof CassandraQueryResult))
         {
             return false;
         }

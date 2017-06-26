@@ -233,8 +233,8 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             {
                 filterInMemory = false;
             }
-            Boolean orderInMemory = (ordering != null);
-            Boolean rangeInMemory = (range != null);
+            boolean orderInMemory = (ordering != null);
+            boolean rangeInMemory = (range != null);
 
             List candidates = null;
             if (candidateCollection != null)

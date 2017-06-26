@@ -233,12 +233,14 @@ public class JPQLQuery extends AbstractJPQLQuery
             {
                 filterInMemory = false;
             }
-            Boolean orderInMemory = (ordering != null);
+
+            boolean orderInMemory = (ordering != null);
             if (ordering == null || datastoreCompilation.isOrderComplete())
             {
                 orderInMemory = false;
             }
-            Boolean rangeInMemory = (range != null);
+
+            boolean rangeInMemory = (range != null);
 
             List candidates = null;
             if (candidateCollection != null)
