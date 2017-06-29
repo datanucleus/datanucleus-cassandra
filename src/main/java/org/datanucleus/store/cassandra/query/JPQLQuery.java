@@ -32,6 +32,7 @@ import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.query.inmemory.JPQLInMemoryEvaluator;
 import org.datanucleus.query.inmemory.JavaQueryInMemoryEvaluator;
+import org.datanucleus.store.StoreData;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.CassandraUtils;
@@ -405,10 +406,13 @@ public class JPQLQuery extends AbstractJPQLQuery
                 continue;
             }
 
-            // TODO Remove this and when class is registered, use listener to manage it
-            storeMgr.manageClasses(clr, cmd.getFullClassName());
-
-            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
+            {
+                storeMgr.manageClasses(ec.getClassLoaderResolver(), new String[]{cmd.getFullClassName()});
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            }
+            Table table = sd.getTable();
             if (table == null)
             {
                 continue;
@@ -477,10 +481,13 @@ public class JPQLQuery extends AbstractJPQLQuery
                 continue;
             }
 
-            // TODO Remove this when class is registered, use listener to manage it
-            storeMgr.manageClasses(clr, cmd.getFullClassName());
-
-            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
+            {
+                storeMgr.manageClasses(ec.getClassLoaderResolver(), new String[]{cmd.getFullClassName()});
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            }
+            Table table = sd.getTable();
             if (table == null)
             {
                 continue;

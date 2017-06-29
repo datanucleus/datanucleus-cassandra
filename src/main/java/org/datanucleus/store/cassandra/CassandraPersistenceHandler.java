@@ -42,6 +42,7 @@ import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.state.ObjectProvider;
 import org.datanucleus.store.AbstractPersistenceHandler;
+import org.datanucleus.store.StoreData;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.cassandra.fieldmanager.StoreFieldManager;
@@ -93,12 +94,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         try
         {
             Session session = (Session) mconn.getConnection();
-            if (!storeMgr.managesClass(cmd.getFullClassName()))
+
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
             {
-                // Make sure schema exists, using this connection
                 ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
             }
-            Table table = storeMgr.getStoreDataForClass(cmd.getFullClassName()).getTable();
+            Table table = sd.getTable();
+
             boolean enforceUniquenessInApp = storeMgr.getBooleanProperty(CassandraStoreManager.PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION);
             if (enforceUniquenessInApp)
             {
@@ -396,12 +400,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         try
         {
             Session session = (Session) mconn.getConnection();
-            if (!storeMgr.managesClass(cmd.getFullClassName()))
+
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
             {
-                // Make sure schema exists, using this connection
                 ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
             }
-            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
+            Table table = sd.getTable();
 
             boolean fieldsToUpdate = false;
             for (int fieldNum : fieldNumbers)
@@ -599,14 +605,21 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
         {
+            Session session = (Session) mconn.getConnection();
+
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
             {
                 NucleusLogger.DATASTORE_PERSIST.debug(Localiser.msg("Cassandra.Delete.Start", op.getObjectAsPrintable(), op.getInternalObjectId()));
             }
 
-            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
-            Session session = (Session) mconn.getConnection();
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
+            {
+                ((CassandraStoreManager)storeMgr).manageClasses(new String[] {cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            }
+            Table table = sd.getTable();
             if (cmd.isVersioned() && ec.getTransaction().getOptimistic())
             {
                 // Versioned object, so perform optimistic check as required and update version
@@ -718,6 +731,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnection(ec);
         try
         {
+            Session session = (Session) mconn.getConnection();
+
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {
                 // Debug information about what we are retrieving
@@ -744,7 +759,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             // Create PreparedStatement and values to bind
             // ("SELECT COL1,COL3,... FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-            Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
+            StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            if (sd == null)
+            {
+                ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+            }
+            Table table = sd.getTable();
             Set<Integer> nonpersistableFields = null;
             ClassLoaderResolver clr = ec.getClassLoaderResolver();
             boolean first = true;
@@ -872,7 +893,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 Object[] pkVals = getPkValuesForStatement(op, table, clr);
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
-                Session session = (Session) mconn.getConnection();
+
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
                 PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
                 ResultSet rs = session.execute(stmt.bind(pkVals));
@@ -1005,12 +1026,21 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             ManagedConnection mconn = storeMgr.getConnection(ec);
             try
             {
+                Session session = (Session) mconn.getConnection();
+
+                StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+                if (sd == null)
+                {
+                    ((CassandraStoreManager) storeMgr).manageClasses(new String[]{cmd.getFullClassName()}, ec.getClassLoaderResolver(), session);
+                    sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
+                }
+                Table table = sd.getTable();
+
                 String locateStmt = null;
                 if (locateStatementByClassName != null)
                 {
                     locateStmt = locateStatementByClassName.get(cmd.getFullClassName());
                 }
-                Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
                 if (locateStmt == null)
                 {
                     // Create the locate statement
@@ -1061,7 +1091,6 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 Object[] pkVals = getPkValuesForStatement(op, table, ec.getClassLoaderResolver());
                 CassandraUtils.logCqlStatement(locateStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
-                Session session = (Session) mconn.getConnection();
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
                 PreparedStatement stmt = stmtProvider.prepare(locateStmt, session);
                 ResultSet rs = session.execute(stmt.bind(pkVals));
