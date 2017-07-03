@@ -113,7 +113,7 @@ public class CQLQuery extends AbstractJavaQuery
     {
         if (type == QueryType.SELECT)
         {
-            ManagedConnection mconn = getStoreManager().getConnection(ec);
+            ManagedConnection mconn = getStoreManager().getConnectionManager().getConnection(ec);
             try
             {
                 List results = new ArrayList();

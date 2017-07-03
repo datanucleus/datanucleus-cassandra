@@ -90,7 +90,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
         ExecutionContext ec = op.getExecutionContext();
         AbstractClassMetaData cmd = op.getClassMetaData();
-        ManagedConnection mconn = storeMgr.getConnection(ec);
+        ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
             Session session = (Session) mconn.getConnection();
@@ -396,7 +396,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
         ExecutionContext ec = op.getExecutionContext();
         AbstractClassMetaData cmd = op.getClassMetaData();
-        ManagedConnection mconn = storeMgr.getConnection(ec);
+        ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
             Session session = (Session) mconn.getConnection();
@@ -602,7 +602,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
         AbstractClassMetaData cmd = op.getClassMetaData();
         ExecutionContext ec = op.getExecutionContext();
-        ManagedConnection mconn = storeMgr.getConnection(ec);
+        ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
             Session session = (Session) mconn.getConnection();
@@ -728,7 +728,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         AbstractClassMetaData cmd = op.getClassMetaData();
 
         ExecutionContext ec = op.getExecutionContext();
-        ManagedConnection mconn = storeMgr.getConnection(ec);
+        ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
             Session session = (Session) mconn.getConnection();
@@ -1023,7 +1023,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         if (cmd.getIdentityType() == IdentityType.APPLICATION || cmd.getIdentityType() == IdentityType.DATASTORE)
         {
             ExecutionContext ec = op.getExecutionContext();
-            ManagedConnection mconn = storeMgr.getConnection(ec);
+            ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
             try
             {
                 Session session = (Session) mconn.getConnection();

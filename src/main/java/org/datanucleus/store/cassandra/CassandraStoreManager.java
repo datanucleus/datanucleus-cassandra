@@ -153,7 +153,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
             return;
         }
 
-        ManagedConnection mconn = getConnection(-1);
+        ManagedConnection mconn = connectionMgr.getConnection(-1);
         try
         {
             Session session = (Session) mconn.getConnection();

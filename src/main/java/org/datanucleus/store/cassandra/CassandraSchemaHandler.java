@@ -88,7 +88,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             if (session == null)
             {
-                mconn = storeMgr.getConnection(-1);
+                mconn = storeMgr.getConnectionManager().getConnection(-1);
                 session = (Session) mconn.getConnection();
             }
 
@@ -156,7 +156,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 if (session == null)
                 {
-                    mconn = storeMgr.getConnection(-1);
+                    mconn = storeMgr.getConnectionManager().getConnection(-1);
                     session = (Session) mconn.getConnection();
                 }
 
@@ -680,7 +680,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             if (session == null)
             {
-                mconn = storeMgr.getConnection(-1);
+                mconn = storeMgr.getConnectionManager().getConnection(-1);
                 session = (Session) mconn.getConnection();
             }
 
@@ -740,7 +740,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             {
                 if (session == null)
                 {
-                    mconn = storeMgr.getConnection(-1);
+                    mconn = storeMgr.getConnectionManager().getConnection(-1);
                     session = (Session) mconn.getConnection();
                 }
 
@@ -914,7 +914,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             if (session == null)
             {
-                mconn = storeMgr.getConnection(-1);
+                mconn = storeMgr.getConnectionManager().getConnection(-1);
                 session = (Session) mconn.getConnection();
             }
 

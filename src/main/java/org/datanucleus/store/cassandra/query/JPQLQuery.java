@@ -218,7 +218,7 @@ public class JPQLQuery extends AbstractJPQLQuery
 
     protected Object performExecute(Map parameters)
     {
-        ManagedConnection mconn = getStoreManager().getConnection(ec);
+        ManagedConnection mconn = getStoreManager().getConnectionManager().getConnection(ec);
         try
         {
             Session session = (Session) mconn.getConnection();
