@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>datanucleus-cassandra</artifactId>
-    <version>5.1.0-m4</version>
+    <version>5.1.0-m5-SNAPSHOT</version>
 
     <name>DataNucleus Cassandra plugin</name>
     <description>
