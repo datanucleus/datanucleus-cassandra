@@ -632,7 +632,7 @@ public class CassandraUtils
     {
         Object idKey = null;
         Table table = ec.getStoreManager().getStoreDataForClass(cmd.getFullClassName()).getTable();
-        if (ec.getStoreManager().isStrategyDatastoreAttributed(cmd, -1))
+        if (ec.getStoreManager().isValueGenerationStrategyDatastoreAttributed(cmd, -1))
         {
             // TODO Support this?
         }
