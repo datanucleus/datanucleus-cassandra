@@ -77,9 +77,9 @@ public class JPQLQuery extends AbstractJPQLQuery
      * @param ec execution context
      * @param q The query from which to copy criteria.
      */
-    public JPQLQuery(StoreManager storeMgr, ExecutionContext ec, Object q)
+    public JPQLQuery(StoreManager storeMgr, ExecutionContext ec, JPQLQuery q)
     {
-        super(storeMgr, ec, (JPQLQuery) q);
+        super(storeMgr, ec, q);
     }
 
     /**

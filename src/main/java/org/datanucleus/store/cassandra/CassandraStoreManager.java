@@ -29,13 +29,18 @@ import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
 import org.datanucleus.PersistenceNucleusContext;
 import org.datanucleus.PropertyNames;
+import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.identity.SCOID;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.StoreManager;
+import org.datanucleus.store.cassandra.query.CQLQuery;
+import org.datanucleus.store.cassandra.query.JDOQLQuery;
+import org.datanucleus.store.cassandra.query.JPQLQuery;
 import org.datanucleus.store.connection.ManagedConnection;
+import org.datanucleus.store.query.Query;
 import org.datanucleus.store.schema.SchemaAwareStoreManager;
 import org.datanucleus.store.schema.naming.NamingCase;
 import org.datanucleus.store.schema.table.CompleteClassTable;
@@ -133,12 +138,99 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     }
 
     /* (non-Javadoc)
+     * @see org.datanucleus.store.AbstractStoreManager#getSupportedQueryLanguages()
+     */
+    @Override
+    public Collection<String> getSupportedQueryLanguages()
+    {
+        Collection<String> languages = super.getSupportedQueryLanguages();
+        languages.add("CQL");
+        return languages;
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.AbstractStoreManager#supportsQueryLanguage(java.lang.String)
+     */
+    @Override
+    public boolean supportsQueryLanguage(String language)
+    {
+        if (language != null && (language.equalsIgnoreCase("JDOQL") || language.equalsIgnoreCase("JPQL") || language.equalsIgnoreCase("CQL")))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    /* (non-Javadoc)
      * @see org.datanucleus.store.AbstractStoreManager#getNativeQueryLanguage()
      */
     @Override
     public String getNativeQueryLanguage()
     {
         return "CQL";
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.StoreManager#newQuery(java.lang.String, org.datanucleus.ExecutionContext)
+     */
+    @Override
+    public Query newQuery(String language, ExecutionContext ec)
+    {
+        if (language.equalsIgnoreCase("JDOQL"))
+        {
+            return new JDOQLQuery(this, ec);
+        }
+        else if (language.equalsIgnoreCase("JPQL"))
+        {
+            return new JPQLQuery(this, ec);
+        }
+        else if (language.equalsIgnoreCase("CQL"))
+        {
+            return new CQLQuery(this, ec);
+        }
+        throw new NucleusException("Error creating query for language " + language);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.StoreManager#newQuery(java.lang.String, org.datanucleus.ExecutionContext, java.lang.String)
+     */
+    @Override
+    public Query newQuery(String language, ExecutionContext ec, String queryString)
+    {
+        if (language.equalsIgnoreCase("JDOQL"))
+        {
+            return new JDOQLQuery(this, ec, queryString);
+        }
+        else if (language.equalsIgnoreCase("JPQL"))
+        {
+            return new JPQLQuery(this, ec, queryString);
+        }
+        else if (language.equalsIgnoreCase("CQL"))
+        {
+            return new CQLQuery(this, ec, queryString);
+        }
+        throw new NucleusException("Error creating query for language " + language);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.store.StoreManager#newQuery(java.lang.String, org.datanucleus.ExecutionContext, org.datanucleus.store.query.Query)
+     */
+    @Override
+    public Query newQuery(String language, ExecutionContext ec, Query q)
+    {
+        if (language.equalsIgnoreCase("JDOQL"))
+        {
+            return new JDOQLQuery(this, ec, (JDOQLQuery) q);
+        }
+        else if (language.equalsIgnoreCase("JPQL"))
+        {
+            return new JPQLQuery(this, ec, (JPQLQuery) q);
+        }
+        else if (language.equalsIgnoreCase("CQL"))
+        {
+            return new CQLQuery(this, ec, (CQLQuery) q);
+        }
+        throw new NucleusException("Error creating query for language " + language);
     }
 
     public SessionStatementProvider getStatementProvider()

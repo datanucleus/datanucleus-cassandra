@@ -40,13 +40,6 @@ Contributors:
         <persistence-property name="datanucleus.cassandra.enforceUniquenessInApplication" datastore="true" value="false" validator="org.datanucleus.properties.BooleanPropertyValidator"/>
     </extension>
 
-    <!-- QUERY LANGUAGES -->
-    <extension point="org.datanucleus.store_query_query">
-        <query class-name="org.datanucleus.store.cassandra.query.JDOQLQuery" datastore="cassandra" name="JDOQL"/>
-        <query class-name="org.datanucleus.store.cassandra.query.JPQLQuery" datastore="cassandra" name="JPQL"/>
-        <query class-name="org.datanucleus.store.cassandra.query.CQLQuery" datastore="cassandra" name="CQL"/>
-    </extension>
-
     <!-- VALUE GENERATORS -->
     <extension point="org.datanucleus.store_valuegenerator">
         <valuegenerator name="increment" class-name="org.datanucleus.store.cassandra.valuegenerator.IncrementGenerator" datastore="cassandra"/>
