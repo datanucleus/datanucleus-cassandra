@@ -43,8 +43,6 @@ import com.datastax.driver.core.Session;
  */
 public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 {
-    static final String INCREMENT_COL_NAME = "increment";
-
     private String key = null;
 
     private String schemaName = null;
