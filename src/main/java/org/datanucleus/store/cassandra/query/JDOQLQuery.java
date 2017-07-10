@@ -226,7 +226,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(Localiser.msg("021046", "JDOQL", getSingleStringQuery(), null));
+                NucleusLogger.QUERY.debug(Localiser.msg("021046", LANGUAGE_JDOQL, getSingleStringQuery(), null));
             }
 
             boolean filterInMemory = (filter != null);
@@ -308,7 +308,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
 
             if (NucleusLogger.QUERY.isDebugEnabled())
             {
-                NucleusLogger.QUERY.debug(Localiser.msg("021074", "JDOQL", "" + (System.currentTimeMillis() - startTime)));
+                NucleusLogger.QUERY.debug(Localiser.msg("021074", LANGUAGE_JDOQL, "" + (System.currentTimeMillis() - startTime)));
             }
 
             if (type == QueryType.BULK_DELETE)

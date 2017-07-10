@@ -154,7 +154,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public boolean supportsQueryLanguage(String language)
     {
-        if (language != null && (language.equalsIgnoreCase("JDOQL") || language.equalsIgnoreCase("JPQL") || language.equalsIgnoreCase("CQL")))
+        if (language != null && (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL) || language.equalsIgnoreCase(Query.LANGUAGE_JPQL) || language.equalsIgnoreCase("CQL")))
         {
             return true;
         }
@@ -176,11 +176,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec)
     {
-        if (language.equalsIgnoreCase("JDOQL"))
+        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
         {
             return new JDOQLQuery(this, ec);
         }
-        else if (language.equalsIgnoreCase("JPQL"))
+        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
         {
             return new JPQLQuery(this, ec);
         }
@@ -197,11 +197,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec, String queryString)
     {
-        if (language.equalsIgnoreCase("JDOQL"))
+        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
         {
             return new JDOQLQuery(this, ec, queryString);
         }
-        else if (language.equalsIgnoreCase("JPQL"))
+        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
         {
             return new JPQLQuery(this, ec, queryString);
         }
@@ -218,11 +218,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec, Query q)
     {
-        if (language.equalsIgnoreCase("JDOQL"))
+        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
         {
             return new JDOQLQuery(this, ec, (JDOQLQuery) q);
         }
-        else if (language.equalsIgnoreCase("JPQL"))
+        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
         {
             return new JPQLQuery(this, ec, (JPQLQuery) q);
         }
