@@ -54,6 +54,9 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
 
     private String valColName = "value";
 
+    /** Flag for whether we know that the repository exists. */
+    protected boolean repositoryExists = false;
+
     public IncrementGenerator(StoreManager storeMgr, String name, Properties props)
     {
         super(storeMgr, name, props);
