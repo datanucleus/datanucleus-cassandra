@@ -23,11 +23,12 @@ import java.util.Properties;
 
 import org.datanucleus.PropertyNames;
 import org.datanucleus.exceptions.NucleusUserException;
+import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.cassandra.CassandraSchemaHandler;
 import org.datanucleus.store.cassandra.CassandraStoreManager;
 import org.datanucleus.store.cassandra.SessionStatementProvider;
 import org.datanucleus.store.connection.ManagedConnection;
-import org.datanucleus.store.valuegenerator.AbstractDatastoreGenerator;
+import org.datanucleus.store.valuegenerator.AbstractConnectedGenerator;
 import org.datanucleus.store.valuegenerator.ValueGenerationBlock;
 import org.datanucleus.store.valuegenerator.ValueGenerator;
 import org.datanucleus.util.NucleusLogger;
@@ -41,7 +42,7 @@ import com.datastax.driver.core.Session;
  * Value generator using a table in the datastore and incrementing a column, keyed by the field name that has
  * the strategy.
  */
-public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
+public class IncrementGenerator extends AbstractConnectedGenerator<Long>
 {
     private String key = null;
 
@@ -53,9 +54,9 @@ public class IncrementGenerator extends AbstractDatastoreGenerator<Long>
 
     private String valColName = "value";
 
-    public IncrementGenerator(String name, Properties props)
+    public IncrementGenerator(StoreManager storeMgr, String name, Properties props)
     {
-        super(name, props);
+        super(storeMgr, name, props);
 
         if (properties.getProperty(ValueGenerator.PROPERTY_SEQUENCE_NAME) != null)
         {
