@@ -37,6 +37,7 @@ import org.datanucleus.query.compiler.QueryCompilation;
 import org.datanucleus.query.expression.AbstractExpressionEvaluator;
 import org.datanucleus.query.expression.DyadicExpression;
 import org.datanucleus.query.expression.Expression;
+import org.datanucleus.query.expression.InvokeExpression;
 import org.datanucleus.query.expression.Literal;
 import org.datanucleus.query.expression.OrderExpression;
 import org.datanucleus.query.expression.ParameterExpression;
@@ -491,6 +492,36 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
         CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
         stack.push(boolExpr);
         return boolExpr;
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.query.expression.AbstractExpressionEvaluator#processInExpression(org.datanucleus.query.expression.Expression)
+     */
+    @Override
+    protected Object processInExpression(Expression expr)
+    {
+        // TODO Support IN expressions
+        return super.processInExpression(expr);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.query.expression.AbstractExpressionEvaluator#processNotInExpression(org.datanucleus.query.expression.Expression)
+     */
+    @Override
+    protected Object processNotInExpression(Expression expr)
+    {
+        // TODO Support NOT IN expressions
+        return super.processNotInExpression(expr);
+    }
+
+    /* (non-Javadoc)
+     * @see org.datanucleus.query.expression.AbstractExpressionEvaluator#processInvokeExpression(org.datanucleus.query.expression.InvokeExpression)
+     */
+    @Override
+    protected Object processInvokeExpression(InvokeExpression expr)
+    {
+        // TODO Support method invocation
+        return super.processInvokeExpression(expr);
     }
 
     /*
