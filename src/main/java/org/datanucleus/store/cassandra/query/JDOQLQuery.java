@@ -450,10 +450,9 @@ public class JDOQLQuery extends AbstractJDOQLQuery
     }
 
     /**
-     * Method to compile the query for the datastore attempting to evaluate the whole query in the datastore
-     * if possible. Sets the components of the "datastoreCompilation".
+     * Method to compile the query for the datastore attempting to evaluate the whole query in the datastore if possible.
+     * Sets the components of the "datastoreCompilation".
      * @param parameters Input parameters (if known)
-     * @param candidateCmd Metadata for the candidate class
      */
     private void compileQueryFull(Map parameters)
     {
