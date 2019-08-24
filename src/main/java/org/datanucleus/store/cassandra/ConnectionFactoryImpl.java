@@ -40,6 +40,8 @@ import com.datastax.driver.core.Cluster.Builder;
 import com.datastax.driver.core.ProtocolOptions.Compression;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SocketOptions;
+import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
+import com.datastax.driver.core.policies.RoundRobinPolicy;
 
 /**
  * Connection factory for Cassandra datastores. Accepts a URL of the form
@@ -63,6 +65,10 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
     public static final String CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.readTimeoutMillis";
 
     public static final String CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS = "datanucleus.cassandra.socket.connectTimeoutMillis";
+
+    public static final String CASSANDRA_LOAD_BALANCING_POLICY = "datanucleus.cassandra.loadBalancingPolicy";
+
+    public static final String CASSANDRA_LOAD_BALANCING_POLICY_TOKEN_AWARE_LOCAL_DC = "datanucleus.cassandra.loadBalancingPolicy.tokenAwareLocalDC";
 
     protected static final String DEFAULT_IP_ADDR = "127.0.0.1";
 
@@ -208,6 +214,29 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         if (socketOpts != null)
         {
             builder.withSocketOptions(socketOpts);
+        }
+
+        // Load balancing policy
+        String loadBalancingPolicy = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY);
+        if (!StringUtils.isWhitespace(loadBalancingPolicy))
+        {
+            if (loadBalancingPolicy.equalsIgnoreCase("round-robin"))
+            {
+                builder.withLoadBalancingPolicy(new RoundRobinPolicy());
+            }
+            else if (loadBalancingPolicy.equalsIgnoreCase("token-aware"))
+            {
+                String localDC = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY_TOKEN_AWARE_LOCAL_DC);
+                if (!StringUtils.isWhitespace(localDC))
+                {
+                    builder.withLoadBalancingPolicy(DCAwareRoundRobinPolicy.builder().withLocalDc(localDC).build());
+                }
+            }
+            else
+            {
+                NucleusLogger.CONNECTION.error("Supplied Cassandra LoadBalancingPolicy of " + loadBalancingPolicy + " is not supported. " +
+                    "Provide a GitHub pull request to contribute support");
+            }
         }
 
         // Get the Cluster
