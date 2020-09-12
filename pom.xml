@@ -9,7 +9,7 @@
     </parent>
 
     <artifactId>datanucleus-cassandra</artifactId>
-    <version>5.1.2-SNAPSHOT</version>
+    <version>5.2.0-release-SNAPSHOT</version>
 
     <name>DataNucleus Cassandra plugin</name>
     <description>
@@ -17,7 +17,7 @@
     </description>
 
     <properties>
-        <dn.core.version>5.1.0-release</dn.core.version>
+        <dn.core.version>5.2.0-release</dn.core.version>
         <cassandra.version>3.0.2</cassandra.version>
     </properties>
 
@@ -31,7 +31,7 @@
         <dependency>
             <groupId>org.datanucleus</groupId>
             <artifactId>datanucleus-core</artifactId>
-            <version>[${dn.core.version}, )</version>
+            <version>[${dn.core.version}, 5.9)</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
