@@ -180,7 +180,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
                 // Multitenancy discriminator
-                multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec, cmd);
+                multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec);
             }
 
             int numValues = columnValuesByName.size();
