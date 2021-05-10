@@ -26,6 +26,7 @@ import org.datanucleus.ExecutionContext;
 import org.datanucleus.store.StoreManager;
 import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.store.query.AbstractJavaQuery;
+import org.datanucleus.store.query.QueryUtils;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
@@ -35,7 +36,6 @@ import com.datastax.driver.core.Session;
 import com.datastax.driver.core.SimpleStatement;
 import com.datastax.driver.core.Statement;
 
-import org.datanucleus.query.QueryUtils;
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.types.TypeManager;
 

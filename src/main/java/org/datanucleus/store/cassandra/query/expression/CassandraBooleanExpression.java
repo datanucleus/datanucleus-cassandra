@@ -18,7 +18,7 @@ Contributors:
 package org.datanucleus.store.cassandra.query.expression;
 
 import org.datanucleus.exceptions.NucleusException;
-import org.datanucleus.query.expression.Expression;
+import org.datanucleus.store.query.expression.Expression;
 import org.datanucleus.util.NucleusLogger;
 
 /**
