@@ -899,7 +899,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 ResultSet rs = session.execute(stmt.bind(pkVals));
                 if (rs.isExhausted())
                 {
-                    throw new NucleusObjectNotFoundException("Could not find object with id " + op.getInternalObjectId() + " op=" + op);
+                    throw new NucleusObjectNotFoundException("Could not find object with id " + IdentityUtils.getPersistableIdentityForId(op.getInternalObjectId()));
                 }
 
                 Row row = rs.one();
