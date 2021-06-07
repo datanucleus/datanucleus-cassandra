@@ -54,10 +54,10 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.SCOUtils;
+import org.datanucleus.store.types.converters.EnumConversionHelper;
 import org.datanucleus.store.types.converters.MultiColumnConverter;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.TypeConversionHelper;
 
 import com.datastax.driver.core.Row;
 
@@ -681,7 +681,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 JdbcType jdbcType = MetaDataUtils.getJdbcTypeForEnum(mmd, FieldRole.ROLE_FIELD, clr);
                 Object datastoreValue = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? row.getInt(mapping.getColumn(0).getName()) : row.getString(mapping.getColumn(0).getName());
-                value = TypeConversionHelper.getEnumForStoredValue(mmd, FieldRole.ROLE_FIELD, datastoreValue, clr);
+                value = EnumConversionHelper.getEnumForStoredValue(mmd, FieldRole.ROLE_FIELD, datastoreValue, clr);
             }
             else if (java.sql.Date.class.isAssignableFrom(type))
             {

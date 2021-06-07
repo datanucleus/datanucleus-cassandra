@@ -53,10 +53,10 @@ import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.store.types.TypeManager;
+import org.datanucleus.store.types.converters.EnumConversionHelper;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
-import org.datanucleus.util.TypeConversionHelper;
 
 import com.datastax.driver.core.Row;
 
@@ -438,7 +438,7 @@ public class CassandraUtils
         }
         else if (value instanceof Enum)
         {
-            Object datastoreValue = TypeConversionHelper.getStoredValueFromEnum(mmd, role, (Enum)value);
+            Object datastoreValue = EnumConversionHelper.getStoredValueFromEnum(mmd, role, (Enum)value);
             if (datastoreValue instanceof Number)
             {
                 return ((Number)datastoreValue).intValue();
