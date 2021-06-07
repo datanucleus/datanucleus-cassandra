@@ -324,7 +324,7 @@ public class CassandraUtils
                 }
                 return "int";
             }
-            JdbcType enumJdbcType = TypeConversionHelper.getJdbcTypeForEnum(mmd, role, clr);
+            JdbcType enumJdbcType = MetaDataUtils.getJdbcTypeForEnum(mmd, role, clr);
             if (MetaDataUtils.isJdbcTypeNumeric(enumJdbcType))
             {
                 return "int";

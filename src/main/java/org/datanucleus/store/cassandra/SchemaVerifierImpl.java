@@ -45,7 +45,6 @@ import org.datanucleus.store.types.converters.MultiColumnConverter;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
-import org.datanucleus.util.TypeConversionHelper;
 
 /**
  * Implementation of a schema verifier for Cassandra. This class provides a way for the Cassandra plugin to
@@ -373,7 +372,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         }
                         else if (Enum.class.isAssignableFrom(mmd.getType()))
                         {
-                            JdbcType jdbcType = TypeConversionHelper.getJdbcTypeForEnum(mmd, FieldRole.ROLE_FIELD, clr);
+                            JdbcType jdbcType = MetaDataUtils.getJdbcTypeForEnum(mmd, FieldRole.ROLE_FIELD, clr);
                             type = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? "int" : "varchar";
                         }
                         else
