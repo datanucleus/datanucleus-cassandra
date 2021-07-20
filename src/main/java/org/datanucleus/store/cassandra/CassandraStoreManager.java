@@ -56,11 +56,11 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public static final String PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION = "datanucleus.cassandra.enforceUniquenessInApplication";
 
     /** Comma separated USING clause for INSERTS. */
-    public static final String EXTENSION_CASSANDRA_INSERT_USING = "cassandra.insert.using"; // TODO Make this "datanucleus."
+    public static final String EXTENSION_CASSANDRA_INSERT_USING = "datanucleus.cassandra.insert.using";
     /** Comma separated USING clause for UPDATES. */
-    public static final String EXTENSION_CASSANDRA_UPDATE_USING = "cassandra.update.using"; // TODO Make this "datanucleus."
+    public static final String EXTENSION_CASSANDRA_UPDATE_USING = "datanucleus.cassandra.update.using";
     /** Comma separated USING clause for DELETES. */
-    public static final String EXTENSION_CASSANDRA_DELETE_USING = "cassandra.delete.using"; // TODO Make this "datanucleus."
+    public static final String EXTENSION_CASSANDRA_DELETE_USING = "datanucleus.cassandra.delete.using";
 
     static
     {
