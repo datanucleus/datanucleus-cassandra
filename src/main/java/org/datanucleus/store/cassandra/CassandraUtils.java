@@ -615,8 +615,7 @@ public class CassandraUtils
                     return stringConverter.toDatastoreType(value);
                 }
             }
-            // TODO There is a TypeConverter for this
-            return ((Calendar) value).getTime();
+            return ((Calendar)value).toInstant();
         }
         else if (value instanceof Date)
         {
