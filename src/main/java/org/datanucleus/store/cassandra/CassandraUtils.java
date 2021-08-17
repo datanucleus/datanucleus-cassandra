@@ -23,6 +23,11 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -107,6 +112,10 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(java.sql.Time.class.getName(), "time");
         cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "date");
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
+        cassandraTypeByJavaType.put(java.time.LocalTime.class.getName(), "time");
+        cassandraTypeByJavaType.put(java.time.LocalDate.class.getName(), "date");
+        cassandraTypeByJavaType.put(java.time.LocalDateTime.class.getName(), "timestamp");
+        cassandraTypeByJavaType.put(java.time.Instant.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
         cassandraTypeByJavaType.put(Locale.class.getName(), "varchar");
@@ -196,6 +205,54 @@ public class CassandraUtils
             }
 
             return Enum.valueOf(javaType, (String) datastoreValue);
+        }
+        else if (java.time.LocalDateTime.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return java.time.LocalDateTime.ofInstant((Instant)datastoreValue, ZoneId.systemDefault());   
+        }
+        else if (java.time.LocalDate.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return datastoreValue;
+        }
+        else if (java.time.LocalTime.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return datastoreValue;
+        }
+        else if (java.time.Instant.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return datastoreValue;
         }
         else if (java.sql.Date.class.isAssignableFrom(javaType))
         {
@@ -446,6 +503,54 @@ public class CassandraUtils
             }
             return datastoreValue;
         }
+        else if (value instanceof java.time.LocalDateTime)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(LocalDateTime.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            return ((LocalDateTime)value).atZone(ZoneId.systemDefault()).toInstant();
+        }
+        else if (value instanceof java.time.LocalDate)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(LocalDate.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            return value;
+        }
+        else if (value instanceof java.time.LocalTime)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(LocalTime.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            return value;
+        }
+        else if (value instanceof java.time.Instant)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(Instant.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            return value;
+        }
         else if (value instanceof Calendar)
         {
             if (datastoreType.equals("varchar"))
@@ -463,8 +568,7 @@ public class CassandraUtils
         {
             if (datastoreType.equals("varchar"))
             {
-                // TODO When we have a lookup map per table of column and
-                // TypeConverter, remove this
+                // TODO When we have a lookup map per table of column and TypeConverter, remove this
                 Class valueType = Date.class;
                 if (value instanceof Time)
                 {
@@ -879,9 +983,25 @@ public class CassandraUtils
                 {
                     resultRow[resultRowNum] = Timestamp.from(row.getInstant(i));
                 }
+                else if (colType == DataTypes.TIME)
+                {
+                    resultRow[resultRowNum] = Time.valueOf(row.getLocalTime(i));
+                }
+                else if (colType == DataTypes.DATE)
+                {
+                    resultRow[resultRowNum] = new Date(java.util.Date.from(row.getLocalDate(i).atStartOfDay(ZoneId.systemDefault()).toInstant()).getTime());
+                }
                 else if (colType == DataTypes.INT)
                 {
                     resultRow[resultRowNum] = row.getInt(i);
+                }
+                else if (colType == DataTypes.SMALLINT)
+                {
+                    resultRow[resultRowNum] = row.getShort(i);
+                }
+                else if (colType == DataTypes.TINYINT)
+                {
+                    resultRow[resultRowNum] = row.getShort(i);
                 }
                 else if (colType == DataTypes.BLOB)
                 {
