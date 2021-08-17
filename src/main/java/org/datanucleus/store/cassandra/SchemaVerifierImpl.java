@@ -107,6 +107,22 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         return null;
                     }
                 }
+                else if (java.time.MonthDay.class == mmd.getType() || java.time.YearMonth.class == mmd.getType() || java.time.Instant.class == mmd.getType() ||
+                        java.time.LocalTime.class == mmd.getType() || java.time.LocalDate.class == mmd.getType())
+                {
+                    // Only use a converter where the user has explicitly added a jdbc-type
+                    boolean jdbcTypeSpecified = false;
+                    ColumnMetaData[] colmds = mmd.getColumnMetaData();
+                    if (colmds != null && colmds.length == 1 && !StringUtils.isWhitespace(colmds[0].getJdbcTypeName()))
+                    {
+                        jdbcTypeSpecified = true;
+                    }
+                    if (!jdbcTypeSpecified)
+                    {
+                        // We don't need a converter for this since supported via Cassandra
+                        return null;
+                    }
+                }
             }
         }
         return conv;
