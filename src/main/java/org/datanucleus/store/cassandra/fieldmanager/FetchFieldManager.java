@@ -23,6 +23,8 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
+import java.time.MonthDay;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -693,7 +695,86 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Object datastoreValue = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? row.getInt(mapping.getColumn(0).getName()) : row.getString(mapping.getColumn(0).getName());
                 value = EnumConversionHelper.getEnumForStoredValue(mmd, FieldRole.ROLE_FIELD, datastoreValue, clr);
             }
-            // TODO Add LocalDate, LocalTime, Instant etc
+            else if (java.time.LocalDate.class.isAssignableFrom(type))
+            {
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
+                    if (stringConverter != null)
+                    {
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }
+                }
+                else
+                {
+                    // Assumed to be "date"
+                    value = row.getLocalDate(mapping.getColumn(0).getName());
+                }
+            }
+            else if (java.time.LocalTime.class.isAssignableFrom(type))
+            {
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
+                    if (stringConverter != null)
+                    {
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }
+                }
+                else
+                {
+                    // Assumed to be "time"
+                    value = row.getLocalTime(mapping.getColumn(0).getName());
+                }
+            }
+            else if (java.time.Instant.class.isAssignableFrom(type))
+            {
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
+                    if (stringConverter != null)
+                    {
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }
+                }
+                else
+                {
+                    // Assumed to be "timestamp"
+                    value = row.getInstant(mapping.getColumn(0).getName());
+                }
+            }
+            else if (java.time.YearMonth.class.isAssignableFrom(type))
+            {
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
+                    if (stringConverter != null)
+                    {
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }
+                }
+                else
+                {
+                    // Assumed to be "date"
+                    value = YearMonth.from(row.getLocalDate(mapping.getColumn(0).getName()));
+                }
+            }
+            else if (java.time.MonthDay.class.isAssignableFrom(type))
+            {
+                if (mapping.getColumn(0).getTypeName().equals("varchar"))
+                {
+                    TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(type, String.class);
+                    if (stringConverter != null)
+                    {
+                        value = stringConverter.toMemberType(row.getString(mapping.getColumn(0).getName()));
+                    }
+                }
+                else
+                {
+                    // Assumed to be "date"
+                    value = MonthDay.from(row.getLocalDate(mapping.getColumn(0).getName()));
+                }
+            }
             else if (java.sql.Date.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))

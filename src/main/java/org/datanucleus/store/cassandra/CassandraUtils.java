@@ -27,6 +27,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.MonthDay;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.Calendar;
 import java.util.Date;
@@ -114,6 +116,8 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(java.time.LocalTime.class.getName(), "time");
         cassandraTypeByJavaType.put(java.time.LocalDate.class.getName(), "date");
+        cassandraTypeByJavaType.put(java.time.YearMonth.class.getName(), "date");
+        cassandraTypeByJavaType.put(java.time.MonthDay.class.getName(), "date");
         cassandraTypeByJavaType.put(java.time.LocalDateTime.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(java.time.Instant.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
@@ -253,6 +257,30 @@ public class CassandraUtils
                 }
             }
             return datastoreValue;
+        }
+        else if (java.time.YearMonth.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return YearMonth.from((LocalDate)datastoreValue);
+        }
+        else if (java.time.MonthDay.class.isAssignableFrom(javaType))
+        {
+            if (cassandraType.equals("varchar"))
+            {
+                TypeConverter stringConverter = ec.getTypeManager().getTypeConverterForType(javaType, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toMemberType(datastoreValue);
+                }
+            }
+            return MonthDay.from((LocalDate)datastoreValue);
         }
         else if (java.sql.Date.class.isAssignableFrom(javaType))
         {
@@ -550,6 +578,32 @@ public class CassandraUtils
                 }
             }
             return value;
+        }
+        else if (value instanceof java.time.YearMonth)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(YearMonth.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            YearMonth ym = (YearMonth)value;
+            return LocalDate.of(ym.getYear(), ym.getMonthValue(), 1);
+        }
+        else if (value instanceof java.time.MonthDay)
+        {
+            if (datastoreType.equals("varchar"))
+            {
+                TypeConverter stringConverter = typeMgr.getTypeConverterForType(YearMonth.class, String.class);
+                if (stringConverter != null)
+                {
+                    return stringConverter.toDatastoreType(value);
+                }
+            }
+            MonthDay md = (MonthDay)value;
+            return LocalDate.of(0, md.getMonthValue(), md.getDayOfMonth());
         }
         else if (value instanceof Calendar)
         {
