@@ -22,8 +22,8 @@ import java.util.Map;
 import org.datanucleus.util.ConcurrentReferenceHashMap;
 import org.datanucleus.util.ConcurrentReferenceHashMap.ReferenceType;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 
 /**
  * Provider for PreparedStatements for a Session. Provides a cache of PreparedStatement for the Session.
@@ -41,7 +41,7 @@ public class SessionStatementProvider
         preparedStatementCache.clear();
     }
 
-    public PreparedStatement prepare(String stmt, Session session)
+    public PreparedStatement prepare(String stmt, CqlSession session)
     {
         PreparedStatement ps = preparedStatementCache.get(stmt);
         if (ps == null)

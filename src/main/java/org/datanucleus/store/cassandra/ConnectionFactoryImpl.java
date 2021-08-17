@@ -17,7 +17,9 @@ Contributors:
  **********************************************************************/
 package org.datanucleus.store.cassandra;
 
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
@@ -35,13 +37,8 @@ import org.datanucleus.store.connection.ManagedConnection;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
-import com.datastax.driver.core.Cluster;
-import com.datastax.driver.core.Cluster.Builder;
-import com.datastax.driver.core.ProtocolOptions.Compression;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SocketOptions;
-import com.datastax.driver.core.policies.DCAwareRoundRobinPolicy;
-import com.datastax.driver.core.policies.RoundRobinPolicy;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.CqlSessionBuilder;
 
 /**
  * Connection factory for Cassandra datastores. Accepts a URL of the form
@@ -70,13 +67,12 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
     public static final String CASSANDRA_LOAD_BALANCING_POLICY_TOKEN_AWARE_LOCAL_DC = "datanucleus.cassandra.loadBalancingPolicy.tokenAwareLocalDC";
 
-    protected static final String DEFAULT_IP_ADDR = "127.0.0.1";
-
-    Cluster cluster;
-
     boolean sessionPerManager = false;
 
-    Session session = null;
+    CqlSessionBuilder sessionBuilder = null;
+
+    /** CqlSession used when we have a single CqlSession per PMF/EMF. */
+    CqlSession session = null;
 
     /**
      * Constructor for a factory.
@@ -101,8 +97,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
         // Extract host(s)/port
         StringTokenizer tokeniser = new StringTokenizer(remains, ",");
-        List<String> hosts = new ArrayList();
-        String port = null;
+        List<String> hosts = new ArrayList<>();
+        List<Integer> ports = new ArrayList<>();
         while (tokeniser.hasMoreTokens())
         {
             String token = tokeniser.nextToken().trim();
@@ -112,13 +108,26 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
             }
 
             String hostStr = null;
+            String portStr = null;
+            int portNumber = 9042;
             if (!StringUtils.isWhitespace(token))
             {
                 int nextSemiColon = token.indexOf(':');
                 if (nextSemiColon > 0)
                 {
-                    port = token.substring(nextSemiColon + 1);
                     hostStr = token.substring(0, nextSemiColon);
+                    portStr = token.substring(nextSemiColon + 1);
+                    if (portStr != null)
+                    {
+                        try
+                        {
+                            portNumber = Integer.valueOf(portStr);
+                        }
+                        catch (NumberFormatException nfe)
+                        {
+                            NucleusLogger.CONNECTION.warn("Unable to convert '" + portStr + "' to port number for Cassandra, so ignoring");
+                        }
+                    }
                 }
                 else
                 {
@@ -126,38 +135,27 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 }
             }
             hosts.add(hostStr);
+            ports.add(portNumber);
         }
 
-        Builder builder = Cluster.builder();
+        sessionBuilder = CqlSession.builder();
         if (!hosts.isEmpty())
         {
-            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for hosts " + StringUtils.collectionToString(hosts));
-            for (String host : hosts)
+            NucleusLogger.CONNECTION.debug("Starting Cassandra CqlSessionBuilder for hosts " + StringUtils.collectionToString(hosts));
+            Iterator<String> hostIter = hosts.iterator();
+            Iterator<Integer> portIter = ports.iterator();
+            while (hostIter.hasNext())
             {
-                builder.addContactPoint(host);
+                String host = hostIter.next();
+                Integer port = portIter.next();
+                InetSocketAddress addr = new InetSocketAddress(host, port);
+                sessionBuilder.addContactPoint(addr);
             }
         }
         else
         {
-            // Fallback to localhost
-            NucleusLogger.CONNECTION.debug("Starting Cassandra Cluster for host " + DEFAULT_IP_ADDR);
-            builder.addContactPoint(DEFAULT_IP_ADDR);
-        }
-        if (port != null)
-        {
-            int portNumber = 0;
-            try
-            {
-                portNumber = Integer.valueOf(port);
-            }
-            catch (NumberFormatException nfe)
-            {
-                NucleusLogger.CONNECTION.warn("Unable to convert '" + port + "' to port number for Cassandra, so ignoring");
-            }
-            if (portNumber > 0)
-            {
-                builder.withPort(portNumber);
-            }
+            // Fallback to Cassandra default (localhost:9042) - no need to add a contact point
+            NucleusLogger.CONNECTION.debug("Starting Cassandra CqlSessionBuilder with default contact point(s)");
         }
 
         // Add any login credentials
@@ -165,28 +163,26 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         String passwd = storeMgr.getConnectionPassword();
         if (!StringUtils.isWhitespace(user))
         {
-            builder.withCredentials(user, passwd);
+            sessionBuilder.withAuthCredentials(user, passwd);
         }
 
         // TODO Support any other config options
 
-        String compression = storeMgr.getStringProperty(CASSANDRA_COMPRESSION);
-        if (!StringUtils.isWhitespace(compression))
-        {
-            builder.withCompression(Compression.valueOf(compression.toUpperCase()));
-        }
+        /*
+         * String compression = storeMgr.getStringProperty(CASSANDRA_COMPRESSION); if
+         * (!StringUtils.isWhitespace(compression)) {
+         * builder.withCompression(Compression.valueOf(compression.toUpperCase())); }
+         */
 
-        Boolean useSSL = storeMgr.getBooleanObjectProperty(CASSANDRA_SSL); // Defaults to false
-        if (useSSL != null && useSSL)
-        {
-            builder.withSSL();
-        }
+        /*
+         * Boolean useSSL = storeMgr.getBooleanObjectProperty(CASSANDRA_SSL); // Defaults to false if (useSSL
+         * != null && useSSL) { builder.withSSL(); }
+         */
 
-        Boolean useMetrics = storeMgr.getBooleanObjectProperty(CASSANDRA_METRICS); // Defaults to true
-        if (useMetrics != null && !useMetrics)
-        {
-            builder.withoutMetrics();
-        }
+        /*
+         * Boolean useMetrics = storeMgr.getBooleanObjectProperty(CASSANDRA_METRICS); // Defaults to true if
+         * (useMetrics != null && !useMetrics) { builder.withoutMetrics(); }
+         */
 
         Boolean sessionPerManagerProperty = storeMgr.getBooleanObjectProperty(CASSANDRA_CONNECTION_PER_MANAGER);
         if (sessionPerManagerProperty != null && sessionPerManagerProperty)
@@ -195,63 +191,58 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
         }
 
         // Specify any socket options
-        SocketOptions socketOpts = null;
-        int readTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS);
-        if (readTimeout != 0)
-        {
-            socketOpts = new SocketOptions();
-            socketOpts.setReadTimeoutMillis(readTimeout);
-        }
-        int connectTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS);
-        if (connectTimeout != 0)
-        {
-            if (socketOpts == null)
-            {
-                socketOpts = new SocketOptions();
-            }
-            socketOpts.setConnectTimeoutMillis(connectTimeout);
-        }
-        if (socketOpts != null)
-        {
-            builder.withSocketOptions(socketOpts);
-        }
+//        SocketOptions socketOpts = null;
+//        int readTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_READ_TIMEOUT_MILLIS);
+//        if (readTimeout != 0)
+//        {
+//            socketOpts = new SocketOptions();
+//            socketOpts.setReadTimeoutMillis(readTimeout);
+//        }
+//        int connectTimeout = storeMgr.getIntProperty(CASSANDRA_SOCKET_CONNECT_TIMEOUT_MILLIS);
+//        if (connectTimeout != 0)
+//        {
+//            if (socketOpts == null)
+//            {
+//                socketOpts = new SocketOptions();
+//            }
+//            socketOpts.setConnectTimeoutMillis(connectTimeout);
+//        }
+//        if (socketOpts != null)
+//        {
+//            builder.withSocketOptions(socketOpts);
+//        }
 
         // Load balancing policy
-        String loadBalancingPolicy = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY);
-        if (!StringUtils.isWhitespace(loadBalancingPolicy))
-        {
-            if (loadBalancingPolicy.equalsIgnoreCase("round-robin"))
-            {
-                builder.withLoadBalancingPolicy(new RoundRobinPolicy());
-            }
-            else if (loadBalancingPolicy.equalsIgnoreCase("token-aware"))
-            {
-                String localDC = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY_TOKEN_AWARE_LOCAL_DC);
-                if (!StringUtils.isWhitespace(localDC))
-                {
-                    builder.withLoadBalancingPolicy(DCAwareRoundRobinPolicy.builder().withLocalDc(localDC).build());
-                }
-            }
-            else
-            {
-                NucleusLogger.CONNECTION.error("Supplied Cassandra LoadBalancingPolicy of " + loadBalancingPolicy + " is not supported. " +
-                    "Provide a GitHub pull request to contribute support");
-            }
-        }
-
-        // Get the Cluster
-        cluster = builder.build();
+//        String loadBalancingPolicy = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY);
+//        if (!StringUtils.isWhitespace(loadBalancingPolicy))
+//        {
+//            if (loadBalancingPolicy.equalsIgnoreCase("round-robin"))
+//            {
+//                builder.withLoadBalancingPolicy(new RoundRobinPolicy());
+//            }
+//            else if (loadBalancingPolicy.equalsIgnoreCase("token-aware"))
+//            {
+//                String localDC = storeMgr.getStringProperty(CASSANDRA_LOAD_BALANCING_POLICY_TOKEN_AWARE_LOCAL_DC);
+//                if (!StringUtils.isWhitespace(localDC))
+//                {
+//                    builder.withLoadBalancingPolicy(DCAwareRoundRobinPolicy.builder().withLocalDc(localDC).build());
+//                }
+//            }
+//            else
+//            {
+//                NucleusLogger.CONNECTION.error("Supplied Cassandra LoadBalancingPolicy of " + loadBalancingPolicy + " is not supported. " +
+//                    "Provide a GitHub pull request to contribute support");
+//            }
+//        }
     }
 
     public void close()
     {
         if (session != null)
         {
-            NucleusLogger.CONNECTION.debug("Closing Cassandra Session");
+            NucleusLogger.CONNECTION.debug("Closed Cassandra CqlSession");
             session.close();
         }
-        NucleusLogger.CONNECTION.debug("Closing Cassandra Cluster");
-        cluster.close();
 
         super.close();
     }
@@ -288,14 +279,14 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 // Create new connection
                 if (sessionPerManager)
                 {
-                    conn = cluster.connect();
-                    NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - obtained Session");
+                    conn = sessionBuilder.build();
+                    NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - obtained CqlSession");
                 }
                 else
                 {
                     if (session == null)
                     {
-                        session = cluster.connect();
+                        session = sessionBuilder.build();
                     }
                     NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - using connection");
                     conn = session;
@@ -334,8 +325,8 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
 
             if (sessionPerManager)
             {
-                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - close Session");
-                ((Session) conn).close();
+                NucleusLogger.CONNECTION.debug("ManagedConnection " + this.toString() + " - close CqlSession");
+                ((CqlSession)conn).close();
             }
             xaRes = null;
 
@@ -350,7 +341,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
                 {
                     obtainNewConnection();
                 }
-                xaRes = new EmulatedXAResource(this, (Session) conn);
+                xaRes = new EmulatedXAResource(this, (CqlSession)conn);
             }
             return xaRes;
         }
@@ -376,7 +367,7 @@ public class ConnectionFactoryImpl extends AbstractConnectionFactory
      */
     static class EmulatedXAResource extends AbstractEmulatedXAResource
     {
-        EmulatedXAResource(ManagedConnectionImpl mconn, Session session)
+        EmulatedXAResource(ManagedConnectionImpl mconn, CqlSession session)
         {
             super(mconn);
         }

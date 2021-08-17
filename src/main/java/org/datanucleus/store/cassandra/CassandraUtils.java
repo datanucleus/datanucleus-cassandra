@@ -17,9 +17,6 @@ Contributors:
  **********************************************************************/
 package org.datanucleus.store.cassandra;
 
-import com.datastax.driver.core.ColumnDefinitions;
-import com.datastax.driver.core.DataType;
-
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -58,7 +55,11 @@ import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.ClassUtils;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.Row;
+import com.datastax.oss.driver.api.core.cql.ColumnDefinition;
+import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.type.DataType;
+import com.datastax.oss.driver.api.core.type.DataTypes;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
@@ -103,8 +104,8 @@ public class CassandraUtils
         cassandraTypeByJavaType.put(BigDecimal.class.getName(), "decimal");
         cassandraTypeByJavaType.put(BigInteger.class.getName(), "bigint");
         cassandraTypeByJavaType.put(Date.class.getName(), "timestamp");
-        cassandraTypeByJavaType.put(Time.class.getName(), "timestamp");
-        cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "timestamp"); // Use "date"?
+        cassandraTypeByJavaType.put(java.sql.Time.class.getName(), "time");
+        cassandraTypeByJavaType.put(java.sql.Date.class.getName(), "date");
         cassandraTypeByJavaType.put(Timestamp.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(Calendar.class.getName(), "timestamp");
         cassandraTypeByJavaType.put(TimeZone.class.getName(), "varchar");
@@ -145,7 +146,7 @@ public class CassandraUtils
         }
         else if (column.getTypeName().equals("boolean"))
         {
-            return typeConv.toMemberType(row.getBool(column.getName()));
+            return typeConv.toMemberType(row.getBoolean(column.getName()));
         }
         else if (column.getTypeName().equals("double"))
         {
@@ -161,15 +162,15 @@ public class CassandraUtils
         }
         else if (column.getTypeName().equals("timestamp"))
         {
-            return typeConv.toMemberType(row.getTimestamp(column.getName()));
+            return typeConv.toMemberType(Timestamp.from(row.getInstant(column.getName())));
         }
         else if (column.getTypeName().equals("blob"))
         {
-            return typeConv.toMemberType(row.getBytes(column.getName()));
+            return typeConv.toMemberType(row.getByteBuffer(column.getName()));
         }
         else if (column.getTypeName().equals("uuid"))
         {
-            return row.getUUID(column.getName());
+            return row.getUuid(column.getName());
         }
         return null;
     }
@@ -483,6 +484,39 @@ public class CassandraUtils
                     return stringConverter.toDatastoreType(value);
                 }
             }
+            else if (datastoreType.equals("timestamp"))
+            {
+                // Cassandra expects Instant
+                if (value instanceof Timestamp)
+                {
+                    return ((Timestamp)value).toInstant();
+                }
+                else if (value instanceof java.sql.Date)
+                {
+                    return ((java.sql.Date)value).toInstant();
+                }
+                else if (value instanceof Date)
+                {
+                    return ((Date)value).toInstant();
+                }
+            }
+            else if (datastoreType.equals("time"))
+            {
+                // Cassandra expects LocalTime
+                if (value instanceof java.sql.Time)
+                {
+                    return ((java.sql.Time)value).toLocalTime();
+                }
+            }
+            else if (datastoreType.equals("date"))
+            {
+                // Cassandra expects LocalDate
+                if (value instanceof java.sql.Date)
+                {
+                    return ((java.sql.Date)value).toLocalDate();
+                }
+            }
+
             // TODO There is a TypeConverter for this
             return value;
         }
@@ -764,11 +798,10 @@ public class CassandraUtils
             String fieldNameLower = field.getName().toLowerCase();
             if (columnDefinitions.contains(fieldNameLower))
             {
-                int columnIndex = columnDefinitions.getIndexOf(fieldNameLower);
+                int columnIndex = columnDefinitions.firstIndexOf(fieldNameLower);
                 resultClassFields.put(columnIndex, field);
                 resultClassFieldNames.put(columnIndex, field.getName());
                 fieldsMatchingColumnIndexes.add(columnIndex);
-
             }
             else
             {
@@ -785,7 +818,7 @@ public class CassandraUtils
                         {
                             assert columnNameLength > 0;
                             String columnName = annotationString.substring(startIndex, startIndex + columnNameLength);
-                            int columnIndex = columnDefinitions.getIndexOf(columnName);
+                            int columnIndex = columnDefinitions.firstIndexOf(columnName);
                             resultClassFields.put(columnIndex, field);
                             resultClassFieldNames.put(columnIndex, field.getName());
                             fieldsMatchingColumnIndexes.add(columnIndex);
@@ -810,60 +843,61 @@ public class CassandraUtils
     public static Object[] getObjectArrayFromRow(TypeManager typeMgr, Row row, ColumnDefinitions columnDefinitions, List<Integer> fieldsMatchingColumnIndexes, int resultRowSize)
     {
         Object[] resultRow = new Object[resultRowSize];
-        int i = 0;
-
-        for (ColumnDefinitions.Definition def : columnDefinitions)
+        int resultRowNum = 0;
+        for (int i = 0;i < columnDefinitions.size(); i++)
         {
-            if (fieldsMatchingColumnIndexes.isEmpty() || fieldsMatchingColumnIndexes.contains(columnDefinitions.getIndexOf(def.getName())))
+            ColumnDefinition def = columnDefinitions.get(i);
+
+            if (fieldsMatchingColumnIndexes.isEmpty() || fieldsMatchingColumnIndexes.contains(columnDefinitions.firstIndexOf(def.getName())))
             {
                 DataType colType = def.getType();
-                if (colType == DataType.varchar())
+                if (colType == DataTypes.TEXT)
                 {
-                    resultRow[i] = row.getString(i);
+                    resultRow[resultRowNum] = row.getString(i);
                 }
-                else if (colType == DataType.bigint())
+                else if (colType == DataTypes.BIGINT)
                 {
-                    resultRow[i] = row.getLong(i);
+                    resultRow[resultRowNum] = row.getLong(i);
                 }
-                else if (colType == DataType.decimal())
+                else if (colType == DataTypes.DECIMAL)
                 {
-                    resultRow[i] = row.getDecimal(i);
+                    resultRow[resultRowNum] = row.getBigDecimal(i);
                 }
-                else if (colType == DataType.cfloat())
+                else if (colType == DataTypes.FLOAT)
                 {
-                    resultRow[i] = row.getFloat(i);
+                    resultRow[resultRowNum] = row.getFloat(i);
                 }
-                else if (colType == DataType.cdouble())
+                else if (colType == DataTypes.DOUBLE)
                 {
-                    resultRow[i] = row.getDouble(i);
+                    resultRow[resultRowNum] = row.getDouble(i);
                 }
-                else if (colType == DataType.cboolean())
+                else if (colType == DataTypes.BOOLEAN)
                 {
-                    resultRow[i] = row.getBool(i);
+                    resultRow[resultRowNum] = row.getBoolean(i);
                 }
-                else if (colType == DataType.timestamp())
+                else if (colType == DataTypes.TIMESTAMP)
                 {
-                    resultRow[i] = row.getTimestamp(i);
+                    resultRow[resultRowNum] = Timestamp.from(row.getInstant(i));
                 }
-                else if (colType == DataType.varint())
+                else if (colType == DataTypes.INT)
                 {
-                    resultRow[i] = row.getInt(i);
+                    resultRow[resultRowNum] = row.getInt(i);
                 }
-                else if (colType == DataType.blob())
+                else if (colType == DataTypes.BLOB)
                 {
                     TypeConverter typeConverter = typeMgr.getTypeConverterForType(byte[].class, ByteBuffer.class);
-                    resultRow[i] = typeConverter.toMemberType(row.getBytes(i));
+                    resultRow[resultRowNum] = typeConverter.toMemberType(row.getByteBuffer(i));
                 }
-                else if (colType == DataType.uuid())
+                else if (colType == DataTypes.UUID)
                 {
-                    resultRow[i] = row.getUUID(i);
+                    resultRow[resultRowNum] = row.getUuid(i);
                 }
                 else
                 {
                     NucleusLogger.QUERY.warn("Column " + i + " of results is of unsupported type (" + colType + ") : returning null");
-                    resultRow[i] = null;
+                    resultRow[resultRowNum] = null;
                 }
-                i++;
+                resultRowNum++;
             }
         }
         return resultRow;

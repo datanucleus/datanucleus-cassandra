@@ -48,9 +48,9 @@ import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 
 /**
  * JPQL query for Cassandra.
@@ -222,7 +222,7 @@ public class JPQLQuery extends AbstractJPQLQuery
         ManagedConnection mconn = getStoreManager().getConnectionManager().getConnection(ec);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.QUERY.isDebugEnabled())
@@ -389,7 +389,7 @@ public class JPQLQuery extends AbstractJPQLQuery
      * @param session The session
      * @return The candidate objects
      */
-    protected List getCandidatesForQuery(Session session)
+    protected List getCandidatesForQuery(CqlSession session)
     {
         // TODO Create lazy-loading QueryResult object to contain these and return that
         List candidateObjs = new ArrayList();

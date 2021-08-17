@@ -30,11 +30,10 @@ import org.datanucleus.store.query.QueryUtils;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.SimpleStatement;
-import com.datastax.driver.core.Statement;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
+import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 
 import org.datanucleus.store.cassandra.CassandraUtils;
 import org.datanucleus.store.types.TypeManager;
@@ -117,7 +116,7 @@ public class CQLQuery extends AbstractJavaQuery
             try
             {
                 List results = new ArrayList();
-                Session session = (Session) mconn.getConnection();
+                CqlSession session = (CqlSession) mconn.getConnection();
 
                 long startTime = System.currentTimeMillis();
                 if (NucleusLogger.QUERY.isDebugEnabled())
@@ -125,19 +124,18 @@ public class CQLQuery extends AbstractJavaQuery
                     NucleusLogger.QUERY.debug(Localiser.msg("021046", "CQL", getSingleStringQuery(), null));
                 }
 
-                Statement stmt = new SimpleStatement(cql); // Datastax 2.1/3.0
-//                Statement stmt = session.newSimpleStatement(cql); // Datastax 2.2!
+                SimpleStatement stmt = SimpleStatement.newInstance(cql);
                 int fetchSize = this.getFetchPlan().getFetchSize();
                 if (0 < fetchSize)
                 {
-                    stmt.setFetchSize(fetchSize);
+                    stmt.setPageSize(fetchSize);
                 }
                 ResultSet rs = session.execute(stmt);
 
                 Class resultCls = this.getResultClass();
                 ResultClassInfo rci = (resultCls != null) ? CassandraUtils.getResultClassInfoFromColumnDefinitions(resultCls, rs.getColumnDefinitions()) : null;
 
-                CassandraQueryResult queryResult = new CassandraQueryResult(this, rs);
+                CQLQueryResult queryResult = new CQLQueryResult(this, rs);
                 queryResult.initialise();
 
                 TypeManager typeMgr = storeMgr.getNucleusContext().getTypeManager();

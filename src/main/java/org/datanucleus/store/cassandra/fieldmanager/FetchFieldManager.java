@@ -22,6 +22,8 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -59,7 +61,7 @@ import org.datanucleus.store.types.converters.MultiColumnConverter;
 import org.datanucleus.store.types.converters.TypeConverter;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.Row;
+import com.datastax.oss.driver.api.core.cql.Row;
 
 /**
  * FieldManager to use for retrieving values from Cassandra to put into a persistable object.
@@ -96,7 +98,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
     @Override
     public boolean fetchBooleanField(int fieldNumber)
     {
-        return row.getBool(getColumnMapping(fieldNumber).getColumn(0).getName());
+        return row.getBoolean(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
 
     /*
@@ -159,7 +161,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         Column col = getColumnMapping(fieldNumber).getColumn(0);
         if (col.getJdbcType() == JdbcType.DECIMAL)
         {
-            return row.getDecimal(col.getName()).floatValue();
+            return row.getBigDecimal(col.getName()).floatValue();
         }
         else if (col.getJdbcType() == JdbcType.DOUBLE)
         {
@@ -178,7 +180,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         Column col = getColumnMapping(fieldNumber).getColumn(0);
         if (col.getJdbcType() == JdbcType.DECIMAL)
         {
-            return row.getDecimal(col.getName()).doubleValue();
+            return row.getBigDecimal(col.getName()).doubleValue();
         }
         return row.getDouble(getColumnMapping(fieldNumber).getColumn(0).getName());
     }
@@ -255,7 +257,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 // Convert back from ByteBuffer
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                ByteBuffer datastoreBuffer = row.getByteBuffer(mapping.getColumn(0).getName());
                 Object value = serialConv.toMemberType(datastoreBuffer);
 
                 // Make sure it has an ObjectProvider
@@ -369,15 +371,23 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         }
                         else if (col.getTypeName().equals("bool"))
                         {
-                            Array.set(valuesArr, i, row.getBool(col.getName()));
+                            Array.set(valuesArr, i, row.getBoolean(col.getName()));
                         }
                         else if (col.getTypeName().equals("timestamp"))
                         {
-                            Array.set(valuesArr, i, row.getTimestamp(col.getName()));
+                            Array.set(valuesArr, i, java.sql.Timestamp.from(row.getInstant(col.getName())));
+                        }
+                        else if (col.getTypeName().equals("time"))
+                        {
+                            Array.set(valuesArr, i, java.sql.Time.valueOf(row.getLocalTime(col.getName())));
+                        }
+                        else if (col.getTypeName().equals("date"))
+                        {
+                            Array.set(valuesArr, i, java.sql.Date.valueOf(row.getLocalDate(col.getName())));
                         }
                         else if (col.getTypeName().equals("decimal"))
                         {
-                            Array.set(valuesArr, i, row.getDecimal(col.getName()));
+                            Array.set(valuesArr, i, row.getBigDecimal(col.getName()));
                         }
                         else if (col.getTypeName().equals("double"))
                         {
@@ -428,7 +438,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // Collection field was serialised, so convert back from ByteBuffer
                     TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    ByteBuffer datastoreBuffer = row.getByteBuffer(mapping.getColumn(0).getName());
                     if (datastoreBuffer == null)
                     {
                         return null;
@@ -503,7 +513,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // Map field was serialised, so convert back from ByteBuffer
                     TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    ByteBuffer datastoreBuffer = row.getByteBuffer(mapping.getColumn(0).getName());
                     if (datastoreBuffer == null)
                     {
                         return null;
@@ -593,7 +603,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     {
                         serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
                     }
-                    ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                    ByteBuffer datastoreBuffer = row.getByteBuffer(mapping.getColumn(0).getName());
                     return serialConv.toMemberType(datastoreBuffer);
                 }
 
@@ -627,7 +637,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             {
                 // Convert back from ByteBuffer
                 TypeConverter<Serializable, ByteBuffer> serialConv = ec.getTypeManager().getTypeConverterForType(Serializable.class, ByteBuffer.class);
-                ByteBuffer datastoreBuffer = row.getBytes(mapping.getColumn(0).getName());
+                ByteBuffer datastoreBuffer = row.getByteBuffer(mapping.getColumn(0).getName());
                 value = serialConv.toMemberType(datastoreBuffer);
             }
             // TODO Fields below here likely have TypeConverter defined, so maybe could omit this block
@@ -639,7 +649,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             else if (BigDecimal.class.isAssignableFrom(type))
             {
                 // TODO There is a TypeConverter for this
-                value = row.getDecimal(mapping.getColumn(0).getName());
+                value = row.getBigDecimal(mapping.getColumn(0).getName());
             }
             else if (Byte.class.isAssignableFrom(type))
             {
@@ -675,7 +685,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
             }
             else if (Boolean.class.isAssignableFrom(type))
             {
-                value = row.getBool(mapping.getColumn(0).getName());
+                value = row.getBoolean(mapping.getColumn(0).getName());
             }
             else if (Enum.class.isAssignableFrom(type))
             {
@@ -683,6 +693,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Object datastoreValue = (MetaDataUtils.isJdbcTypeNumeric(jdbcType)) ? row.getInt(mapping.getColumn(0).getName()) : row.getString(mapping.getColumn(0).getName());
                 value = EnumConversionHelper.getEnumForStoredValue(mmd, FieldRole.ROLE_FIELD, datastoreValue, clr);
             }
+            // TODO Add LocalDate, LocalTime, Instant etc
             else if (java.sql.Date.class.isAssignableFrom(type))
             {
                 if (mapping.getColumn(0).getTypeName().equals("varchar"))
@@ -695,8 +706,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else
                 {
+                    // Assumed to be "date"
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Date(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Date(java.util.Date.from(row.getLocalDate(mapping.getColumn(0).getName()).atStartOfDay(ZoneId.systemDefault()).toInstant()).getTime());
                 }
             }
             else if (java.sql.Time.class.isAssignableFrom(type))
@@ -711,8 +723,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else
                 {
+                    // Assumed to be "time"
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Time(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Time(Date.from(row.getLocalTime(mapping.getColumn(0).getName()).atDate(LocalDate.now()).atZone(ZoneId.systemDefault()).toInstant()).getTime());
                 }
             }
             else if (java.sql.Timestamp.class.isAssignableFrom(type))
@@ -727,8 +740,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else
                 {
+                    // Assumed to be "timestamp"
                     // TODO There is a TypeConverter for this
-                    value = new java.sql.Timestamp(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
+                    value = new java.sql.Timestamp(java.sql.Timestamp.from(row.getInstant(mapping.getColumn(0).getName())).getTime());
                 }
             }
             else if (Calendar.class.isAssignableFrom(type))
@@ -745,7 +759,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 {
                     // TODO Support Calendar with multiple columns and do via TypeConverter
                     Calendar cal = Calendar.getInstance();
-                    cal.setTime(row.getTimestamp(mapping.getColumn(0).getName()));
+                    cal.setTime(java.sql.Timestamp.from(row.getInstant(mapping.getColumn(0).getName())));
                     value = cal;
                 }
             }
@@ -761,13 +775,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
                 else
                 {
-                    value = new java.util.Date(row.getTimestamp(mapping.getColumn(0).getName()).getTime());
+                    value = new java.util.Date(java.sql.Timestamp.from(row.getInstant(mapping.getColumn(0).getName())).getTime());
                 }
             }
             else if (UUID.class.isAssignableFrom(type))
             {
                 // uuid is the default type
-                value = row.getUUID(mapping.getColumn(0).getName());
+                value = row.getUuid(mapping.getColumn(0).getName());
             }
             else
             {

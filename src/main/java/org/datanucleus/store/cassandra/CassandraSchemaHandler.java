@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -53,11 +55,12 @@ import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
 
-import com.datastax.driver.core.ColumnMetadata;
-import com.datastax.driver.core.IndexMetadata;
-import com.datastax.driver.core.KeyspaceMetadata;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.TableMetadata;
+import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.IndexMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.KeyspaceMetadata;
+import com.datastax.oss.driver.api.core.metadata.schema.TableMetadata;
 
 /**
  * Handler for schema management with Cassandra. Supports the following metadata extensions
@@ -82,14 +85,14 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      */
     public void createDatabase(String catalogName, String schemaName, Properties props, Object connection)
     {
-        Session session = (Session) connection;
+        CqlSession session = (CqlSession) connection;
         ManagedConnection mconn = null;
         try
         {
             if (session == null)
             {
                 mconn = storeMgr.getConnectionManager().getConnection(-1);
-                session = (Session) mconn.getConnection();
+                session = (CqlSession) mconn.getConnection();
             }
 
             StringBuilder stmtBuilder = new StringBuilder("CREATE KEYSPACE IF NOT EXISTS ");
@@ -120,7 +123,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public void createSchemaForClasses(Set<String> classNames, Properties props, Object connection)
     {
-        Session session = (Session) connection;
+        CqlSession session = (CqlSession) connection;
         String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
         // String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
         // boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
@@ -157,7 +160,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 if (session == null)
                 {
                     mconn = storeMgr.getConnectionManager().getConnection(-1);
-                    session = (Session) mconn.getConnection();
+                    session = (CqlSession) mconn.getConnection();
                 }
 
                 // Allocate Lists for holding the required CQL statements needed for these classes
@@ -273,8 +276,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      * @param tableStmts List to add any table CQL statements to
      * @param constraintStmts List to add any constraint CQL statements to
      */
-    protected void createSchemaForClass(AbstractClassMetaData cmd, Session session, ClassLoaderResolver clr, List<String> tableStmts,
-            List<String> constraintStmts)
+    protected void createSchemaForClass(AbstractClassMetaData cmd, CqlSession session, ClassLoaderResolver clr, List<String> tableStmts, List<String> constraintStmts)
     {
         if (cmd.isEmbeddedOnly() || cmd.getPersistenceModifier() != ClassPersistenceModifier.PERSISTENCE_CAPABLE)
         {
@@ -297,9 +299,23 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         {
             table = new CompleteClassTable(storeMgr, cmd, new SchemaVerifierImpl(storeMgr, cmd, clr));
         }
-        // TODO Check existence of schema using
-        // "select keyspace_name from system.schema_keyspaces where keyspace_name='schema1';"
+
         String schemaName = table.getSchemaName();
+        if (schemaName != null)
+        {
+            // Allow auto creation of schema
+            Optional<KeyspaceMetadata> schemaKeyspace = session.getMetadata().getKeyspace(schemaName);
+            if (schemaKeyspace.isEmpty())
+            {
+                if (autoCreateDatabase)
+                {
+                    // TODO Localise this
+                    NucleusLogger.GENERAL.info("Creating DB since schema " + schemaName + " doesnt exist");
+                    createDatabase(null, schemaName, null, session);
+                }
+            }
+        }
+
         TableMetadata tmd = getTableMetadata(session, schemaName, table.getName());
         if (tmd != null)
         {
@@ -320,14 +336,14 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             stmtBuilder.append(schemaName).append('.');
                         }
                         stmtBuilder.append(table.getName());
-                        stmtBuilder.append(" ADD COLUMN ");
+                        stmtBuilder.append(" ADD ");
                         stmtBuilder.append(column.getName()).append(" ").append(column.getTypeName());
                         tableStmts.add(stmtBuilder.toString());
                     }
                     else
                     {
                         String colTypeNameDB = getTypeNameForColumn(colmd);
-                        if (colTypeNameDB != null && !colTypeNameDB.equals(column.getTypeName()))
+                        if (colTypeNameDB != null && !colTypeNameDB.equalsIgnoreCase(column.getTypeName())) // TODO Is it case insensitive?
                         {
                             // TODO Change the column type if requested. What about existing data
                             NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.TableColumnTypeIncorrect", table.getName(), column.getName(),
@@ -340,10 +356,12 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (autoDeleteColumns)
             {
                 // Delete any columns that are not needed by this class
-                List<ColumnMetadata> colmds = tmd.getColumns();
+                Map<CqlIdentifier, ColumnMetadata> colmdById = tmd.getColumns();
+                Collection<ColumnMetadata> colmds = colmdById.values();
                 for (ColumnMetadata colmd : colmds)
                 {
-                    String colName = colmd.getName();
+                    CqlIdentifier colNameId = colmd.getName();
+                    String colName = colNameId.toString();
                     Column col = table.getColumnForName(colName);
                     if (col == null)
                     {
@@ -354,7 +372,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             stmtBuilder.append(schemaName).append('.');
                         }
                         stmtBuilder.append(table.getName());
-                        stmtBuilder.append(" DROP COLUMN ");
+                        stmtBuilder.append(" DROP ");
                         stmtBuilder.append(colName); // Needs quoting?
                         tableStmts.add(stmtBuilder.toString());
                     }
@@ -445,7 +463,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                         String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), idxmd);
                                         constraintStmts.add(indexStmt);
                                     }
-                                    else if (!idxName.equalsIgnoreCase(dbIdxMd.getName()))
+                                    else if (!idxName.equalsIgnoreCase(dbIdxMd.getName().toString()))
                                     {
                                         // Index has wrong name!
                                         NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
@@ -480,7 +498,8 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else if (!idxName.equals(dbVerIdxMd.getName()))
                             {
-                                // Index has wrong name!
+                                // Index has wrong name!<?xml version="1.0"?>
+
                                 NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbVerIdxMd.getName()));
                             }
                         }
@@ -519,7 +538,33 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 }
                 if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
                 {
-                    // TODO Add index on multitenancy discriminator
+                    // Index the multitenancy column
+                    Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+                    String idxName = namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
+                    ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
+                    if (dbMultiColMd == null)
+                    {
+                        // Doesnt exist in Cassandra
+                        //String idxName = cmd.getName() + "_TENANCY_IDX";
+                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                        constraintStmts.add(indexStmt);
+                    }
+                    else
+                    {
+                        // Exists in Cassandra
+                        IndexMetadata dbMultiIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                        if (dbMultiIdxMd == null)
+                        {
+                            // Index doesn't yet exist
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                            constraintStmts.add(indexStmt);
+                        }
+                        else if (!idxName.equals(dbMultiIdxMd.getName()))
+                        {
+                            // Index has wrong name!
+                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
+                        }
+                    }
                 }
             }
         }
@@ -657,7 +702,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
                 {
                     Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
-                    String idxName = cmd.getName() + "_TENANCY_IDX";
+                    String idxName = namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
                     String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                     constraintStmts.add(indexStmt);
                 }
@@ -674,14 +719,14 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
      */
     public void deleteDatabase(String catalogName, String schemaName, Properties props, Object connection)
     {
-        Session session = (Session) connection;
+        CqlSession session = (CqlSession) connection;
         ManagedConnection mconn = null;
         try
         {
             if (session == null)
             {
                 mconn = storeMgr.getConnectionManager().getConnection(-1);
-                session = (Session) mconn.getConnection();
+                session = (CqlSession) mconn.getConnection();
             }
 
             StringBuilder stmtBuilder = new StringBuilder("DROP KEYSPACE IF EXISTS ");
@@ -702,7 +747,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public void deleteSchemaForClasses(Set<String> classNames, Properties props, Object connection)
     {
-        Session session = (Session) connection;
+        CqlSession session = (CqlSession) connection;
         String ddlFilename = props != null ? props.getProperty("ddlFilename") : null;
         // String completeDdlProp = props != null ? props.getProperty("completeDdl") : null;
         // boolean completeDdl = (completeDdlProp != null && completeDdlProp.equalsIgnoreCase("true"));
@@ -741,7 +786,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 if (session == null)
                 {
                     mconn = storeMgr.getConnectionManager().getConnection(-1);
-                    session = (Session) mconn.getConnection();
+                    session = (CqlSession) mconn.getConnection();
                 }
 
                 Iterator<String> classIter = classNames.iterator();
@@ -905,7 +950,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
 
     public void validateSchema(Set<String> classNames, Properties props, Object connection)
     {
-        Session session = (Session) connection;
+        CqlSession session = (CqlSession) connection;
 
         boolean success = true;
         ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
@@ -915,7 +960,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             if (session == null)
             {
                 mconn = storeMgr.getConnectionManager().getConnection(-1);
-                session = (Session) mconn.getConnection();
+                session = (CqlSession) mconn.getConnection();
             }
 
             NamingFactory namingFactory = storeMgr.getNamingFactory();
@@ -1099,23 +1144,25 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         return stmtBuilder.toString();
     }
 
-    public static TableMetadata getTableMetadata(Session session, String schemaName, String tableName)
+    public static TableMetadata getTableMetadata(CqlSession session, String schemaName, String tableName)
     {
         KeyspaceMetadata ks = getKeyspaceMetadata(session, schemaName);
         if (ks == null)
         {
             return null;
         }
-        return ks.getTable(tableName.toLowerCase());
+        Optional<TableMetadata> tabmd = ks.getTable(tableName.toLowerCase());
+        return tabmd.isPresent() ? tabmd.get() : null;
     }
 
-    public static KeyspaceMetadata getKeyspaceMetadata(Session session, String schemaName)
+    public static KeyspaceMetadata getKeyspaceMetadata(CqlSession session, String schemaName)
     {
         if (schemaName == null)
         {
             throw new NucleusUserException("Schema name must be specified in order to check its existence");
         }
-        return session.getCluster().getMetadata().getKeyspace(schemaName.toLowerCase());
+        Optional<KeyspaceMetadata> ksmd = session.getMetadata().getKeyspace(schemaName.toLowerCase());
+        return ksmd.isPresent() ? ksmd.get() : null;
     }
 
     protected String getTypeNameForColumn(ColumnMetadata colmd)
@@ -1139,12 +1186,14 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             // Remove any quotes if the identifier is quoted since table structure will not have quotes
             colName = colName.substring(1, colName.length() - 1);
         }
-        return tmd.getColumn(colName);
+        Optional<ColumnMetadata> colmd = tmd.getColumn(colName);
+        return colmd.isPresent() ? colmd.get() : null;
     }
 
     protected IndexMetadata getIndexMetadataForColumn(TableMetadata tmd, String colName)
     {
-        Collection<IndexMetadata> idxmds = tmd.getIndexes();
+        Map<CqlIdentifier, IndexMetadata> idxmdsById = tmd.getIndexes();
+        Collection<IndexMetadata> idxmds = idxmdsById.values();
         if (idxmds != null)
         {
             for (IndexMetadata idxmd : idxmds)

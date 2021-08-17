@@ -33,10 +33,10 @@ import org.datanucleus.store.valuegenerator.ValueGenerationBlock;
 import org.datanucleus.store.valuegenerator.ValueGenerator;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 
 /**
  * Value generator using a table in the datastore and incrementing a column, keyed by the field name that has
@@ -121,7 +121,7 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
         ManagedConnection mconn = connectionProvider.retrieveConnection();
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
             stmtBuilder.append(valColName).append(" FROM ").append(getSchemaName()).append('.').append(tableName).append(" WHERE ").append(keyColName).append("=?");
@@ -129,7 +129,8 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
             SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
             PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
             ResultSet rs = session.execute(stmt.bind(key));
-            if (rs.isExhausted())
+            Row row = rs.one();
+            if (row == null)
             {
                 long initialValue = 0;
                 if (properties.containsKey(ValueGenerator.PROPERTY_KEY_INITIAL_VALUE))
@@ -151,7 +152,6 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
             }
             else
             {
-                Row row = rs.one();
                 long val = row.getLong(valColName.toLowerCase());
 
                 // Update value allowing for this block
@@ -200,7 +200,7 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
         ManagedConnection mconn = connectionProvider.retrieveConnection();
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             if (CassandraSchemaHandler.getTableMetadata(session, getSchemaName(), tableName) != null)
             {
@@ -213,7 +213,7 @@ public class IncrementGenerator extends AbstractConnectedGenerator<Long>
             {
                 StringBuilder stmtBuilder = new StringBuilder("CREATE TABLE ");
                 stmtBuilder.append(getSchemaName()).append('.').append(tableName).append("(");
-                stmtBuilder.append(keyColName).append(" varchar,").append(valColName).append(" bigint,PRIMARY KEY(").append(keyColName).append(")");
+                stmtBuilder.append(keyColName).append(" text,").append(valColName).append(" bigint,PRIMARY KEY(").append(keyColName).append(")");
                 stmtBuilder.append(")");
                 NucleusLogger.VALUEGENERATION.debug("Creating value generator table : " + stmtBuilder.toString());
                 session.execute(stmtBuilder.toString());

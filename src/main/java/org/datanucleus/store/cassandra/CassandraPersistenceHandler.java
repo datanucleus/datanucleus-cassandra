@@ -55,12 +55,12 @@ import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.NucleusLogger;
 
-import com.datastax.driver.core.BoundStatement;
-import com.datastax.driver.core.PreparedStatement;
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.Session;
-import com.datastax.driver.core.exceptions.DriverException;
+import com.datastax.oss.driver.api.core.CqlSession;
+import com.datastax.oss.driver.api.core.DriverException;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
+import com.datastax.oss.driver.api.core.cql.PreparedStatement;
+import com.datastax.oss.driver.api.core.cql.ResultSet;
+import com.datastax.oss.driver.api.core.cql.Row;
 
 /**
  * Handler for basic persistence operations with Cassandra datastores.
@@ -93,7 +93,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
             if (sd == null)
@@ -399,7 +399,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
             if (sd == null)
@@ -605,7 +605,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             long startTime = System.currentTimeMillis();
             if (NucleusLogger.DATASTORE_PERSIST.isDebugEnabled())
@@ -731,7 +731,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
 
             if (NucleusLogger.DATASTORE_RETRIEVE.isDebugEnabled())
             {
@@ -891,18 +891,36 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkColNo++;
                 }
 
+                // Add MULTITENANCY if available
+                if (ec.getNucleusContext().isClassMultiTenant(cmd))
+                {
+                    // Multi-tenancy discriminator
+                    stmtBuilder.append(" AND ");
+                    stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName());
+                    stmtBuilder.append("=?");
+                }
+
                 Object[] pkVals = getPkValuesForStatement(op, table, clr);
-                CassandraUtils.logCqlStatement(stmtBuilder.toString(), pkVals, NucleusLogger.DATASTORE_NATIVE);
+                Object[] stmtParamVals = pkVals;
+                if (ec.getNucleusContext().isClassMultiTenant(cmd))
+                {
+                    stmtParamVals = new Object[pkVals.length +1];
+                    for (int i=0;i<pkVals.length;i++)
+                    {
+                        stmtParamVals[i] = pkVals[i];
+                    }
+                    stmtParamVals[pkVals.length] = ec.getNucleusContext().getMultiTenancyId(ec);
+                }
+                CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtParamVals, NucleusLogger.DATASTORE_NATIVE);
 
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
                 PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
-                ResultSet rs = session.execute(stmt.bind(pkVals));
-                if (rs.isExhausted())
+                ResultSet rs = session.execute(stmt.bind(stmtParamVals));
+                Row row = rs.one();
+                if (row == null)
                 {
                     throw new NucleusObjectNotFoundException("Could not find object with id " + IdentityUtils.getPersistableIdentityForId(op.getInternalObjectId()));
                 }
-
-                Row row = rs.one();
                 FetchFieldManager fetchFM = new FetchFieldManager(op, row, table);
                 if (nonpersistableFields != null)
                 {
@@ -922,8 +940,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 if (vermd != null && op.getTransactionalVersion() == null)
                 {
-                    // No version set, so retrieve it (note we do this after the retrieval of fields in case
-                    // just got version)
+                    // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
                     if (vermd.getFieldName() != null)
                     {
                         // Version stored in a field
@@ -1026,7 +1043,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             ManagedConnection mconn = storeMgr.getConnectionManager().getConnection(ec);
             try
             {
-                Session session = (Session) mconn.getConnection();
+                CqlSession session = (CqlSession) mconn.getConnection();
 
                 StoreData sd = storeMgr.getStoreDataForClass(cmd.getFullClassName());
                 if (sd == null)
@@ -1094,7 +1111,8 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
                 PreparedStatement stmt = stmtProvider.prepare(locateStmt, session);
                 ResultSet rs = session.execute(stmt.bind(pkVals));
-                if (rs.isExhausted())
+                Row row = rs.one();
+                if (row == null)
                 {
                     throw new NucleusObjectNotFoundException();
                 }
@@ -1299,7 +1317,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         return pkCols;
     }
 
-    protected void performOptimisticCheck(ObjectProvider op, Session session, Table table, VersionMetaData vermd, Object currentVersion)
+    protected void performOptimisticCheck(ObjectProvider op, CqlSession session, Table table, VersionMetaData vermd, Object currentVersion)
     {
         AbstractClassMetaData cmd = op.getClassMetaData();
 
@@ -1309,13 +1327,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
         PreparedStatement stmt = stmtProvider.prepare(getVersStmt, session);
         ResultSet rs = session.execute(stmt.bind(pkVals));
-        if (rs.isExhausted())
+        Row row = rs.one();
+        if (row == null)
         {
             // Object doesn't exist
             throw new NucleusDataStoreException("Could not find object with id " + op.getInternalObjectId() + " in the datastore, so cannot update it");
         }
 
-        Row row = rs.one();
         String verColName = null;
         if (vermd.getFieldName() == null)
         {

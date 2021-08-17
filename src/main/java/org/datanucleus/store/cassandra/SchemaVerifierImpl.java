@@ -352,7 +352,15 @@ public class SchemaVerifierImpl implements SchemaVerifier
                         {
                             type = "double";
                         }
-                        else if (col.getJdbcType() == JdbcType.DATE || col.getJdbcType() == JdbcType.TIME || col.getJdbcType() == JdbcType.TIMESTAMP)
+                        else if (col.getJdbcType() == JdbcType.DATE)
+                        {
+                            type = "date";
+                        }
+                        else if (col.getJdbcType() == JdbcType.TIME)
+                        {
+                            type = "time";
+                        }
+                        else if (col.getJdbcType() == JdbcType.TIMESTAMP)
                         {
                             type = "timestamp";
                         }

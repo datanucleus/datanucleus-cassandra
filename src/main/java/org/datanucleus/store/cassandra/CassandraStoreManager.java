@@ -46,7 +46,7 @@ import org.datanucleus.store.schema.table.CompleteClassTable;
 import org.datanucleus.util.Localiser;
 import org.datanucleus.util.StringUtils;
 
-import com.datastax.driver.core.Session;
+import com.datastax.oss.driver.api.core.CqlSession;
 
 /**
  * StoreManager for persisting to Cassandra datastores.
@@ -247,7 +247,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         ManagedConnection mconn = connectionMgr.getConnection(-1);
         try
         {
-            Session session = (Session) mconn.getConnection();
+            CqlSession session = (CqlSession) mconn.getConnection();
             manageClasses(classNames, clr, session);
         }
         finally
@@ -256,7 +256,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         }
     }
 
-    public void manageClasses(String[] classNames, ClassLoaderResolver clr, Session session)
+    public void manageClasses(String[] classNames, ClassLoaderResolver clr, CqlSession session)
     {
         if (classNames == null)
         {
