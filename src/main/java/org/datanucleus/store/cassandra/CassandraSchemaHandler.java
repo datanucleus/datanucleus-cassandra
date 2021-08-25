@@ -536,7 +536,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                     }
                 }
-                if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
+                if (cmd.isMultitenant())
                 {
                     // Index the multitenancy column
                     Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);

@@ -341,7 +341,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             numParams++;
         }
 
-        if (cmd.hasExtension(MetaData.EXTENSION_CLASS_SOFTDELETE))
+        if (cmd.isSoftDelete())
         {
             // Soft-delete column
             if (numParams > 0)
