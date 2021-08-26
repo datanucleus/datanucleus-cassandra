@@ -422,7 +422,7 @@ public class JDOQLQuery extends AbstractJDOQLQuery
             {
                 // Multi-tenancy column
                 stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
-                String multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec);
+                String multitenancyValue = ec.getNucleusContext().getTenantId(ec);
                 stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
             }
 

@@ -428,7 +428,7 @@ public class JPQLQuery extends AbstractJPQLQuery
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
                 stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
-                String multitenancyValue = ec.getNucleusContext().getMultiTenancyId(ec);
+                String multitenancyValue = ec.getNucleusContext().getTenantId(ec);
                 stmtBuilder.append(" WHERE ").append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
             }
 
