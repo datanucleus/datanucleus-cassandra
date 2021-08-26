@@ -180,7 +180,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (ec.getNucleusContext().isClassMultiTenant(cmd))
             {
                 // Multitenancy discriminator
-                multitenancyValue = ec.getNucleusContext().getTenantId(ec);
+                multitenancyValue = ec.getTenantId();
             }
 
             int numValues = columnValuesByName.size();
@@ -909,7 +909,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     {
                         stmtParamVals[i] = pkVals[i];
                     }
-                    stmtParamVals[pkVals.length] = ec.getNucleusContext().getTenantId(ec);
+                    stmtParamVals[pkVals.length] = ec.getTenantId();
                 }
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtParamVals, NucleusLogger.DATASTORE_NATIVE);
 
