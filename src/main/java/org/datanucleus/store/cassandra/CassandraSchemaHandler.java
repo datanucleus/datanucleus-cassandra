@@ -40,6 +40,7 @@ import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.IndexMetaData;
+import org.datanucleus.metadata.MultitenancyMetaData;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -536,9 +537,10 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         }
                     }
                 }
-                if (cmd.isMultitenant())
+                MultitenancyMetaData mtmd = cmd.getMultitenancyMetaData();
+                if (mtmd != null)
                 {
-                    // Index the multitenancy column
+                    // Index the multitenancy column TODO Do this according to the metadata, not "always"
                     Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
                     String idxName = namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
                     ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
