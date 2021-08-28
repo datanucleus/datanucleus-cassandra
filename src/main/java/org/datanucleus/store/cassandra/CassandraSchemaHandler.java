@@ -540,31 +540,35 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 MultitenancyMetaData mtmd = cmd.getMultitenancyMetaData();
                 if (mtmd != null)
                 {
-                    // Index the multitenancy column TODO Do this according to the metadata, not "always"
-                    Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
-                    String idxName = namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
-                    ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
-                    if (dbMultiColMd == null)
+                    IndexMetaData idxmd = mtmd.getIndexMetaData();
+                    if (idxmd != null)
                     {
-                        // Doesnt exist in Cassandra
-                        //String idxName = cmd.getName() + "_TENANCY_IDX";
-                        String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
-                        constraintStmts.add(indexStmt);
-                    }
-                    else
-                    {
-                        // Exists in Cassandra
-                        IndexMetadata dbMultiIdxMd = getIndexMetadataForColumn(tmd, column.getName());
-                        if (dbMultiIdxMd == null)
+                        // Index the multitenancy column
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+                        String idxName = (idxmd.getName() != null) ? idxmd.getName() : namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
+                        ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
+                        if (dbMultiColMd == null)
                         {
-                            // Index doesn't yet exist
+                            // Doesnt exist in Cassandra
+                            //String idxName = cmd.getName() + "_TENANCY_IDX";
                             String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                             constraintStmts.add(indexStmt);
                         }
-                        else if (!idxName.equals(dbMultiIdxMd.getName()))
+                        else
                         {
-                            // Index has wrong name!
-                            NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
+                            // Exists in Cassandra
+                            IndexMetadata dbMultiIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                            if (dbMultiIdxMd == null)
+                            {
+                                // Index doesn't yet exist
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                                constraintStmts.add(indexStmt);
+                            }
+                            else if (!idxName.equals(dbMultiIdxMd.getName()))
+                            {
+                                // Index has wrong name!
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
+                            }
                         }
                     }
                 }
