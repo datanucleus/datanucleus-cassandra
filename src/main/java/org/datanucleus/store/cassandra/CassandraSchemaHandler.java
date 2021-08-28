@@ -41,6 +41,7 @@ import org.datanucleus.metadata.ClassPersistenceModifier;
 import org.datanucleus.metadata.DiscriminatorMetaData;
 import org.datanucleus.metadata.IndexMetaData;
 import org.datanucleus.metadata.MultitenancyMetaData;
+import org.datanucleus.metadata.SoftDeleteMetaData;
 import org.datanucleus.metadata.VersionMetaData;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.connection.ManagedConnection;
@@ -546,6 +547,41 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         // Index the multitenancy column
                         Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
                         String idxName = (idxmd.getName() != null) ? idxmd.getName() : namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
+                        ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
+                        if (dbMultiColMd == null)
+                        {
+                            // Doesnt exist in Cassandra
+                            //String idxName = cmd.getName() + "_TENANCY_IDX";
+                            String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                            constraintStmts.add(indexStmt);
+                        }
+                        else
+                        {
+                            // Exists in Cassandra
+                            IndexMetadata dbMultiIdxMd = getIndexMetadataForColumn(tmd, column.getName());
+                            if (dbMultiIdxMd == null)
+                            {
+                                // Index doesn't yet exist
+                                String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                                constraintStmts.add(indexStmt);
+                            }
+                            else if (!idxName.equals(dbMultiIdxMd.getName()))
+                            {
+                                // Index has wrong name!
+                                NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
+                            }
+                        }
+                    }
+                }
+                SoftDeleteMetaData sdmd = cmd.getSoftDeleteMetaData();
+                if (sdmd != null)
+                {
+                    IndexMetaData idxmd = sdmd.getIndexMetaData();
+                    if (idxmd != null)
+                    {
+                        // Index the multitenancy column
+                        Column column = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+                        String idxName = (idxmd.getName() != null) ? idxmd.getName() : namingFactory.getConstraintName(cmd, null, ColumnType.SOFTDELETE_COLUMN);
                         ColumnMetadata dbMultiColMd = getColumnMetadataForColumn(tmd, column);
                         if (dbMultiColMd == null)
                         {
