@@ -29,7 +29,7 @@ import org.datanucleus.metadata.AbstractClassMetaData;
 import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.ColumnMetaData;
 import org.datanucleus.metadata.FieldRole;
-import org.datanucleus.metadata.IdentityMetaData;
+import org.datanucleus.metadata.DatastoreIdentityMetaData;
 import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
@@ -140,7 +140,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
         if (mapping.getColumn(0).getColumnType() == ColumnType.DATASTOREID_COLUMN)
         {
             String type = "bigint"; // Default to bigint unless specified
-            IdentityMetaData idmd = cmd.getIdentityMetaData();
+            DatastoreIdentityMetaData idmd = cmd.getDatastoreIdentityMetaData();
             if (idmd != null && idmd.getColumnMetaData() != null && idmd.getColumnMetaData().getJdbcType() != null)
             {
                 JdbcType jdbcType = idmd.getColumnMetaData().getJdbcType();
