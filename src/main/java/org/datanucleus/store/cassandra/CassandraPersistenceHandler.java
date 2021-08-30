@@ -181,6 +181,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // Multitenancy discriminator
                 multitenancyValue = ec.getTenantId();
             }
+            Object softDeleteValue = null;
+            if (table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE) != null)
+            {
+                softDeleteValue = Boolean.FALSE;
+            }
 
             int numValues = columnValuesByName.size();
             if (cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -199,6 +204,11 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 numValues++;
             }
+            if (softDeleteValue != null)
+            {
+                numValues++;
+            }
+
             Object[] stmtValues = new Object[numValues];
             int pos = 0;
             for (String colName : columnValuesByName.keySet())
@@ -222,7 +232,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtValues[pos++] = multitenancyValue;
             }
-            if (table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE) != null)
+            if (softDeleteValue != null)
             {
                 stmtValues[pos++] = Boolean.FALSE;
             }
@@ -630,72 +640,132 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 performOptimisticCheck(op, session, table, vermd, currentVersion);
             }
 
-            // TODO Cater for Soft-delete
-
             // Invoke any cascade deletion
             op.loadUnloadedFields();
             op.provideFields(cmd.getAllMemberPositions(), new DeleteFieldManager(op, true));
 
-            String deleteStmt = null;
-            if (deleteStatementByClassName != null)
+            Column softDeleteCol = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+            if (softDeleteCol != null)
             {
-                deleteStmt = deleteStatementByClassName.get(cmd.getFullClassName());
-            }
-            if (deleteStmt == null)
-            {
-                // Create the delete statement ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
-                StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
+                // SoftDelete : create statement of the form "UPDATE <schema>.<table> SET DELETED=true WHERE KEY1=? (AND KEY2=?)"
+                StringBuilder stmtBuilder = new StringBuilder("UPDATE ");
                 String schemaName = table.getSchemaName();
                 if (schemaName != null)
                 {
                     stmtBuilder.append(schemaName).append('.');
                 }
+                stmtBuilder.append(table.getName());
 
-                // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.delete.using')
-                String[] options = cmd.getValuesForExtension(CassandraStoreManager.EXTENSION_CASSANDRA_DELETE_USING);
-                if (options != null && options.length > 0)
+                List setVals = new ArrayList();
+                stmtBuilder.append(" SET ");
+                stmtBuilder.append(softDeleteCol.getName()).append("=?");
+                setVals.add(Boolean.TRUE);
+
+                stmtBuilder.append(" WHERE ");
+                if (cmd.getIdentityType() == IdentityType.APPLICATION)
                 {
-                    stmtBuilder.append(" USING ");
-                    for (int i = 0; i < options.length; i++)
+                    int[] pkFieldNums = cmd.getPKMemberPositions();
+                    for (int i = 0; i < pkFieldNums.length; i++)
                     {
                         if (i > 0)
                         {
                             stmtBuilder.append(" AND ");
                         }
-                        stmtBuilder.append(options[i]);
+                        AbstractMemberMetaData pkMmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(pkFieldNums[i]);
+                        // TODO Have PK member with multiple cols
+                        Column pkCol = table.getMemberColumnMappingForMember(pkMmd).getColumn(0);
+                        stmtBuilder.append(pkCol.getName());
+                        stmtBuilder.append("=?");
+                        RelationType relType = pkMmd.getRelationType(ec.getClassLoaderResolver());
+                        if (RelationType.isRelationSingleValued(relType))
+                        {
+                            Object pc = op.provideField(pkFieldNums[i]);
+                            setVals.add(IdentityUtils.getPersistableIdentityForId(ec.getApiAdapter().getIdForObject(pc)));
+                        }
+                        else
+                        {
+                            String cassandraType = pkCol.getTypeName();
+                            setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(op.provideField(pkFieldNums[i]), cassandraType, false, ec.getTypeManager(),
+                                pkMmd, FieldRole.ROLE_FIELD));
+                        }
                     }
                 }
-
-                // WHERE clause
-                stmtBuilder.append(table.getName()).append(" WHERE ");
-                List<Column> pkCols = getPrimaryKeyColumns(cmd, table, ec.getClassLoaderResolver());
-                int pkColNo = 0;
-                for (Column pkCol : pkCols)
+                else if (cmd.getIdentityType() == IdentityType.DATASTORE)
                 {
-                    if (pkColNo > 0)
-                    {
-                        stmtBuilder.append(" AND ");
-                    }
-                    stmtBuilder.append(pkCol.getName());
+                    stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID).getName());
                     stmtBuilder.append("=?");
-                    pkColNo++;
+                    Object oidVal = IdentityUtils.getTargetKeyForDatastoreIdentity(op.getInternalObjectId());
+                    setVals.add(CassandraUtils.getDatastoreValueForNonPersistableValue(oidVal, table.getSurrogateColumn(SurrogateColumnType.DATASTORE_ID).getTypeName(), false, ec.getTypeManager(), null, FieldRole.ROLE_FIELD));
                 }
 
-                deleteStmt = stmtBuilder.toString();
-
-                // Cache the statement
-                if (deleteStatementByClassName == null)
-                {
-                    deleteStatementByClassName = new HashMap<>();
-                }
-                deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
+                CassandraUtils.logCqlStatement(stmtBuilder.toString(), setVals.toArray(), NucleusLogger.DATASTORE_NATIVE);
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
+                PreparedStatement stmt = stmtProvider.prepare(stmtBuilder.toString(), session);
+                session.execute(stmt.bind(setVals.toArray()));
             }
+            else
+            {
+                String deleteStmt = null;
+                if (deleteStatementByClassName != null)
+                {
+                    deleteStmt = deleteStatementByClassName.get(cmd.getFullClassName());
+                }
+                if (deleteStmt == null)
+                {
+                    // Create the delete statement ("DELETE FROM <schema>.<table> WHERE KEY1=? (AND KEY2=?)")
+                    StringBuilder stmtBuilder = new StringBuilder("DELETE FROM ");
+                    String schemaName = table.getSchemaName();
+                    if (schemaName != null)
+                    {
+                        stmtBuilder.append(schemaName).append('.');
+                    }
 
-            Object[] pkVals = getPkValuesForStatement(op, table, ec.getClassLoaderResolver());
-            CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
-            SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
-            PreparedStatement stmt = stmtProvider.prepare(deleteStmt, session);
-            session.execute(stmt.bind(pkVals));
+                    // Allow user to provide OPTIONS using extensions metadata (comma-separated value, with key='cassandra.delete.using')
+                    String[] options = cmd.getValuesForExtension(CassandraStoreManager.EXTENSION_CASSANDRA_DELETE_USING);
+                    if (options != null && options.length > 0)
+                    {
+                        stmtBuilder.append(" USING ");
+                        for (int i = 0; i < options.length; i++)
+                        {
+                            if (i > 0)
+                            {
+                                stmtBuilder.append(" AND ");
+                            }
+                            stmtBuilder.append(options[i]);
+                        }
+                    }
+
+                    // WHERE clause
+                    stmtBuilder.append(table.getName()).append(" WHERE ");
+                    List<Column> pkCols = getPrimaryKeyColumns(cmd, table, ec.getClassLoaderResolver());
+                    int pkColNo = 0;
+                    for (Column pkCol : pkCols)
+                    {
+                        if (pkColNo > 0)
+                        {
+                            stmtBuilder.append(" AND ");
+                        }
+                        stmtBuilder.append(pkCol.getName());
+                        stmtBuilder.append("=?");
+                        pkColNo++;
+                    }
+
+                    deleteStmt = stmtBuilder.toString();
+
+                    // Cache the statement
+                    if (deleteStatementByClassName == null)
+                    {
+                        deleteStatementByClassName = new HashMap<>();
+                    }
+                    deleteStatementByClassName.put(cmd.getFullClassName(), deleteStmt);
+                }
+
+                Object[] pkVals = getPkValuesForStatement(op, table, ec.getClassLoaderResolver());
+                CassandraUtils.logCqlStatement(deleteStmt, pkVals, NucleusLogger.DATASTORE_NATIVE);
+                SessionStatementProvider stmtProvider = ((CassandraStoreManager) storeMgr).getStatementProvider();
+                PreparedStatement stmt = stmtProvider.prepare(deleteStmt, session);
+                session.execute(stmt.bind(pkVals));
+            }
 
             if (ec.getStatistics() != null)
             {
@@ -907,6 +977,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     }
                 }
 
+                // Add SOFTDELETE if available
+                Column softDeleteCol = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+                if (softDeleteCol != null)
+                {
+                    stmtBuilder.append(" AND ");
+                    stmtBuilder.append(softDeleteCol.getName());
+                    stmtBuilder.append("=?");
+                }
+
                 Object[] pkVals = getPkValuesForStatement(op, table, clr);
                 Object[] stmtParamVals = pkVals;
                 if (tenantId != null && multitenancyCol != null)
@@ -917,6 +996,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         stmtParamVals[i] = pkVals[i];
                     }
                     stmtParamVals[pkVals.length] = tenantId;
+                }
+                if (softDeleteCol != null)
+                {
+                    stmtParamVals = new Object[pkVals.length +1];
+                    for (int i=0;i<pkVals.length;i++)
+                    {
+                        stmtParamVals[i] = pkVals[i];
+                    }
+                    stmtParamVals[pkVals.length] = Boolean.FALSE;
                 }
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtParamVals, NucleusLogger.DATASTORE_NATIVE);
 
