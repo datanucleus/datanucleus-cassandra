@@ -43,6 +43,7 @@ import org.datanucleus.store.query.QueryManager;
 import org.datanucleus.store.query.QueryResult;
 import org.datanucleus.store.query.inmemory.JPQLInMemoryEvaluator;
 import org.datanucleus.store.query.inmemory.JavaQueryInMemoryEvaluator;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.Localiser;
@@ -423,20 +424,25 @@ public class JPQLQuery extends AbstractJPQLQuery
             StringBuilder stmtBuilder = new StringBuilder("SELECT * FROM ");
             stmtBuilder.append(table.getSchemaName()).append('.').append(table.getName());
             // TODO Add discriminator restriction if table is being shared (when we support table sharing)
-
             boolean addedWhere = false;
-            if (ec.getNucleusContext().isClassMultiTenant(cmd))
+
+            Column multitenancyCol = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+            if (multitenancyCol != null)
             {
-                stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
                 String multitenancyValue = ec.getTenantId();
-                stmtBuilder.append(" WHERE ").append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName()).append("='").append(multitenancyValue).append("'");
+                if (multitenancyValue != null)
+                {
+                    stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
+                    stmtBuilder.append(" WHERE ").append(multitenancyCol.getName()).append("='").append(multitenancyValue).append("'");
+                }
             }
 
-            if (table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE) != null)
+            Column softDeleteCol = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+            if (softDeleteCol != null)
             {
                 // Soft-delete column
                 stmtBuilder.append(addedWhere ? " AND " : " WHERE ");
-                stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE).getName()).append("='").append(Boolean.FALSE).append("'");
+                stmtBuilder.append(softDeleteCol.getName()).append("='").append(Boolean.FALSE).append("'");
             }
 
             // Execute the SELECT

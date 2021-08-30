@@ -418,7 +418,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                         String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), colNames[0], idxmd);
                                         constraintStmts.add(indexStmt);
                                     }
-                                    else if (!idxName.equals(dbIdxMdForCol.getName()))
+                                    else if (!idxName.equals(dbIdxMdForCol.getName().toString()))
                                     {
                                         // Index has wrong name!
                                         NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMdForCol.getName()));
@@ -498,7 +498,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), vermd.getIndexMetaData());
                                 constraintStmts.add(indexStmt);
                             }
-                            else if (!idxName.equals(dbVerIdxMd.getName()))
+                            else if (!idxName.equals(dbVerIdxMd.getName().toString()))
                             {
                                 // Index has wrong name!<?xml version="1.0"?>
 
@@ -530,7 +530,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), dismd.getIndexMetaData());
                                 constraintStmts.add(indexStmt);
                             }
-                            else if (!idxName.equals(dbDiscIdxMd.getName()))
+                            else if (!idxName.equals(dbDiscIdxMd.getName().toString()))
                             {
                                 // Index has wrong name!
                                 NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbDiscIdxMd.getName()));
@@ -565,7 +565,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                                 constraintStmts.add(indexStmt);
                             }
-                            else if (!idxName.equals(dbMultiIdxMd.getName()))
+                            else if (!idxName.equals(dbMultiIdxMd.getName().toString()))
                             {
                                 // Index has wrong name!
                                 NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
@@ -600,7 +600,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                 String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
                                 constraintStmts.add(indexStmt);
                             }
-                            else if (!idxName.equals(dbMultiIdxMd.getName()))
+                            else if (!idxName.equals(dbMultiIdxMd.getName().toString()))
                             {
                                 // Index has wrong name!
                                 NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbMultiIdxMd.getName()));
@@ -741,11 +741,11 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                         constraintStmts.add(indexStmt);
                     }
                 }
-                if (storeMgr.getNucleusContext().isClassMultiTenant(cmd))
+                Column multitenancyCol = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+                if (multitenancyCol != null)
                 {
-                    Column column = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
                     String idxName = namingFactory.getConstraintName(cmd, null, ColumnType.MULTITENANCY_COLUMN);
-                    String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), column.getName(), null);
+                    String indexStmt = createIndexCQL(idxName, schemaName, table.getName(), multitenancyCol.getName(), null);
                     constraintStmts.add(indexStmt);
                 }
             }
@@ -1109,7 +1109,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                                     }
                                     else
                                     {
-                                        if (!idxName.equals(dbIdxMd.getName()))
+                                        if (!idxName.equals(dbIdxMd.getName().toString()))
                                         {
                                             NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
                                         }
@@ -1138,7 +1138,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                             }
                             else
                             {
-                                if (!idxName.equals(dbIdxMd.getName()))
+                                if (!idxName.equals(dbIdxMd.getName().toString()))
                                 {
                                     NucleusLogger.DATASTORE_SCHEMA.warn(Localiser.msg("Cassandra.Schema.IndexHasWrongName", idxName, dbIdxMd.getName()));
                                 }
@@ -1241,7 +1241,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             for (IndexMetadata idxmd : idxmds)
             {
                 String dbIdxTarget = idxmd.getTarget();
-                if (dbIdxTarget != null && dbIdxTarget.equals(colName))
+                if (dbIdxTarget != null && dbIdxTarget.equalsIgnoreCase(colName)) // Seemingly case insensitive
                 {
                     return idxmd;
                 }

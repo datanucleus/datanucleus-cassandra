@@ -177,7 +177,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             Object discrimValue = cmd.getDiscriminatorValue();
 
             Object multitenancyValue = null;
-            if (ec.getNucleusContext().isClassMultiTenant(cmd))
+            if (table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY) != null)
             {
                 // Multitenancy discriminator
                 multitenancyValue = ec.getTenantId();
@@ -330,14 +330,16 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             numParams++;
         }
 
-        if (ec.getNucleusContext().isClassMultiTenant(cmd))
+        Column multitenancyCol = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+        Object tenantId = ec.getTenantId();
+        if (multitenancyCol != null && tenantId != null)
         {
             // Multi-tenancy discriminator
             if (numParams > 0)
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName());
+            insertStmtBuilder.append(multitenancyCol.getName());
             numParams++;
         }
 
@@ -891,25 +893,30 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                     pkColNo++;
                 }
 
-                // Add MULTITENANCY if available
-                if (ec.getNucleusContext().isClassMultiTenant(cmd))
+                // Add MULTITENANCY if available TODO Support tenancyReadIds
+                Column multitenancyCol = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+                Object tenantId = null;
+                if (multitenancyCol != null)
                 {
-                    // Multi-tenancy discriminator
-                    stmtBuilder.append(" AND ");
-                    stmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY).getName());
-                    stmtBuilder.append("=?");
+                    tenantId = ec.getTenantId();
+                    if (tenantId != null)
+                    {
+                        stmtBuilder.append(" AND ");
+                        stmtBuilder.append(multitenancyCol.getName());
+                        stmtBuilder.append("=?");
+                    }
                 }
 
                 Object[] pkVals = getPkValuesForStatement(op, table, clr);
                 Object[] stmtParamVals = pkVals;
-                if (ec.getNucleusContext().isClassMultiTenant(cmd))
+                if (tenantId != null && multitenancyCol != null)
                 {
                     stmtParamVals = new Object[pkVals.length +1];
                     for (int i=0;i<pkVals.length;i++)
                     {
                         stmtParamVals[i] = pkVals[i];
                     }
-                    stmtParamVals[pkVals.length] = ec.getTenantId();
+                    stmtParamVals[pkVals.length] = tenantId;
                 }
                 CassandraUtils.logCqlStatement(stmtBuilder.toString(), stmtParamVals, NucleusLogger.DATASTORE_NATIVE);
 
