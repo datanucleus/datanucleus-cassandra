@@ -36,7 +36,6 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.FieldPersistenceModifier;
 import org.datanucleus.metadata.FieldRole;
 import org.datanucleus.metadata.IdentityType;
-import org.datanucleus.metadata.MetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
@@ -223,7 +222,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 stmtValues[pos++] = multitenancyValue;
             }
-            if (cmd.hasExtension(MetaData.EXTENSION_CLASS_SOFTDELETE))
+            if (table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE) != null)
             {
                 stmtValues[pos++] = Boolean.FALSE;
             }
@@ -343,14 +342,15 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             numParams++;
         }
 
-        if (cmd.isSoftDelete())
+        Column softDeleteCol = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+        if (softDeleteCol != null)
         {
             // Soft-delete column
             if (numParams > 0)
             {
                 insertStmtBuilder.append(',');
             }
-            insertStmtBuilder.append(table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE).getName());
+            insertStmtBuilder.append(softDeleteCol.getName());
             numParams++;
         }
 
@@ -1102,6 +1102,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                         stmtBuilder.append("=?");
                         pkColNo++;
                     }
+                    // TODO Cater for MULTITENANCY, SOFT_DELETE
 
                     locateStmt = stmtBuilder.toString();
 
