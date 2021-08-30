@@ -48,7 +48,9 @@ import org.datanucleus.store.query.expression.Literal;
 import org.datanucleus.store.query.expression.OrderExpression;
 import org.datanucleus.store.query.expression.ParameterExpression;
 import org.datanucleus.store.query.expression.PrimaryExpression;
+import org.datanucleus.store.schema.table.Column;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
+import org.datanucleus.store.schema.table.SurrogateColumnType;
 import org.datanucleus.store.schema.table.Table;
 import org.datanucleus.util.NucleusLogger;
 import org.datanucleus.util.StringUtils;
@@ -214,25 +216,55 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
      */
     protected String compileFilter()
     {
-        if (compilation.getExprFilter() != null)
+        Column multitenancyCol = table.getSurrogateColumn(SurrogateColumnType.MULTITENANCY);
+        Column softDeleteCol = table.getSurrogateColumn(SurrogateColumnType.SOFTDELETE);
+
+        if (compilation.getExprFilter() != null || multitenancyCol != null || softDeleteCol != null)
         {
             compileComponent = CompilationComponent.FILTER;
 
             String cqlString = null;
-            try
+
+            CassandraExpression filterCqlExpr = null;
+            if (multitenancyCol != null)
             {
-                compilation.getExprFilter().evaluate(this);
-                CassandraExpression filterExpr = stack.pop();
-                cqlString = ((CassandraBooleanExpression) filterExpr).getCQL();
+                CassandraFieldExpression multitenancyColExpr = new CassandraFieldExpression(multitenancyCol.getName(), null);
+                CassandraLiteral multitenancyColValue = new CassandraLiteral(ec.getTenantId());
+                CassandraBooleanExpression multitenancyExpr = new CassandraBooleanExpression(multitenancyColExpr, multitenancyColValue, Expression.OP_EQ);
+                filterCqlExpr = multitenancyExpr;
             }
-            catch (Exception e)
+
+            if (softDeleteCol != null)
             {
-                // Impossible to compile all to run in the datastore, so just exit
-                if (NucleusLogger.QUERY.isDebugEnabled())
+                CassandraFieldExpression softDeleteColExpr = new CassandraFieldExpression(softDeleteCol.getName(), null);
+                CassandraLiteral softDeleteColValue = new CassandraLiteral(Boolean.FALSE);
+                CassandraBooleanExpression softDeleteExpr = new CassandraBooleanExpression(softDeleteColExpr, softDeleteColValue, Expression.OP_EQ);
+                filterCqlExpr = (filterCqlExpr != null) ? new CassandraBooleanExpression(filterCqlExpr, softDeleteExpr, Expression.OP_AND) : softDeleteExpr;
+            }
+
+            if (compilation.getExprFilter() != null)
+            {
+                // User provided filter
+                try
                 {
-                    NucleusLogger.QUERY.debug("Compilation of filter to be evaluated completely in-datastore was impossible : " + e.getMessage());
+                    compilation.getExprFilter().evaluate(this);
+                    CassandraExpression filterExpr = stack.pop();
+                    filterCqlExpr = (filterCqlExpr != null) ? new CassandraBooleanExpression(filterCqlExpr, filterExpr, Expression.OP_AND) : filterExpr;
                 }
-                filterComplete = false;
+                catch (Exception e)
+                {
+                    // Impossible to compile all to run in the datastore, so just exit
+                    if (NucleusLogger.QUERY.isDebugEnabled())
+                    {
+                        NucleusLogger.QUERY.debug("Compilation of filter to be evaluated completely in-datastore was impossible : " + e.getMessage());
+                    }
+                    filterComplete = false;
+                }
+            }
+
+            if (filterCqlExpr != null)
+            {
+                cqlString = ((CassandraBooleanExpression)filterCqlExpr).getCQL();
             }
 
             compileComponent = null;
@@ -437,8 +469,6 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     {
         CassandraExpression right = stack.pop();
         CassandraExpression left = stack.pop();
-        NucleusLogger.GENERAL.info(">> processEq left=" + StringUtils.toJVMIDString(left) + left + 
-            " right=" + StringUtils.toJVMIDString(right) + " " + right);
         CassandraBooleanExpression boolExpr = new CassandraBooleanExpression(left, right, expr.getOperator());
         stack.push(boolExpr);
         return boolExpr;
@@ -563,7 +593,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
     protected CassandraExpression getExpressionForPrimary(PrimaryExpression primExpr)
     {
         List<String> tuples = primExpr.getTuples();
-        NucleusLogger.GENERAL.info(">> getExprForPrim " + primExpr);
+        NucleusLogger.GENERAL.debug(">> getExprForPrim " + primExpr);
         if (tuples == null || tuples.isEmpty())
         {
             return null;
@@ -587,7 +617,7 @@ public class QueryToCQLMapper extends AbstractExpressionEvaluator
                 if (mmd != null)
                 {
                     RelationType relationType = mmd.getRelationType(ec.getClassLoaderResolver());
-                    NucleusLogger.GENERAL.info(">> getExprForPrim name=" + name + " mmd=" + mmd.getFullFieldName() + " relType=" + relationType);
+                    NucleusLogger.GENERAL.debug(">> getExprForPrim name=" + name + " mmd=" + mmd.getFullFieldName() + " relType=" + relationType);
                     if (relationType == RelationType.NONE)
                     {
                         if (iter.hasNext())
