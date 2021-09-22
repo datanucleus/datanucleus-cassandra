@@ -1295,7 +1295,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
     /**
      * Convenience method to extract the pk values to input into an LOCATE/UPDATE/DELETE/FETCH statement
-     * @param op ObjectProvider we are interested in
+     * @param op StateManager we are interested in
      * @param table The table
      * @param clr ClassLoader resolver
      * @return The pk values
