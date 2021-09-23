@@ -245,7 +245,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        AbstractMemberMetaData mmd = op.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        AbstractMemberMetaData mmd = sm.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
@@ -300,7 +300,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     return;
                 }
 
-                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, op, mmd);
+                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, sm, mmd);
                 StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
                 embSM.provideFields(embMmdPosns, storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
@@ -372,7 +372,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 ObjectProvider pcSM = ec.findObjectProvider(value);
                 if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    pcSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
+                    pcSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, sm, fieldNumber);
                 }
 
                 if (pcSM != null)
@@ -400,7 +400,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 return;
             }
 
-            Object valuePC = ec.persistObjectInternal(value, op, fieldNumber, -1);
+            Object valuePC = ec.persistObjectInternal(value, sm, fieldNumber, -1);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             // TODO Support 1-1 storage using "FK" style column(s) for related object
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
@@ -444,7 +444,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = collIter.next();
                     if (element != null)
                     {
-                        Object elementPC = ec.persistObjectInternal(element, op, fieldNumber, -1);
+                        Object elementPC = ec.persistObjectInternal(element, sm, fieldNumber, -1);
                         Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
@@ -455,7 +455,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -491,7 +491,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                     if (mmd.getMap().keyIsPersistent())
                     {
-                        Object keyPC = ec.persistObjectInternal(key, op, fieldNumber, -1);
+                        Object keyPC = ec.persistObjectInternal(key, sm, fieldNumber, -1);
                         Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
                         key = IdentityUtils.getPersistableIdentityForId(keyID);
                     }
@@ -504,7 +504,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         if (val != null)
                         {
-                            Object valPC = ec.persistObjectInternal(val, op, fieldNumber, -1);
+                            Object valPC = ec.persistObjectInternal(val, sm, fieldNumber, -1);
                             Object valID = ec.getApiAdapter().getIdForObject(valPC);
                             val = IdentityUtils.getPersistableIdentityForId(valID);
                         }
@@ -521,7 +521,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     idMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), idMap);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasArray())
@@ -579,7 +579,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 if (datastoreValue != null)
                 {
                     columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
-                    SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                    SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                     return;
                 }
             }
@@ -609,7 +609,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassColl.add(datastoreValue);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassColl);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasMap())
@@ -654,7 +654,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     cassMap.put(key, val);
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassMap);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
             else if (mmd.hasArray())
@@ -690,7 +690,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     }
                 }
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), cassArr);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
 
@@ -700,7 +700,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (datastoreValue != null)
             {
                 columnValueByName.put(mapping.getColumn(0).getName(), datastoreValue);
-                SCOUtils.wrapSCOField(op, fieldNumber, value, true);
+                SCOUtils.wrapSCOField(sm, fieldNumber, value, true);
                 return;
             }
         }

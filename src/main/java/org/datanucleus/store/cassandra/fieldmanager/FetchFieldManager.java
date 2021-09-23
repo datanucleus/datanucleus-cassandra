@@ -217,7 +217,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                ObjectProvider embSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
+                ObjectProvider embSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, sm, fieldNumber);
                 FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embSM, row, embMmds, table);
                 embSM.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                 return embSM.getObject();
@@ -266,7 +266,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 ObjectProvider pcSM = ec.findObjectProvider(value);
                 if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
+                    ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, sm, fieldNumber);
                 }
 
                 return value;
@@ -427,9 +427,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
                 // Obtain value using converter
                 Object returnValue = CassandraUtils.getMemberValueForColumnWithConverter(row, mapping.getColumn(0), mapping.getTypeConverter());
-                if (op != null)
+                if (sm != null)
                 {
-                    returnValue = SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true);
+                    returnValue = SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), returnValue, true);
                 }
                 return returnValue;
             }
@@ -446,7 +446,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         return null;
                     }
                     Object returnValue = serialConv.toMemberType(datastoreBuffer);
-                    returnValue = (op!=null) ? (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
+                    returnValue = (sm!=null) ? (Collection) SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
                 }
 
                 Collection<Object> coll;
@@ -502,10 +502,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     }
                 }
 
-                if (op != null)
+                if (sm != null)
                 {
                     // Wrap if SCO
-                    coll = (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), coll, true);
+                    coll = (Collection) SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), coll, true);
                 }
                 return coll;
             }
@@ -521,7 +521,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         return null;
                     }
                     Object returnValue = serialConv.toMemberType(datastoreBuffer);
-                    returnValue = (op!=null) ? SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
+                    returnValue = (sm!=null) ? SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), returnValue, true) : returnValue;
                 }
 
                 Map map;
@@ -579,10 +579,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                     }
                 }
 
-                if (op != null)
+                if (sm != null)
                 {
                     // Wrap if SCO
-                    map = (Map) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), map, true);
+                    map = (Map) SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), map, true);
                 }
                 return map;
             }
@@ -943,7 +943,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
         }
         catch (NucleusObjectNotFoundException onfe)
         {
-            NucleusLogger.PERSISTENCE.warn("Object=" + op + " field=" + mmd.getFullFieldName() + " has id=" + persistableId + " but could not instantiate object with that identity");
+            NucleusLogger.PERSISTENCE.warn("Object=" + sm + " field=" + mmd.getFullFieldName() + " has id=" + persistableId + " but could not instantiate object with that identity");
             return null;
         }
     }
@@ -1019,13 +1019,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
             }
 
-            if (op != null)
+            if (sm != null)
             {
                 // Wrap if SCO
-                coll = (Collection) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), coll, true);
+                coll = (Collection) SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), coll, true);
                 if (changeDetected)
                 {
-                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                    sm.makeDirty(mmd.getAbsoluteFieldNumber());
                 }
             }
             return coll;
@@ -1148,13 +1148,13 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 }
             }
 
-            if (op != null)
+            if (sm != null)
             {
                 // Wrap if SCO
-                map = (Map) SCOUtils.wrapSCOField(op, mmd.getAbsoluteFieldNumber(), map, true);
+                map = (Map) SCOUtils.wrapSCOField(sm, mmd.getAbsoluteFieldNumber(), map, true);
                 if (changeDetected)
                 {
-                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                    sm.makeDirty(mmd.getAbsoluteFieldNumber());
                 }
             }
             return map;
@@ -1218,9 +1218,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                         Array.set(array, j, Array.get(arrayOld, j));
                     }
                 }
-                if (op != null)
+                if (sm != null)
                 {
-                    op.makeDirty(mmd.getAbsoluteFieldNumber());
+                    sm.makeDirty(mmd.getAbsoluteFieldNumber());
                 }
             }
             return array;

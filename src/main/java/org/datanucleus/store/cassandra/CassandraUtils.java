@@ -812,7 +812,7 @@ public class CassandraUtils
             sm.setVersion(version);
         }
 
-        // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
+        // Any fields loaded above will not be wrapped since we did not have StateManager at the point of creating the FetchFieldManager, so wrap them now
         sm.replaceAllLoadedSCOFieldsWithWrappers();
 
         return pc;
@@ -889,7 +889,7 @@ public class CassandraUtils
             sm.setVersion(version);
         }
 
-        // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
+        // Any fields loaded above will not be wrapped since we did not have StateManager at the point of creating the FetchFieldManager, so wrap them now
         sm.replaceAllLoadedSCOFieldsWithWrappers();
 
         return pc;

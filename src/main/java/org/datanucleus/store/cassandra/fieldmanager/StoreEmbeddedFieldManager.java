@@ -85,13 +85,13 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         {
             // Special case of this member being a link back to the owner. TODO Repeat this for nested and
             // their owners
-            if (op != null)
+            if (sm != null)
             {
-                ObjectProvider[] ownerSMs = ec.getOwnersForEmbeddedObjectProvider(op);
+                ObjectProvider[] ownerSMs = ec.getOwnersForEmbeddedObjectProvider(sm);
                 if (ownerSMs != null && ownerSMs.length == 1 && value != ownerSMs[0].getObject())
                 {
                     // Make sure the owner field is set
-                    op.replaceField(fieldNumber, ownerSMs[0].getObject());
+                    sm.replaceField(fieldNumber, ownerSMs[0].getObject());
                 }
             }
             return;
@@ -139,7 +139,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     return;
                 }
 
-                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, op, mmd);
+                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, sm, mmd);
                 StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
                 embSM.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
@@ -153,7 +153,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             return;
         }
 
-        if (op == null)
+        if (sm == null)
         {
             // Null the column
             MemberColumnMapping mapping = getColumnMapping(fieldNumber);
