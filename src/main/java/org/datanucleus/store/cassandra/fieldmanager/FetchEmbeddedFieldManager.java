@@ -43,9 +43,9 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
     protected List<AbstractMemberMetaData> mmds;
 
-    public FetchEmbeddedFieldManager(ObjectProvider op, Row row, List<AbstractMemberMetaData> mmds, Table table)
+    public FetchEmbeddedFieldManager(ObjectProvider sm, Row row, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(op, row, table);
+        super(sm, row, table);
         this.mmds = mmds;
     }
 
@@ -76,8 +76,8 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
             // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-            ObjectProvider[] ownerOps = ec.getOwnersForEmbeddedObjectProvider(op);
-            return (ownerOps != null && ownerOps.length > 0 ? ownerOps[0].getObject() : null);
+            ObjectProvider[] ownerSms = ec.getOwnersForEmbeddedObjectProvider(op);
+            return (ownerSms != null && ownerSms.length > 0 ? ownerSms[0].getObject() : null);
         }
 
         if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
@@ -88,10 +88,10 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                ObjectProvider embOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
-                FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
-                embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
-                return embOP.getObject();
+                ObjectProvider embSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
+                FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embSM, row, embMmds, table);
+                embSM.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
+                return embSM.getObject();
             }
             else if (RelationType.isRelationMultiValued(relationType))
             {

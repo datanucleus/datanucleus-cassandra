@@ -57,9 +57,9 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
         this.mmds = mmds;
     }
 
-    public StoreEmbeddedFieldManager(ObjectProvider op, boolean insert, List<AbstractMemberMetaData> mmds, Table table)
+    public StoreEmbeddedFieldManager(ObjectProvider sm, boolean insert, List<AbstractMemberMetaData> mmds, Table table)
     {
-        super(op, insert, table);
+        super(sm, insert, table);
         this.mmds = mmds;
     }
 
@@ -87,11 +87,11 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             // their owners
             if (op != null)
             {
-                ObjectProvider[] ownerOPs = ec.getOwnersForEmbeddedObjectProvider(op);
-                if (ownerOPs != null && ownerOPs.length == 1 && value != ownerOPs[0].getObject())
+                ObjectProvider[] ownerSMs = ec.getOwnersForEmbeddedObjectProvider(op);
+                if (ownerSMs != null && ownerSMs.length == 1 && value != ownerSMs[0].getObject())
                 {
                     // Make sure the owner field is set
-                    op.replaceField(fieldNumber, ownerOPs[0].getObject());
+                    op.replaceField(fieldNumber, ownerSMs[0].getObject());
                 }
             }
             return;
@@ -139,9 +139,9 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     return;
                 }
 
-                ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
-                embOP.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
+                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, op, mmd);
+                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
+                embSM.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
                 columnValueByName.putAll(embColValuesByName);
                 return;

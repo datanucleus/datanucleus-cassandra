@@ -74,9 +74,9 @@ public class FetchFieldManager extends AbstractFetchFieldManager
 
     protected Row row;
 
-    public FetchFieldManager(ObjectProvider op, Row row, Table table)
+    public FetchFieldManager(ObjectProvider sm, Row row, Table table)
     {
-        super(op);
+        super(sm);
         this.table = table;
         this.row = row;
     }
@@ -217,10 +217,10 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                ObjectProvider embOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
-                FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embOP, row, embMmds, table);
-                embOP.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
-                return embOP.getObject();
+                ObjectProvider embSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, op, fieldNumber);
+                FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embSM, row, embMmds, table);
+                embSM.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
+                return embSM.getObject();
             }
             else if (RelationType.isRelationMultiValued(relationType))
             {
@@ -263,8 +263,8 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 Object value = serialConv.toMemberType(datastoreBuffer);
 
                 // Make sure it has an ObjectProvider
-                ObjectProvider pcOP = ec.findObjectProvider(value);
-                if (pcOP == null || ec.getApiAdapter().getExecutionContext(value) == null)
+                ObjectProvider pcSM = ec.findObjectProvider(value);
+                if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
                     ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
                 }

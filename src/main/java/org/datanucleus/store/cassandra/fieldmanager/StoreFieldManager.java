@@ -72,9 +72,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         this.table = table;
     }
 
-    public StoreFieldManager(ObjectProvider op, boolean insert, Table table)
+    public StoreFieldManager(ObjectProvider sm, boolean insert, Table table)
     {
-        super(op, insert);
+        super(sm, insert);
         this.table = table;
     }
 
@@ -300,9 +300,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     return;
                 }
 
-                ObjectProvider embOP = ec.findObjectProviderForEmbedded(value, op, mmd);
-                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embOP, insert, embMmds, table);
-                embOP.provideFields(embMmdPosns, storeEmbFM);
+                ObjectProvider embSM = ec.findObjectProviderForEmbedded(value, op, mmd);
+                StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
+                embSM.provideFields(embMmdPosns, storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
                 columnValueByName.putAll(embColValuesByName);
                 return;
@@ -369,15 +369,15 @@ public class StoreFieldManager extends AbstractStoreFieldManager
             if (mmd.isSerialized() && value instanceof Serializable)
             {
                 // Assign an ObjectProvider to the serialised object if none present
-                ObjectProvider pcOP = ec.findObjectProvider(value);
-                if (pcOP == null || ec.getApiAdapter().getExecutionContext(value) == null)
+                ObjectProvider pcSM = ec.findObjectProvider(value);
+                if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    pcOP = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
+                    pcSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, value, false, op, fieldNumber);
                 }
 
-                if (pcOP != null)
+                if (pcSM != null)
                 {
-                    pcOP.setStoringPC();
+                    pcSM.setStoringPC();
                 }
 
                 // Convert to ByteBuffer and use that
@@ -393,9 +393,9 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 Object serValue = serialConv.toDatastoreType(value);
                 columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), serValue);
 
-                if (pcOP != null)
+                if (pcSM != null)
                 {
-                    pcOP.unsetStoringPC();
+                    pcSM.unsetStoringPC();
                 }
                 return;
             }

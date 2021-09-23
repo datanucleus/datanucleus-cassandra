@@ -769,14 +769,14 @@ public class CassandraUtils
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(id, new FieldValues()
         {
-            public void fetchFields(ObjectProvider op)
+            public void fetchFields(ObjectProvider sm)
             {
-                op.replaceFields(fpMembers, fm);
+                sm.replaceFields(fpMembers, fm);
             }
 
-            public void fetchNonLoadedFields(ObjectProvider op)
+            public void fetchNonLoadedFields(ObjectProvider sm)
             {
-                op.replaceNonLoadedFields(fpMembers, fm);
+                sm.replaceNonLoadedFields(fpMembers, fm);
             }
 
             public FetchPlan getFetchPlanForLoading()
@@ -784,7 +784,7 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
-        ObjectProvider op = ec.findObjectProvider(pc);
+        ObjectProvider sm = ec.findObjectProvider(pc);
 
         if (cmd.isVersioned())
         {
@@ -795,7 +795,7 @@ public class CassandraUtils
             {
                 // Get the version from the field value
                 AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                version = op.provideField(verMmd.getAbsoluteFieldNumber());
+                version = sm.provideField(verMmd.getAbsoluteFieldNumber());
             }
             else
             {
@@ -809,11 +809,11 @@ public class CassandraUtils
                     version = row.getLong(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
             }
-            op.setVersion(version);
+            sm.setVersion(version);
         }
 
         // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
-        op.replaceAllLoadedSCOFieldsWithWrappers();
+        sm.replaceAllLoadedSCOFieldsWithWrappers();
 
         return pc;
     }
@@ -846,14 +846,14 @@ public class CassandraUtils
         Object pc = ec.findObject(id, new FieldValues()
         {
             // ObjectProvider calls the fetchFields method
-            public void fetchFields(ObjectProvider op)
+            public void fetchFields(ObjectProvider sm)
             {
-                op.replaceFields(fpMembers, fm);
+                sm.replaceFields(fpMembers, fm);
             }
 
-            public void fetchNonLoadedFields(ObjectProvider op)
+            public void fetchNonLoadedFields(ObjectProvider sm)
             {
-                op.replaceNonLoadedFields(fpMembers, fm);
+                sm.replaceNonLoadedFields(fpMembers, fm);
             }
 
             public FetchPlan getFetchPlanForLoading()
@@ -861,7 +861,7 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
-        ObjectProvider op = ec.findObjectProvider(pc);
+        ObjectProvider sm = ec.findObjectProvider(pc);
 
         if (cmd.isVersioned())
         {
@@ -872,7 +872,7 @@ public class CassandraUtils
             {
                 // Get the version from the field value
                 AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
-                version = op.provideField(verMmd.getAbsoluteFieldNumber());
+                version = sm.provideField(verMmd.getAbsoluteFieldNumber());
             }
             else
             {
@@ -886,11 +886,11 @@ public class CassandraUtils
                     version = row.getLong(table.getSurrogateColumn(SurrogateColumnType.VERSION).getName());
                 }
             }
-            op.setVersion(version);
+            sm.setVersion(version);
         }
 
         // Any fields loaded above will not be wrapped since we did not have the ObjectProvider at the point of creating the FetchFieldManager, so wrap them now
-        op.replaceAllLoadedSCOFieldsWithWrappers();
+        sm.replaceAllLoadedSCOFieldsWithWrappers();
 
         return pc;
     }
