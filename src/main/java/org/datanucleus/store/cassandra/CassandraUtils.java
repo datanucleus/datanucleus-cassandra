@@ -50,7 +50,7 @@ import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.JdbcType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.VersionMetaData;
-import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.state.DNStateManager;
 import org.datanucleus.store.FieldValues;
 import org.datanucleus.store.cassandra.fieldmanager.FetchFieldManager;
 import org.datanucleus.store.schema.table.Column;
@@ -769,12 +769,12 @@ public class CassandraUtils
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(id, new FieldValues()
         {
-            public void fetchFields(ObjectProvider sm)
+            public void fetchFields(DNStateManager sm)
             {
                 sm.replaceFields(fpMembers, fm);
             }
 
-            public void fetchNonLoadedFields(ObjectProvider sm)
+            public void fetchNonLoadedFields(DNStateManager sm)
             {
                 sm.replaceNonLoadedFields(fpMembers, fm);
             }
@@ -784,7 +784,7 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
-        ObjectProvider sm = ec.findObjectProvider(pc);
+        DNStateManager sm = ec.findStateManager(pc);
 
         if (cmd.isVersioned())
         {
@@ -845,13 +845,13 @@ public class CassandraUtils
         Class type = ec.getClassLoaderResolver().classForName(cmd.getFullClassName());
         Object pc = ec.findObject(id, new FieldValues()
         {
-            // ObjectProvider calls the fetchFields method
-            public void fetchFields(ObjectProvider sm)
+            // StateManager calls the fetchFields method
+            public void fetchFields(DNStateManager sm)
             {
                 sm.replaceFields(fpMembers, fm);
             }
 
-            public void fetchNonLoadedFields(ObjectProvider sm)
+            public void fetchNonLoadedFields(DNStateManager sm)
             {
                 sm.replaceNonLoadedFields(fpMembers, fm);
             }
@@ -861,7 +861,7 @@ public class CassandraUtils
                 return null;
             }
         }, type, ignoreCache, false);
-        ObjectProvider sm = ec.findObjectProvider(pc);
+        DNStateManager sm = ec.findStateManager(pc);
 
         if (cmd.isVersioned())
         {

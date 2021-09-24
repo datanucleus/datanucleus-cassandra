@@ -39,7 +39,7 @@ import org.datanucleus.metadata.IdentityType;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
 import org.datanucleus.metadata.VersionMetaData;
-import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.state.DNStateManager;
 import org.datanucleus.store.AbstractPersistenceHandler;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.StoreManager;
@@ -83,7 +83,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
     {
     }
 
-    public void insertObject(ObjectProvider sm)
+    public void insertObject(DNStateManager sm)
     {
         assertReadOnlyForUpdateOfObject(sm);
 
@@ -396,13 +396,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         return insertStmtBuilder.toString();
     }
 
-    public void insertObjects(ObjectProvider... sms)
+    public void insertObjects(DNStateManager... sms)
     {
         // TODO Support bulk insert operations. Currently falls back to one-by-one using superclass
         super.insertObjects(sms);
     }
 
-    public void updateObject(ObjectProvider sm, int[] fieldNumbers)
+    public void updateObject(DNStateManager sm, int[] fieldNumbers)
     {
         assertReadOnlyForUpdateOfObject(sm);
 
@@ -608,7 +608,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
     }
 
-    public void deleteObject(ObjectProvider sm)
+    public void deleteObject(DNStateManager sm)
     {
         assertReadOnlyForUpdateOfObject(sm);
 
@@ -789,13 +789,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
     }
 
-    public void deleteObjects(ObjectProvider... sms)
+    public void deleteObjects(DNStateManager... sms)
     {
         // TODO Support bulk delete operations. Currently falls back to one-by-one using superclass
         super.deleteObjects(sms);
     }
 
-    public void fetchObject(ObjectProvider sm, int[] fieldNumbers)
+    public void fetchObject(DNStateManager sm, int[] fieldNumbers)
     {
         AbstractClassMetaData cmd = sm.getClassMetaData();
 
@@ -1129,7 +1129,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
     }
 
-    public void locateObject(ObjectProvider sm)
+    public void locateObject(DNStateManager sm)
     {
         final AbstractClassMetaData cmd = sm.getClassMetaData();
         if (cmd.getIdentityType() == IdentityType.APPLICATION || cmd.getIdentityType() == IdentityType.DATASTORE)
@@ -1225,7 +1225,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
     }
 
-    public void locateObjects(ObjectProvider[] sms)
+    public void locateObjects(DNStateManager[] sms)
     {
         // TODO Support bulk locate operations. Currently falls back to one-by-one using superclass
         super.locateObjects(sms);
@@ -1300,7 +1300,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
      * @param clr ClassLoader resolver
      * @return The pk values
      */
-    protected Object[] getPkValuesForStatement(ObjectProvider sm, Table table, ClassLoaderResolver clr)
+    protected Object[] getPkValuesForStatement(DNStateManager sm, Table table, ClassLoaderResolver clr)
     {
         AbstractClassMetaData cmd = sm.getClassMetaData();
         ExecutionContext ec = sm.getExecutionContext();
@@ -1316,7 +1316,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 if (relType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(storeMgr.getMetaDataManager(), clr, pkMmd, relType, null))
                 {
                     // Embedded : allow 1 level of embedded field for PK
-                    ObjectProvider embSM = ec.findObjectProvider(fieldVal);
+                    DNStateManager embSM = ec.findStateManager(fieldVal);
                     AbstractClassMetaData embCmd = embSM.getClassMetaData();
                     int[] memberPositions = embCmd.getAllMemberPositions();
                     for (int j=0;j<memberPositions.length;j++)
@@ -1413,7 +1413,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         return pkCols;
     }
 
-    protected void performOptimisticCheck(ObjectProvider sm, CqlSession session, Table table, VersionMetaData vermd, Object currentVersion)
+    protected void performOptimisticCheck(DNStateManager sm, CqlSession session, Table table, VersionMetaData vermd, Object currentVersion)
     {
         AbstractClassMetaData cmd = sm.getClassMetaData();
 

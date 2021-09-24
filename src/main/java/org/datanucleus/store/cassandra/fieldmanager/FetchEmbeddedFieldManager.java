@@ -27,7 +27,7 @@ import org.datanucleus.metadata.AbstractMemberMetaData;
 import org.datanucleus.metadata.EmbeddedMetaData;
 import org.datanucleus.metadata.MetaDataUtils;
 import org.datanucleus.metadata.RelationType;
-import org.datanucleus.state.ObjectProvider;
+import org.datanucleus.state.DNStateManager;
 import org.datanucleus.store.fieldmanager.FieldManager;
 import org.datanucleus.store.schema.table.MemberColumnMapping;
 import org.datanucleus.store.schema.table.Table;
@@ -43,7 +43,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
     /** Metadata for the embedded member (maybe nested) that this FieldManager represents). */
     protected List<AbstractMemberMetaData> mmds;
 
-    public FetchEmbeddedFieldManager(ObjectProvider sm, Row row, List<AbstractMemberMetaData> mmds, Table table)
+    public FetchEmbeddedFieldManager(DNStateManager sm, Row row, List<AbstractMemberMetaData> mmds, Table table)
     {
         super(sm, row, table);
         this.mmds = mmds;
@@ -76,7 +76,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
             // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-            ObjectProvider[] ownerSms = ec.getOwnersForEmbeddedObjectProvider(sm);
+            DNStateManager[] ownerSms = ec.getOwnersForEmbeddedStateManager(sm);
             return (ownerSms != null && ownerSms.length > 0 ? ownerSms[0].getObject() : null);
         }
 
@@ -88,7 +88,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<AbstractMemberMetaData>(mmds);
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                ObjectProvider embSM = ec.getNucleusContext().getObjectProviderFactory().newForEmbedded(ec, embCmd, sm, fieldNumber);
+                DNStateManager embSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, embCmd, sm, fieldNumber);
                 FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embSM, row, embMmds, table);
                 embSM.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                 return embSM.getObject();
