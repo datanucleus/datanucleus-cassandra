@@ -245,7 +245,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
         {
             return;
         }
-        AbstractMemberMetaData mmd = sm.getClassMetaData().getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
+        AbstractMemberMetaData mmd = cmd.getMetaDataForManagedMemberAtAbsolutePosition(fieldNumber);
         ClassLoaderResolver clr = ec.getClassLoaderResolver();
         RelationType relationType = mmd.getRelationType(clr);
 
@@ -278,8 +278,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     for (int i = 0; i < embMmdPosns.length; i++)
                     {
                         AbstractMemberMetaData embMmd = embCmd.getMetaDataForManagedMemberAtAbsolutePosition(embMmdPosns[i]);
-                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd
-                                .getTypeName()))
+                        if (String.class.isAssignableFrom(embMmd.getType()) || embMmd.getType().isPrimitive() || ClassUtils.isPrimitiveWrapperType(mmd.getTypeName()))
                         {
                             // Store a null for any primitive/wrapper/String fields
                             List<AbstractMemberMetaData> colEmbMmds = new ArrayList<>(embMmds);
