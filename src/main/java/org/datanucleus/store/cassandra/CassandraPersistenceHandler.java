@@ -135,10 +135,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 // Process the version value, setting it on the object, and saving the value for the INSERT
                 versionValue = ec.getLockManager().getNextVersion(vermd, null);
-                if (vermd.getFieldName() != null)
+                if (vermd.getMemberName() != null)
                 {
                     // Version is stored in a member, so update the member too
-                    sm.replaceField(cmd.getMetaDataForMember(vermd.getFieldName()).getAbsoluteFieldNumber(), versionValue);
+                    sm.replaceField(cmd.getMetaDataForMember(vermd.getMemberName()).getAbsoluteFieldNumber(), versionValue);
                 }
                 sm.setTransactionalVersion(versionValue);
             }
@@ -192,7 +192,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             {
                 numValues++;
             }
-            if (versionValue != null && vermd != null && vermd.getFieldName() == null)
+            if (versionValue != null && vermd != null && vermd.getMemberName() == null)
             {
                 numValues++;
             }
@@ -220,7 +220,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 // TODO Cater for datastore attributed ID
                 stmtValues[pos++] = IdentityUtils.getTargetKeyForDatastoreIdentity(sm.getInternalObjectId());
             }
-            if (versionValue != null && vermd != null && vermd.getFieldName() == null)
+            if (versionValue != null && vermd != null && vermd.getMemberName() == null)
             {
                 stmtValues[pos++] = versionValue;
             }
@@ -316,7 +316,7 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         VersionMetaData vermd = cmd.getVersionMetaDataForClass();
         if (vermd != null)
         {
-            if (vermd.getFieldName() == null)
+            if (vermd.getMemberName() == null)
             {
                 // Add surrogate version column
                 if (numParams > 0)
@@ -463,10 +463,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
                 Object nextVersion = ec.getLockManager().getNextVersion(vermd, currentVersion);
                 sm.setTransactionalVersion(nextVersion);
-                if (vermd.getFieldName() != null)
+                if (vermd.getMemberName() != null)
                 {
                     // Version also stored in a field, so update the field value
-                    sm.replaceField(cmd.getMetaDataForMember(vermd.getFieldName()).getAbsoluteFieldNumber(), nextVersion);
+                    sm.replaceField(cmd.getMetaDataForMember(vermd.getMemberName()).getAbsoluteFieldNumber(), nextVersion);
                 }
             }
 
@@ -517,10 +517,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
 
             if (vermd != null)
             {
-                if (vermd.getFieldName() != null)
+                if (vermd.getMemberName() != null)
                 {
                     // Update the version field value
-                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getMemberName());
                     boolean updatingVerField = false;
                     for (int i = 0; i < fieldNumbers.length; i++)
                     {
@@ -894,10 +894,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             if (vermd != null && sm.getTransactionalVersion() == null)
             {
                 // No version set, so retrieve it
-                if (vermd.getFieldName() != null)
+                if (vermd.getMemberName() != null)
                 {
                     // Version stored in a field - check not in the requested fields
-                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                    AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getMemberName());
                     boolean selected = false;
                     for (int i = 0; i < fieldNumbers.length; i++)
                     {
@@ -1036,10 +1036,10 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
                 if (vermd != null && sm.getTransactionalVersion() == null)
                 {
                     // No version set, so retrieve it (note we do this after the retrieval of fields in case just got version)
-                    if (vermd.getFieldName() != null)
+                    if (vermd.getMemberName() != null)
                     {
                         // Version stored in a field
-                        Object datastoreVersion = sm.provideField(cmd.getAbsolutePositionOfMember(vermd.getFieldName()));
+                        Object datastoreVersion = sm.provideField(cmd.getAbsolutePositionOfMember(vermd.getMemberName()));
                         sm.setVersion(datastoreVersion);
                     }
                     else
@@ -1250,13 +1250,13 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
             StringBuilder stmtBuilder = new StringBuilder("SELECT ");
             Column col = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-            if (vermd.getFieldName() == null)
+            if (vermd.getMemberName() == null)
             {
                 col = table.getSurrogateColumn(SurrogateColumnType.VERSION);
             }
             else
             {
-                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getMemberName());
                 col = table.getMemberColumnMappingForMember(verMmd).getColumn(0);
             }
             stmtBuilder.append(col.getName());
@@ -1431,14 +1431,14 @@ public class CassandraPersistenceHandler extends AbstractPersistenceHandler
         }
 
         String verColName = null;
-        if (vermd.getFieldName() == null)
+        if (vermd.getMemberName() == null)
         {
             // Surrogate version
             verColName = table.getSurrogateColumn(SurrogateColumnType.VERSION).getName();
         }
         else
         {
-            verColName = table.getMemberColumnMappingForMember(cmd.getMetaDataForMember(vermd.getFieldName())).getColumn(0).getName();
+            verColName = table.getMemberColumnMappingForMember(cmd.getMetaDataForMember(vermd.getMemberName())).getColumn(0).getName();
         }
 
         if (currentVersion instanceof Long)

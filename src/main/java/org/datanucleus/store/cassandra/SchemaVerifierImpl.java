@@ -157,7 +157,7 @@ public class SchemaVerifierImpl implements SchemaVerifier
         }
         else if (mapping.getColumn(0).getColumnType() == ColumnType.VERSION_COLUMN)
         {
-            String cassandraType = cmd.getVersionMetaDataForClass().getVersionStrategy() == VersionStrategy.DATE_TIME ? "timestamp" : "bigint";
+            String cassandraType = cmd.getVersionMetaDataForClass().getStrategy() == VersionStrategy.DATE_TIME ? "timestamp" : "bigint";
             mapping.getColumn(0).setTypeName(cassandraType);
         }
         else if (mapping.getColumn(0).getColumnType() == ColumnType.DISCRIMINATOR_COLUMN)

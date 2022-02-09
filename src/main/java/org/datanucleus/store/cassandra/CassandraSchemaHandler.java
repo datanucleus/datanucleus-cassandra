@@ -476,7 +476,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     }
                 }
 
-                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getMemberName() == null)
                 {
                     VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                     if (vermd.getIndexMetaData() != null)
@@ -719,7 +719,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     }
                 }
 
-                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getFieldName() == null)
+                if (cmd.isVersioned() && cmd.getVersionMetaDataForClass() != null && cmd.getVersionMetaDataForClass().getMemberName() == null)
                 {
                     VersionMetaData vermd = cmd.getVersionMetaDataForClass();
                     if (vermd.getIndexMetaData() != null)

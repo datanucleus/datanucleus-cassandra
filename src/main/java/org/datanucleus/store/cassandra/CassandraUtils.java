@@ -791,10 +791,10 @@ public class CassandraUtils
             // Set the version on the retrieved object
             Object version = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-            if (vermd.getFieldName() != null)
+            if (vermd.getMemberName() != null)
             {
                 // Get the version from the field value
-                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getMemberName());
                 version = sm.provideField(verMmd.getAbsoluteFieldNumber());
             }
             else
@@ -868,10 +868,10 @@ public class CassandraUtils
             // Set the version on the retrieved object
             Object version = null;
             VersionMetaData vermd = cmd.getVersionMetaDataForClass();
-            if (vermd.getFieldName() != null)
+            if (vermd.getMemberName() != null)
             {
                 // Get the version from the field value
-                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getFieldName());
+                AbstractMemberMetaData verMmd = cmd.getMetaDataForMember(vermd.getMemberName());
                 version = sm.provideField(verMmd.getAbsoluteFieldNumber());
             }
             else
