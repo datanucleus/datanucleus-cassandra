@@ -299,7 +299,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     return;
                 }
 
-                DNStateManager embSM = ec.findStateManagerForEmbedded(value, sm, mmd);
+                DNStateManager embSM = ec.findStateManagerForEmbedded(value, sm, mmd, null);
                 StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
                 embSM.provideFields(embMmdPosns, storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
@@ -371,7 +371,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 DNStateManager pcSM = ec.findStateManager(value);
                 if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    pcSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber);
+                    pcSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber, null);
                 }
 
                 if (pcSM != null)

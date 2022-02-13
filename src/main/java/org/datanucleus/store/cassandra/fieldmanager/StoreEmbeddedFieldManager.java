@@ -139,7 +139,7 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
                     return;
                 }
 
-                DNStateManager embSM = ec.findStateManagerForEmbedded(value, sm, mmd);
+                DNStateManager embSM = ec.findStateManagerForEmbedded(value, sm, mmd, null);
                 StoreEmbeddedFieldManager storeEmbFM = new StoreEmbeddedFieldManager(embSM, insert, embMmds, table);
                 embSM.provideFields(embCmd.getAllMemberPositions(), storeEmbFM);
                 Map<String, Object> embColValuesByName = storeEmbFM.getColumnValueByName();
