@@ -372,7 +372,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 DNStateManager pcSM = ec.findStateManager(value);
                 if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    pcSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber, null);
+                    pcSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber, PersistableObjectType.EMBEDDED_PC);
                 }
 
                 if (pcSM != null)

@@ -39,6 +39,7 @@ import java.util.UUID;
 
 import org.datanucleus.ClassLoaderResolver;
 import org.datanucleus.ExecutionContext;
+import org.datanucleus.PersistableObjectType;
 import org.datanucleus.exceptions.NucleusDataStoreException;
 import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.datanucleus.exceptions.NucleusUserException;
@@ -217,7 +218,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 List<AbstractMemberMetaData> embMmds = new ArrayList<>();
                 embMmds.add(mmd);
                 AbstractClassMetaData embCmd = ec.getMetaDataManager().getMetaDataForClass(mmd.getType(), clr);
-                DNStateManager embSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, embCmd, sm, fieldNumber, null);
+                DNStateManager embSM = ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, embCmd, sm, fieldNumber, PersistableObjectType.EMBEDDED_PC);
                 FieldManager fetchEmbFM = new FetchEmbeddedFieldManager(embSM, row, embMmds, table);
                 embSM.replaceFields(embCmd.getAllMemberPositions(), fetchEmbFM);
                 return embSM.getObject();
@@ -266,7 +267,7 @@ public class FetchFieldManager extends AbstractFetchFieldManager
                 DNStateManager pcSM = ec.findStateManager(value);
                 if (pcSM == null || ec.getApiAdapter().getExecutionContext(value) == null)
                 {
-                    ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber, null);
+                    ec.getNucleusContext().getStateManagerFactory().newForEmbedded(ec, value, false, sm, fieldNumber, PersistableObjectType.EMBEDDED_PC);
                 }
 
                 return value;
