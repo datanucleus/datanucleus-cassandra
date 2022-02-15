@@ -87,11 +87,11 @@ public class StoreEmbeddedFieldManager extends StoreFieldManager
             // their owners
             if (sm != null)
             {
-                DNStateManager[] ownerSMs = ec.getOwnersForEmbeddedStateManager(sm);
-                if (ownerSMs != null && ownerSMs.length == 1 && value != ownerSMs[0].getObject())
+                DNStateManager ownerSM = ec.getOwnerForEmbeddedStateManager(sm);
+                if (ownerSM != null && value != ownerSM.getObject())
                 {
                     // Make sure the owner field is set
-                    sm.replaceField(fieldNumber, ownerSMs[0].getObject());
+                    sm.replaceField(fieldNumber, ownerSM.getObject());
                 }
             }
             return;

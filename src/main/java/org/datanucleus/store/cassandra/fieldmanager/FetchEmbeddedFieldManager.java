@@ -77,8 +77,7 @@ public class FetchEmbeddedFieldManager extends FetchFieldManager
         if (mmds.size() == 1 && embmd != null && embmd.getOwnerMember() != null && embmd.getOwnerMember().equals(mmd.getName()))
         {
             // Special case of this being a link back to the owner. TODO Repeat this for nested and their owners
-            DNStateManager[] ownerSms = ec.getOwnersForEmbeddedStateManager(sm);
-            return (ownerSms != null && ownerSms.length > 0 ? ownerSms[0].getObject() : null);
+            return ec.getOwnerForEmbeddedStateManager(sm);
         }
 
         if (relationType != RelationType.NONE && MetaDataUtils.getInstance().isMemberEmbedded(ec.getMetaDataManager(), clr, mmd, relationType, null))
