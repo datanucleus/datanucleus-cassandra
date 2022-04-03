@@ -538,7 +538,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
-                        Object elementPC = ec.persistObjectInternal(element, null, -1, PersistableObjectType.PC);
+                        Object elementPC = ec.persistObjectInternal(element, sm, fieldNumber, PersistableObjectType.PC);
                         Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
