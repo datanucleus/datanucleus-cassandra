@@ -400,7 +400,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                 return;
             }
 
-            Object valuePC = ec.persistObjectInternal(value, sm, fieldNumber, PersistableObjectType.PC);
+            Object valuePC = ec.persistObjectInternal(value, null, PersistableObjectType.PC, sm, fieldNumber);
             Object valueID = ec.getApiAdapter().getIdForObject(valuePC);
             // TODO Support 1-1 storage using "FK" style column(s) for related object
             columnValueByName.put(getColumnMapping(fieldNumber).getColumn(0).getName(), IdentityUtils.getPersistableIdentityForId(valueID));
@@ -444,7 +444,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = collIter.next();
                     if (element != null)
                     {
-                        Object elementPC = ec.persistObjectInternal(element, sm, fieldNumber, PersistableObjectType.PC);
+                        Object elementPC = ec.persistObjectInternal(element, null, PersistableObjectType.PC, sm, fieldNumber);
                         Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
@@ -491,7 +491,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
 
                     if (mmd.getMap().keyIsPersistent())
                     {
-                        Object keyPC = ec.persistObjectInternal(key, sm, fieldNumber, PersistableObjectType.PC);
+                        Object keyPC = ec.persistObjectInternal(key, null, PersistableObjectType.PC, sm, fieldNumber);
                         Object keyID = ec.getApiAdapter().getIdForObject(keyPC);
                         key = IdentityUtils.getPersistableIdentityForId(keyID);
                     }
@@ -504,7 +504,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     {
                         if (val != null)
                         {
-                            Object valPC = ec.persistObjectInternal(val, sm, fieldNumber, PersistableObjectType.PC);
+                            Object valPC = ec.persistObjectInternal(val, null, PersistableObjectType.PC, sm, fieldNumber);
                             Object valID = ec.getApiAdapter().getIdForObject(valPC);
                             val = IdentityUtils.getPersistableIdentityForId(valID);
                         }
@@ -538,7 +538,7 @@ public class StoreFieldManager extends AbstractStoreFieldManager
                     Object element = Array.get(value, i);
                     if (element != null)
                     {
-                        Object elementPC = ec.persistObjectInternal(element, sm, fieldNumber, PersistableObjectType.PC);
+                        Object elementPC = ec.persistObjectInternal(element, null, PersistableObjectType.PC, sm, fieldNumber);
                         Object elementID = ec.getApiAdapter().getIdForObject(elementPC);
                         cassColl.add(IdentityUtils.getPersistableIdentityForId(elementID));
                     }
