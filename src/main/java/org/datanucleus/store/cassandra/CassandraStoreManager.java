@@ -20,6 +20,7 @@ package org.datanucleus.store.cassandra;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -53,7 +54,7 @@ import com.datastax.oss.driver.api.core.CqlSession;
  */
 public class CassandraStoreManager extends AbstractStoreManager implements SchemaAwareStoreManager
 {
-    public static final String PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION = "datanucleus.cassandra.enforceUniquenessInApplication";
+    public static final String PROPERTY_CASSANDRA_ENFORCE_UNIQUENESS_IN_APPLICATION = "datanucleus.cassandra.enforceUniquenessInApplication".toLowerCase(Locale.ENGLISH);
 
     /** Comma separated USING clause for INSERTS. */
     public static final String EXTENSION_CASSANDRA_INSERT_USING = "datanucleus.cassandra.insert.using";
