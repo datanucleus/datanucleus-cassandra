@@ -32,6 +32,7 @@ import org.datanucleus.exceptions.NucleusException;
 import org.datanucleus.identity.SCOID;
 import org.datanucleus.metadata.ClassMetaData;
 import org.datanucleus.metadata.ClassPersistenceModifier;
+import org.datanucleus.metadata.QueryLanguage;
 import org.datanucleus.store.AbstractStoreManager;
 import org.datanucleus.store.StoreData;
 import org.datanucleus.store.StoreManager;
@@ -153,7 +154,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public boolean supportsQueryLanguage(String language)
     {
-        if (language != null && (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL) || language.equalsIgnoreCase(Query.LANGUAGE_JPQL) || language.equalsIgnoreCase("CQL")))
+        if (language != null && (language.equals(QueryLanguage.JDOQL.name()) || language.equals(QueryLanguage.JPQL.name()) || language.equals("CQL")))
         {
             return true;
         }
@@ -175,15 +176,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec)
     {
-        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
+        if (language.equals(QueryLanguage.JDOQL.name()))
         {
             return new JDOQLQuery(this, ec);
         }
-        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
+        else if (language.equals(QueryLanguage.JPQL.name()))
         {
             return new JPQLQuery(this, ec);
         }
-        else if (language.equalsIgnoreCase("CQL"))
+        else if (language.equals("CQL"))
         {
             return new CQLQuery(this, ec);
         }
@@ -196,15 +197,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec, String queryString)
     {
-        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
+        if (language.equals(QueryLanguage.JDOQL.name()))
         {
             return new JDOQLQuery(this, ec, queryString);
         }
-        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
+        else if (language.equals(QueryLanguage.JPQL.name()))
         {
             return new JPQLQuery(this, ec, queryString);
         }
-        else if (language.equalsIgnoreCase("CQL"))
+        else if (language.equals("CQL"))
         {
             return new CQLQuery(this, ec, queryString);
         }
@@ -217,15 +218,15 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public Query newQuery(String language, ExecutionContext ec, Query q)
     {
-        if (language.equalsIgnoreCase(Query.LANGUAGE_JDOQL))
+        if (language.equals(QueryLanguage.JDOQL.name()))
         {
             return new JDOQLQuery(this, ec, (JDOQLQuery) q);
         }
-        else if (language.equalsIgnoreCase(Query.LANGUAGE_JPQL))
+        else if (language.equals(QueryLanguage.JPQL.name()))
         {
             return new JPQLQuery(this, ec, (JPQLQuery) q);
         }
-        else if (language.equalsIgnoreCase("CQL"))
+        else if (language.equals("CQL"))
         {
             return new CQLQuery(this, ec, (CQLQuery) q);
         }
