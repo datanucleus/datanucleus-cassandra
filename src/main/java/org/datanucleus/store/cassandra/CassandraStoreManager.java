@@ -63,6 +63,8 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     /** Comma separated USING clause for DELETES. */
     public static final String EXTENSION_CASSANDRA_DELETE_USING = "datanucleus.cassandra.delete.using";
 
+    public static final String QUERY_LANGUAGE_CQL = "CQL";
+
     static
     {
         Localiser.registerBundle("org.datanucleus.store.cassandra.Localisation", CassandraStoreManager.class.getClassLoader());
@@ -144,7 +146,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     public Collection<String> getSupportedQueryLanguages()
     {
         Collection<String> languages = super.getSupportedQueryLanguages();
-        languages.add("CQL");
+        languages.add(QUERY_LANGUAGE_CQL);
         return languages;
     }
 
@@ -154,7 +156,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public boolean supportsQueryLanguage(String language)
     {
-        if (language != null && (language.equals(QueryLanguage.JDOQL.name()) || language.equals(QueryLanguage.JPQL.name()) || language.equals("CQL")))
+        if (language != null && (language.equals(QueryLanguage.JDOQL.name()) || language.equals(QueryLanguage.JPQL.name()) || language.equals(QUERY_LANGUAGE_CQL)))
         {
             return true;
         }
@@ -167,7 +169,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
     @Override
     public String getNativeQueryLanguage()
     {
-        return "CQL";
+        return QUERY_LANGUAGE_CQL;
     }
 
     /* (non-Javadoc)
@@ -184,7 +186,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         {
             return new JPQLQuery(this, ec);
         }
-        else if (language.equals("CQL"))
+        else if (language.equals(QUERY_LANGUAGE_CQL))
         {
             return new CQLQuery(this, ec);
         }
@@ -205,7 +207,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         {
             return new JPQLQuery(this, ec, queryString);
         }
-        else if (language.equals("CQL"))
+        else if (language.equals(QUERY_LANGUAGE_CQL))
         {
             return new CQLQuery(this, ec, queryString);
         }
@@ -226,7 +228,7 @@ public class CassandraStoreManager extends AbstractStoreManager implements Schem
         {
             return new JPQLQuery(this, ec, (JPQLQuery) q);
         }
-        else if (language.equals("CQL"))
+        else if (language.equals(QUERY_LANGUAGE_CQL))
         {
             return new CQLQuery(this, ec, (CQLQuery) q);
         }
