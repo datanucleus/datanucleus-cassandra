@@ -8,7 +8,7 @@
     </parent>
 
     <artifactId>datanucleus-cassandra</artifactId>
-    <version>6.0.0-m6-SNAPSHOT</version>
+    <version>6.0.0-release-SNAPSHOT</version>
 
     <name>DataNucleus Cassandra plugin</name>
     <description>
@@ -16,7 +16,7 @@
     </description>
 
     <properties>
-        <dn.core.version>5.9</dn.core.version>
+        <dn.core.version>6.0.0-m1</dn.core.version>
         <datastax.driver.version>4.13.0</datastax.driver.version>
     </properties>
 
