@@ -169,11 +169,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                 List<String> tableStmts = new ArrayList<String>();
                 List<String> constraintStmts = new ArrayList<String>();
 
-                Iterator<String> classIter = classNames.iterator();
                 ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
-                while (classIter.hasNext())
+                for (String className : classNames)
                 {
-                    String className = classIter.next();
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null)
                     {
@@ -831,11 +829,9 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
                     session = (CqlSession) mconn.getConnection();
                 }
 
-                Iterator<String> classIter = classNames.iterator();
                 ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
-                while (classIter.hasNext())
+                for (String className : classNames)
                 {
-                    String className = classIter.next();
                     AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
                     if (cmd != null && !cmd.isEmbeddedOnly() && cmd.getPersistenceModifier() == ClassPersistenceModifier.PERSISTENCE_CAPABLE)
                     {
@@ -995,7 +991,6 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
         CqlSession session = (CqlSession) connection;
 
         boolean success = true;
-        ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
         ManagedConnection mconn = null;
         try
         {
@@ -1006,6 +1001,7 @@ public class CassandraSchemaHandler extends AbstractStoreSchemaHandler
             }
 
             NamingFactory namingFactory = storeMgr.getNamingFactory();
+            ClassLoaderResolver clr = storeMgr.getNucleusContext().getClassLoaderResolver(null);
             for (String className : classNames)
             {
                 AbstractClassMetaData cmd = storeMgr.getMetaDataManager().getMetaDataForClass(className, clr);
